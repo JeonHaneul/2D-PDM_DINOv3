@@ -1,358 +1,455 @@
-# Zero-Shot Similarity Map Pipeline — Architecture
+# 2D-PDM
 
-## 1. 개요
+### Zero-Shot Probability Distribution Mapping for Occluded Object Search in Cluttered Drawers
 
-임의의 타겟 이미지(또는 이미지 + 텍스트)를 쿼리로 받아,
-씬 이미지 안에서 해당 물체와 얼마나 유사한지를 픽셀 단위 유사도 맵(0~1)으로 출력하는 zero-shot 파이프라인.
-
-**핵심 특성**
-- 추론 시 카테고리 레이블 불필요 — 이미지(+ 물체 이름 텍스트) 만으로 동작
-- 학습 데이터에 없던 새 물체에 대해 zero-shot 일반화
-- 학습 대상 파라미터 **3.58M** (전체 모델의 약 0.3%)
+> **Research in progress**  
+> RGB-D 관측만으로 다른 물체 아래에 완전히 가려진 target object의 존재 위치를 추론하고, 효율적인 탐색 행동을 위한 pixel-wise probability map을 생성합니다.
 
 ---
 
-## 2. 모델 구성
+## Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         INFERENCE FLOW                              │
-│                                                                     │
-│  TARGET  ─────────────────────────────────────────────────────────┐ │
-│  image                                                            ↓ │
-│    └─► [FG mask + crop]                                           │ │
-│              ↓                         ↓                          │ │
-│        DINOv3 vits16              SigLIP so400m                   │ │
-│        (frozen, 224px)            (frozen, 384px)                 │ │
-│              ↓                         ↓                          │ │
-│     appearances[L]            img_embed (1152-d)                  │ │
-│     [(384,)] × 4              +(text_embed/2 선택)                │ │
-│              │                    semantic_raw (1152-d)           │ │
-│              │                         ↓                          │ │
-│              │                  proj[L] ★학습★                    │ │
-│              │                  Linear(1152→384) × 4              │ │
-│              │                    sem_proj[L] (384,) × 4          │ │
-│              └────────── + ─────────────┘                         │ │
-│                       query[L]  (384,) × 4   ←────────────────── ┘ │
-│                           ↓                                         │
-│  SCENE  ──────────────────────────────────────────┐                 │
-│  image                                            ↓                 │
-│    └─► DINOv3 vits16 (frozen, full res)                            │
-│              ↓                                                      │
-│       scene_feats[L]  (B, 384, Hp, Wp) × 4                         │
-│              ↓                                                      │
-│         ZeroShotHead ★학습★                                        │
-│              ↓                                                      │
-│       prob_map  (B, 1, H, W)  [0, 1]                               │
-└─────────────────────────────────────────────────────────────────────┘
-```
+사람은 서랍 속에서 보이지 않는 물체를 찾을 때 무작위로 물체를 제거하지 않습니다. 타겟과 비슷한 물체가 모인 곳을 살피고, 물체가 가려질 수 있는 공간을 추정하며, 더미가 얼마나 복잡하게 얽혀 있는지를 함께 판단합니다.
 
----
+2D-PDM은 이 탐색 전략을 세 개의 독립적인 probability stream으로 모델링합니다.
 
-## 3. 구성 요소
-
-### 3-1. DINOv3 vits16 — Appearance Encoder (Frozen)
-
-| 항목 | 값 |
-|---|---|
-| 모델 | `dinov3_vits16` |
-| 가중치 | `model/dinov3_vits16_pretrain_lvd1689m-08c60483.pth` |
-| 출력 차원 | 384-d |
-| 패치 크기 | 16 px |
-| 사용 레이어 | L2, L5, L8, L11 (총 12층 중 4개) |
-| 파라미터 | ~21M (frozen) |
-| 역할 | 씬/타겟 공통 appearance 인코딩 |
-
-`get_intermediate_layers(n=(2,5,8,11), reshape=True, return_class_token=True)`
-→ 각 레이어에서 `(patch_grid: B×C×Hp×Wp, cls: B×C)` 쌍 반환
-
-**타겟 쪽**: 224px 리사이즈 → FG 마스크로 masked average pooling → `(384,)` 벡터 × 4 레이어
-
-**씬 쪽**: 원본 해상도(16의 배수) → 패치 그리드 그대로 사용
-
----
-
-### 3-2. SigLIP so400m — Semantic Encoder (Frozen)
-
-| 항목 | 값 |
-|---|---|
-| 모델 | `google/siglip-so400m-patch14-384` |
-| 출처 | Gemma3 4B의 실제 vision encoder |
-| 입력 해상도 | 384 × 384 |
-| 출력 차원 | 1152-d (pooler_output) |
-| 파라미터 | ~400M (frozen) |
-| 역할 | 타겟의 semantic embedding 추출 (타겟 측만 적용) |
-
-**이미지 임베딩**: SigLIP vision_model → L2-normalize → `(1, 1152)`
-
-**텍스트 임베딩** (선택):
-- 텍스트 입력: `"a photo of {specific}, a type of {category}"`
-  - 예) `"a photo of an apple, a type of fruit"`
-- SigLIP text_model → L2-normalize → `(1, 1152)`
-- 같은 SigLIP 공간에 정렬되어 있으므로 평균 fusion 가능:
-  `semantic_raw = L2_norm((img_embed + text_embed) / 2)`
-- **텍스트 없이** 이미지만 줘도 동작 (image-only mode)
-- 텍스트를 주면 모호한 타겟(어두운 조명 등)을 카테고리 정보로 보완
-
-> **비대칭 설계**: SigLIP은 타겟 측에만 붙어 있음.  
-> 씬 측은 DINOv3만 사용 → 씬 안의 새 물체는 시각적 외관으로만 매칭됨.
-
----
-
-### 3-3. SigLIP Projection — semantic.proj (Trainable)
-
-```python
-proj = nn.ModuleList([
-    nn.Linear(1152, 384)   # bias 포함
-    for _ in range(4)      # 레이어별 독립 투영
-])
-```
-
-| 항목 | 값 |
-|---|---|
-| 구조 | `Linear(1152 → 384) × 4` (레이어별 독립) |
-| 파라미터 | **1,771,008** (학습) |
-| 역할 | SigLIP 공간(1152-d)을 DINOv3 공간(384-d)으로 정렬 |
-
-**Additive Fusion**: `query[l] = appearance[l] + proj[l](semantic_raw)`
-- appearance: 시각적 디테일 (DINOv3)
-- proj(semantic): 카테고리 의미 (SigLIP → 정렬)
-- 합산 결과가 씬의 DINOv3 패치와 직접 비교됨
-
----
-
-### 3-4. ZeroShotHead (Trainable)
-
-```
-입력 채널: scene_feat(384) + target_broadcast(384) + cosine_sim(1) = 769
-```
-
-```
-scene_feats[l]: (B, 384, Hp, Wp)
-query[l]:       (B, 384) → broadcast → (B, 384, Hp, Wp)
-cosine:         (patch_norm · query_norm) 정규화 후 [0,1]로 shift
-cat → (B, 769, Hp, Wp) → MatchingBlock[l]
-```
-
-**MatchingBlock** (레이어당 1개, 총 4개):
-```
-Conv2d(769, 64, 3, pad=1) → GroupNorm(8,64) → ReLU
-Conv2d(64,  64, 1)        → GroupNorm(8,64) → ReLU
-```
-
-**Fusion + 출력**:
-```
-cat([block_0..3], dim=1): (B, 256, Hp, Wp)
-fuse: Conv2d(256,64,1) → GroupNorm(8,64) → ReLU
-head: Conv2d(64, 1, 1) → Sigmoid → prob_patch (B,1,Hp,Wp)
-upsample(bilinear) → prob_full (B,1,H,W)
-```
-
-| 서브모듈 | 파라미터 |
-|---|---|
-| `blocks` (MatchingBlock × 4) | 1,789,696 |
-| `fuse` (Conv+GN) | 16,576 |
-| `head` (Conv 1×1) | 65 |
-| **합계** | **1,806,337** |
-
----
-
-### 3-5. 전체 파라미터 요약
-
-| 모듈 | 파라미터 | 상태 |
+| Stream | 핵심 질문 | 출력 |
 |---|---|---|
-| DINOv3 vits16 | ~21M | **Frozen** |
-| SigLIP so400m encoder | ~400M | **Frozen** |
-| SigLIP proj (Linear×4) | **1,771,008** | **학습** |
-| ZeroShotHead | **1,806,337** | **학습** |
-| **학습 대상 합계** | **3,577,345** | |
+| **Similarity** | 타겟과 시각적·의미적으로 관련된 물체는 어디에 있는가? | Similarity feature `F_S` |
+| **Occlusion** | 타겟이 다른 물체 아래에 물리적으로 가려질 수 있는가? | Occlusion feature `F_O` |
+| **Complexity** | 해당 영역의 물체 더미가 얼마나 조밀하고 복잡한가? | Complexity feature `F_C` |
+
+```mermaid
+flowchart LR
+    RGB["Scene RGB"] --> S["Similarity Stream"]
+    TARGET["Target Image + Prompt"] --> S
+
+    RGB --> O["Occlusion Stream"]
+    DEPTH["Scene Depth"] --> O
+    GEOM["Target Depth / Geometry"] --> O
+
+    RGB --> C["Complexity Stream"]
+    DEPTH --> C
+
+    S --> FS["F_S"]
+    O --> FO["F_O"]
+    C --> FC["F_C"]
+
+    FS --> CONCAT["Feature Concatenation"]
+    FO --> CONCAT
+    FC --> CONCAT
+    CONCAT --> GATE["Fusion Gate"]
+    GATE --> DECODER["Decoder"]
+    DECODER --> PDM["2D-PDM"]
+    PDM --> POLICY["Exploration Policy"]
+```
+
+```text
+F_fuse = FusionGate(Concat(F_S, F_O, F_C))
+P_2D   = Sigmoid(Decoder(F_fuse))
+```
+
+최종 `P_2D`는 target이 존재할 가능성이 높은 영역을 원 영상 좌표계에 표현하며, 이후 DRL 또는 다른 action policy의 probabilistic guidance로 사용됩니다.
 
 ---
 
-## 4. GT (Ground Truth) 생성
+## From Shelf Search to Drawer Search
 
-학습 GT는 precomputed 이미지가 아닌 seg + mapping.json에서 실시간 계산.
+본 프로젝트는 기존의 선반 환경 연구를 비정형 drawer 환경으로 확장합니다.
 
-### 파일 구조
-```
-data/scene/<Category>/<Specific>/scene/
-    rgb/scene00001_env0003_center.png
-    seg/scene00001_env0003_center.png   ← 오브젝트별 BGR 색상으로 세그먼테이션
-    seg/scene00001_mapping.json         ← {USD_name: {color_rgb: [B,G,R]}}
-```
+> H. Jeon et al., *A study on deep reinforcement learning-based exploration intelligence for occluded object search*, Engineering Applications of Artificial Intelligence, 2026.
 
-### GT 점수 계산 (sky_ws 동일 방식)
+기존 연구는 similarity와 occlusion을 결합한 column-wise distribution으로 탐색 방향을 결정했습니다. 하지만 물체 간 유사도를 사람이 정의한 category score에 의존했기 때문에, 학습에 존재하지 않았던 새로운 물체를 직접 해석하는 데 한계가 있었습니다.
 
-```
-타겟 물체와의 관계        GT 점수
-─────────────────────────────────
-같은 USD 오브젝트 (exact)   1.0   ← same object
-같은 카테고리              0.8   ← same category
-유사한 카테고리             0.5   ← similar
-다른 카테고리              0.2   ← different
-배경 / 미등록              0.0
-```
+이번 연구의 확장점은 다음과 같습니다.
 
-**카테고리 유사도 행렬:**
-
-|           | fruit | pkg_food | book | toy |
-|-----------|-------|----------|------|-----|
-| fruit     | 0.8   | 0.5      | 0.2  | 0.2 |
-| pkg_food  | 0.5   | 0.8      | 0.2  | 0.2 |
-| book      | 0.2   | 0.2      | 0.8  | 0.5 |
-| toy       | 0.2   | 0.2      | 0.5  | 0.8 |
-
-**USD → 카테고리 매핑 (gt_builder.py):**
-```
-fruit       : Apple, Avocado01, Lime01, Orange_03
-packaged_food: 005_tomato_soup_can, 006_mustard_bottle, 008_pudding_box, 010_potted_meat_can
-book        : Book_02, Book_GetKnowPPU, Book_Greener, OmniConnect2015
-toy         : Ball_Walnut, Shield_Controller, RubixCube, toy_truck
-```
-
-> `OmniConnect2015`는 "OMNI CONNECTS PEOPLE 2015" **책**이므로 `book` 분류.
+- 정규적인 shelf column에서 **비정형 cluttered drawer**로 확장
+- Column-wise distribution에서 **pixel-wise 2D-PDM**으로 확장
+- DINOv3의 dense appearance와 SigLIP의 language-aligned semantics 결합
+- 학습하지 않은 target instance를 입력할 수 있는 zero-shot target conditioning
+- Similarity와 Occlusion에 scene-level **Complexity stream** 추가
 
 ---
 
-## 5. 데이터 구조
+## Similarity Stream
 
-```
-th_ws/
-├── config/
-│   └── scenes.yaml          ← 씬↔타겟 매핑 설정 (새 씬 추가 시 이 파일만 수정)
-├── data/
-│   ├── scene/
-│   │   └── <Category>/<Specific>/scene/
-│   │       ├── rgb/   *.png  (학습 입력)
-│   │       └── seg/   *.png + *_mapping.json  (GT 계산)
-│   └── target/
-│       └── <Category>/<Specific>/target.png   (타겟 이미지)
-├── src/
-│   ├── zeroshot_pipeline.py  (모델 정의)
-│   └── gt_builder.py         (GT 계산 + 씬 설정 로더)
-├── train/
-│   └── train_zeroshot.py
-└── validate/
-    └── validate_zeroshot.py
-```
+> **Status: Implemented**
 
-현재 학습 씬 (16개):
+Similarity stream은 현재 보이는 물체 중 target 자체 또는 target과 의미적으로 관련된 물체가 위치한 영역을 활성화합니다.
 
-| 카테고리 | 씬 / 타겟 | USD 이름 |
+DINOv3만 사용하면 동일하거나 외형이 비슷한 instance를 찾는 데에는 유리하지만, 모양이 다른 두 물체가 같은 상위 category라는 관계는 안정적으로 표현되지 않을 수 있습니다. 이를 보완하기 위해 target 측에 SigLIP image/text semantics를 결합합니다.
+
+### Design Rationale
+
+| Component | 담당 정보 | 필요한 이유 |
 |---|---|---|
-| Fruit | Apple | Apple |
-| Fruit | Avocado | Avocado01 |
-| Fruit | Lime | Lime01 |
-| Fruit | Orange | Orange_03 |
-| Packaged_food | SPAM | 010_potted_meat_can |
-| Packaged_food | Tomato_soup_can | 005_tomato_soup_can |
-| Packaged_food | Mustard | 006_mustard_bottle |
-| Packaged_food | Pudding_box | 008_pudding_box |
-| Book | Book_1 | Book_02 |
-| Book | Book_2 | Book_GetKnowPPU |
-| Book | Book_3 | Book_Greener |
-| Book | Book_4 | OmniConnect2015 |
-| Toy | Ball | Ball_Walnut |
-| Toy | Gamepad | Shield_Controller |
-| Toy | RubixCube | RubixCube |
-| Toy | Toy_truck | toy_truck |
+| **DINOv3 Scene Encoder** | 위치가 보존된 dense visual feature | Scene의 어느 patch에 어떤 형상·질감·appearance가 있는지 표현 |
+| **DINOv3 Target Encoder** | Target-specific appearance | “이 물체가 어떻게 생겼는가?”를 layer별 query로 표현 |
+| **SigLIP Vision Encoder** | Target image semantics | 외형을 넘어선 open-vocabulary 개념 표현 |
+| **SigLIP Text Encoder** | Target category semantics | 이미지가 모호해도 이름과 category 정보로 의미를 보완 |
+| **Matching Head** | Scene–target spatial relation | Appearance, semantics, cosine cue를 함께 해석해 probability map 생성 |
+
+### Architecture
+
+```mermaid
+flowchart TB
+    subgraph SCENE["Scene Branch"]
+        SRGB["Scene RGB"]
+        SDINO["DINOv3 ViT-B/16<br/>Frozen"]
+        SFEAT["Layers 2, 5, 8, 11<br/>X_s^l: B × 768 × H_p × W_p"]
+        SRGB --> SDINO --> SFEAT
+    end
+
+    subgraph APPEARANCE["Target Appearance Branch"]
+        TRGB["Target RGB + Mask"]
+        CROP["Masked Crop<br/>224 × 224"]
+        TDINO["DINOv3 ViT-B/16<br/>Frozen"]
+        POOL["Mask-weighted Pooling"]
+        AVEC["a_t^l: B × 768"]
+        TRGB --> CROP --> TDINO --> POOL --> AVEC
+    end
+
+    subgraph SEMANTIC["Target Semantic Branch"]
+        SIGIMG["SigLIP Vision<br/>Frozen"]
+        PROMPT["a photo of a category"]
+        SIGTXT["SigLIP Text<br/>Frozen"]
+        SEMFUSE["Image–Text Fusion<br/>1152-D"]
+        PROJ["Layer-wise Projection<br/>1152 → 768<br/>Trainable"]
+        SVEC["s_t^l: B × 768"]
+        CROP --> SIGIMG --> SEMFUSE
+        PROMPT --> SIGTXT --> SEMFUSE
+        SEMFUSE --> PROJ --> SVEC
+    end
+
+    AVEC --> QFUSE["q_t^l = a_t^l + s_t^l"]
+    SVEC --> QFUSE
+    SFEAT --> COS["Patch-wise Cosine Similarity"]
+    QFUSE --> COS
+    SFEAT --> INTERACT["Concat<br/>Scene + Target + Cosine"]
+    QFUSE --> INTERACT
+    COS --> INTERACT
+    INTERACT --> BLOCKS["MatchingBlock × 4"]
+    BLOCKS --> LFUSE["Multi-layer Fusion"]
+    LFUSE --> HEAD["Similarity Head + Sigmoid"]
+    HEAD --> PMAP["Similarity Map P_S"]
+```
+
+### Model Specification
+
+| Stage | Module | Input | Operation | Output | State |
+|---:|---|---|---|---|---|
+| 1 | Target preprocessing | Target RGB, mask | Crop, resize, mask alignment | `224 × 224` target crop | Fixed |
+| 2 | Scene encoder | Scene RGB | DINOv3 ViT-B/16 layers `2, 5, 8, 11` | `X_s^l: B × 768 × H_p × W_p` | Frozen |
+| 3 | Target encoder | Target crop, mask | DINOv3 + mask-weighted pooling | `a_t^l: B × 768` | Frozen |
+| 4 | SigLIP vision | Target crop | Image encoding, L2 normalization | `s_img: B × 1152` | Frozen |
+| 5 | SigLIP text | Category prompt | Text encoding, L2 normalization | `s_text: B × 1152` | Frozen |
+| 6 | Semantic fusion | `s_img`, `s_text` | Average fusion, L2 normalization | `s: B × 1152` | Fixed |
+| 7 | Semantic adapter | `s` | Independent `Linear(1152, 768)` per layer | `s_t^l: B × 768` | **Trainable** |
+| 8 | Target fusion | `a_t^l`, `s_t^l` | Element-wise addition | `q_t^l: B × 768` | Fixed |
+| 9 | Cosine matching | `X_s^l`, `q_t^l` | Patch-wise cosine, range shift | `c_hat^l: B × 1 × H_p × W_p` | Fixed |
+| 10 | Interaction | Scene, target, cosine | Channel concatenation | `Z^l: B × 1537 × H_p × W_p` | Fixed |
+| 11 | MatchingBlock | `Z^l` | `3×3 Conv → GN → ReLU → 1×1 Conv → GN → ReLU` | `F_l: B × 64 × H_p × W_p` | **Trainable** |
+| 12 | Layer fusion | Four `F_l` tensors | Concat + 1×1 convolution | `F_S: B × 64 × H_p × W_p` | **Trainable** |
+| 13 | Output head | `F_S` | 1×1 convolution + sigmoid | `P_S: B × 1 × H_p × W_p` | **Trainable** |
+| 14 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
+
+### Target Representation
+
+Target appearance는 segmentation mask가 포함하는 patch만 pooling하여 계산합니다.
+
+```text
+a_t^l = L2Norm(
+    Sum[M_t(u,v) · X_t^l(:,u,v)] /
+    (Sum[M_t(u,v)] + epsilon)
+)
+```
+
+SigLIP semantic vector는 image와 text embedding을 같은 embedding space에서 결합합니다.
+
+```text
+s_img  = L2Norm(SigLIP_Vision(target_crop))
+s_text = L2Norm(SigLIP_Text("a photo of a {category}"))
+s      = L2Norm((s_img + s_text) / 2)
+s_t^l  = W_l · s + b_l
+```
+
+최종 target query는 appearance와 semantics의 합입니다.
+
+```text
+q_t^l = a_t^l + s_t^l
+```
+
+| Vector | 의미 |
+|---|---|
+| `a_t^l` | Target이 시각적으로 어떻게 생겼는가 |
+| `s_t^l` | Target이 의미적으로 어떤 category에 속하는가 |
+| `q_t^l` | Appearance와 semantics가 결합된 layer-wise target condition |
+
+### Scene–Target Interaction
+
+각 scene patch와 target query의 cosine similarity를 계산하고 `[0, 1]` 범위로 변환합니다.
+
+```text
+c^l(u,v)     = CosineSimilarity(X_s^l(:,u,v), q_t^l)
+c_hat^l(u,v) = (c^l(u,v) + 1) / 2
+```
+
+Cosine score만 사용하면 두 feature의 복잡한 관계가 하나의 scalar로 압축됩니다. 따라서 원본 scene feature와 target query를 함께 보존합니다.
+
+```text
+Z^l(u,v) = Concat[
+    X_s^l(:,u,v),   # scene appearance: 768 channels
+    q_t^l,          # target condition: 768 channels
+    c_hat^l(u,v)    # explicit matching cue: 1 channel
+]
+```
+
+각 DINOv3 layer는 독립적인 MatchingBlock을 통과하고, 네 결과를 channel 방향으로 결합합니다.
+
+```text
+F_l = MatchingBlock_l(Z^l)
+F_S = Fuse(Concat[F_2, F_5, F_8, F_11])
+P_S = Sigmoid(Head(F_S))
+```
+
+### Trainable Parameters
+
+DINOv3와 SigLIP encoder는 고정하고 semantic adapter와 matching head만 학습합니다.
+
+| Module | Parameters | State |
+|---|---:|---|
+| DINOv3 ViT-B/16 | Backbone parameters | Frozen |
+| SigLIP SO400M | Encoder parameters | Frozen |
+| Semantic projection `Linear(1152, 768) × 4` | 3,542,016 | **Trainable** |
+| MatchingBlock × 4 | 3,559,168 | **Trainable** |
+| Multi-layer fusion | 16,576 | **Trainable** |
+| Similarity head | 65 | **Trainable** |
+| **Total trainable** | **7,117,825** | |
+
+Only the lightweight task-specific layers are stored in the checkpoint; frozen foundation-model weights are loaded separately.
 
 ---
 
-## 6. 학습
+## Ground-Truth Similarity Map
 
-### 데이터 분할
-- **장면(scene_id) 단위 분할** — 같은 씬의 여러 뷰가 train/val에 나뉘지 않도록 leakage 방지
-- 기본 분할 비율: train 80% / val 20%
+현재 similarity supervision은 scene segmentation과 asset category를 이용해 생성합니다. Foundation model은 입력 representation을 일반화하지만, GT 자체는 기존 연구와의 직접 비교를 위해 명시적인 category relation을 유지합니다.
 
-### Loss
+| Target–scene relation | Score |
+|---|---:|
+| Exact target instance | `1.0` |
+| Same category | `0.8` |
+| Related category | `0.5` |
+| Other category | `0.2` |
+| Background / unknown | `0.0` |
+
+Category-level relation은 다음과 같습니다.
+
+| Target ↓ / Scene → | Book | Toy | Fruit | Packaged food |
+|---|---:|---:|---:|---:|
+| **Book** | 0.8 | 0.5 | 0.2 | 0.2 |
+| **Toy** | 0.5 | 0.8 | 0.2 | 0.2 |
+| **Fruit** | 0.2 | 0.2 | 0.8 | 0.5 |
+| **Packaged food** | 0.2 | 0.2 | 0.5 | 0.8 |
+
+GT는 미리 계산된 grayscale map을 우선 사용하고, 캐시가 없으면 segmentation image와 scene mapping으로 즉시 생성합니다. 학습 시에는 원본 GT를 DINOv3 patch resolution으로 average pooling합니다.
+
+```text
+Y_patch = AvgPool2D(Y_full, kernel=16, stride=16)
+L_sim   = MSE(P_S, Y_patch)
 ```
-loss = MSE(prob_patch, GT_downsampled)
-```
-- GT를 패치 해상도(H/16 × W/16)로 avg_pool2d 다운샘플
-- prob_patch와 같은 공간에서 MSE 계산
 
-### Optimizer / Schedule
-| 항목 | 값 |
+> 이 supervision과 zero-shot evaluation은 구분해야 합니다. 학습 GT는 category relation을 사용하지만, unseen target은 DINOv3와 SigLIP으로 직접 인코딩되며 target instance 자체는 학습에 포함되지 않습니다.
+
+---
+
+## Training Protocol
+
+### Data Split
+
+동일한 scene에서 생성된 center/top/left/right/bottom view가 train과 validation에 섞이면 data leakage가 발생합니다. 따라서 개별 image가 아니라 `scene_id` 그룹 단위로 분할합니다.
+
+| Setting | Value |
 |---|---|
-| Optimizer | AdamW (weight_decay=1e-4) |
-| LR | 1e-3 |
-| Schedule | CosineAnnealingLR |
-| Early Stop | patience=10, min_delta=5% |
-| Batch | 512 |
-| Epochs | 200 |
+| Train / validation | `80% / 20%` per target |
+| Scene cameras | center, top, left, right, bottom |
+| Target cameras | center, top, left, right, bottom |
+| Environment stride | `10` |
+| DINOv3 layers | `2, 5, 8, 11` |
+| Batch size | `128` |
+| Epochs | `100` |
+| Optimizer | AdamW |
+| Initial learning rate | `1e-3` |
+| Scheduler | CosineAnnealingLR |
+| Early stopping | patience `5`, relative improvement `5%` |
+| Objective | Patch-resolution MSE |
 
-### Gradient 흐름
+### Cached and Trainable Paths
+
+```mermaid
+flowchart LR
+    SCENE["Scene RGB"] --> DINO_S["DINOv3<br/>Frozen"] --> SF["Scene Features"]
+    TARGET["Target RGB"] --> DINO_T["DINOv3<br/>Frozen"] --> ACACHE["Appearance Cache"]
+    TARGET --> SIG["SigLIP<br/>Frozen"] --> SCACHE["Semantic Cache"]
+    SCACHE --> PROJ["Semantic Projection<br/>Gradient"]
+    ACACHE --> ADD["Appearance + Semantics"]
+    PROJ --> ADD
+    SF --> HEAD["Matching Head<br/>Gradient"]
+    ADD --> HEAD
+    HEAD --> LOSS["MSE Loss"]
 ```
-scene → DINOv3(frozen, no_grad) → scene_feats
-target.png → DINOv3(frozen) + SigLIP(frozen) → appearances, semantic_raw  (캐시됨)
-                                                        ↓
-                                         proj[l] ★gradient★ → sem_proj
-                                  appearance + sem_proj = query  ★gradient★
-                                              ↓
-                                       head ★gradient★ → prob_patch
-                                              ↓
-                                           MSE loss
-```
 
-**핵심**: `target_cache`에 저장된 `appearances`와 `semantic_raw`는 frozen이므로
-배치마다 재인코딩하지 않음. 단, `proj`(학습 대상)는 매 스텝 실시간 적용해야
-gradient가 끊기지 않음.
+- Target DINOv3 appearance는 target별 다섯 camera view를 미리 계산합니다.
+- 학습 시 camera view를 무작위 선택하여 lightweight viewpoint augmentation으로 사용합니다.
+- Validation은 각 camera view를 고정 순회하여 무작위성에 따른 metric 변동을 줄입니다.
+- SigLIP image/text embedding은 target별로 캐싱합니다.
+- Semantic projection은 반드시 training step 안에서 적용하여 gradient가 유지되도록 합니다.
 
-### 체크포인트 형식
+### Evaluation and Checkpoints
+
+학습 중 다음 지표를 기록합니다.
+
+- Mean squared error
+- Pixel accuracy
+- Balanced accuracy
+- Intersection over Union
+
+Checkpoint에는 학습되는 모듈만 저장합니다.
+
 ```python
 {
-    "epoch":       int,
-    "val_mse":     float,
-    "proj_state":  pipe.semantic.proj.state_dict(),
-    "head_state":  pipe.head.state_dict(),
-    # last ckpt에만 추가:
-    "optim_state": optim.state_dict(),
+    "model_state": similarity_model.state_dict(),
+    "semantic_proj_state": semantic_projection.state_dict(),
 }
 ```
 
-DINOv3 / SigLIP encoder는 frozen이므로 저장하지 않음.
+---
+
+## Zero-Shot Target Conditioning
+
+Similarity stream은 target image를 query로 직접 인코딩하므로, 학습에 없던 물체도 새로운 query로 입력할 수 있습니다.
+
+| Mode | Target input | 특징 |
+|---|---|---|
+| **Image-only** | Target RGB | 별도의 category label 없이 visual/semantic image embedding 사용 가능 |
+| **Image + text** | Target RGB + prompt | 물체 이름이나 category semantics로 모호한 외형을 보완 |
+
+현재 학습은 category prompt를 사용합니다.
+
+```text
+a photo of a {category}
+```
+
+### Unseen Banana
+
+학습에 포함되지 않은 banana를 target query로 입력했을 때, scene에서 fruit category에 해당하는 영역이 활성화되는 정성적 결과를 확인했습니다.
+
+이 결과는 다음 두 표현의 상호 보완성을 보여줍니다.
+
+- DINOv3: target과 scene의 dense visual appearance
+- SigLIP: banana와 fruit 사이의 open-vocabulary semantic relation
+
+<!--
+![Unseen banana zero-shot result](assets/results/unseen_banana_similarity.png)
+-->
+
+> **Planned evaluation:** object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation.
 
 ---
 
-## 7. 추론 (Zero-Shot)
+## Occlusion Stream
 
-```python
-pipe = ZeroShotPipeline(device="cuda")
-# 체크포인트 복원
-ckpt = torch.load("zeroshot_best.pt")
-pipe.semantic.proj.load_state_dict(ckpt["proj_state"])
-pipe.head.load_state_dict(ckpt["head_state"])
+> **Status: Data prepared / Model integration planned**
 
-# 추론 (이미지만)
-pred = pipe.predict_single(scene_bgr, target_bgr)
+Occlusion stream은 similarity와 별개로, target이 현재 보이는 물체 아래에 물리적으로 들어갈 수 있는지를 추론합니다.
 
-# 추론 (이미지 + 텍스트)
-pred = pipe.predict_single(scene_bgr, target_bgr, label="a photo of a banana, a type of fruit")
+| Input | 역할 |
+|---|---|
+| Scene RGB | 물체 영역과 visual context |
+| Scene depth | 현재 보이는 표면까지의 거리 |
+| Target RGB/depth | Target appearance와 상대 크기 |
+| Target 3D geometry | 후보 pose에서의 실제 가림 여부 계산 |
+
+GT 생성 시 target mesh를 drawer의 후보 위치·회전·scale에 가상 배치합니다. 렌더링된 target depth가 scene surface 뒤에 존재하는 영역을 누적하여 occlusion probability를 구성합니다.
+
+```text
+Y_O(u,v) ∝ Sum over candidate poses [
+    TargetDepth_pose(u,v) > SceneDepth(u,v)
+]
 ```
 
-- `label`은 학습 때 쓴 prompt 형식(`"a photo of {specific}, a type of {category}"`)과 동일하게 줄 때 최적
-- 텍스트 없이 이미지만 줘도 동작 (image-only zero-shot)
-- 학습 데이터에 없던 물체(예: Banana)에도 일반화됨
+Scale augmentation은 모델이 특정 물체의 절대 크기를 암기하지 않고 scene과 target 사이의 상대적인 가림 관계를 학습하도록 합니다.
 
 ---
 
-## 8. 씬 설정 관리
+## Complexity Stream
 
-씬↔타겟 매핑은 `config/scenes.yaml`로 외부화되어 있음.
+> **Status: Formulation in progress**
 
-```yaml
-scenes:
-  - scene:  Fruit/Apple
-    target: Fruit/Apple
-    usd:    Apple
+Complexity stream은 target identity와 무관한 scene-level prior입니다. 물체가 많이 존재하는 것뿐 아니라, 서로 얼마나 겹치고 depth 구조가 얼마나 불규칙한지를 표현합니다.
 
-  - scene:  Fruit/Avocado    # enabled: false 를 추가하면 학습에서 제외
-    target: Fruit/Avocado
-    usd:    Avocado01
+| Cue | 의미 |
+|---|---|
+| Local object density | 단위 면적에 포함된 instance 수 |
+| Local depth variance | 물체의 높이와 적층 변화 |
+| Depth discontinuity | 물체 경계와 급격한 깊이 변화 |
+| Overlap structure | 물체 간 가림과 적층 정도 |
+
+```text
+Y_C = lambda_n · ObjectDensity
+    + lambda_d · LocalDepthVariance
+    + lambda_e · DepthEdgeDensity
 ```
 
-`gt_builder.load_scene_config(yaml_path)` → `List[SceneEntry(scene, target, usd)]`
+Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 비효율적일 수 있습니다. 따라서 Similarity와 Occlusion의 target-conditioned evidence를 함께 고려하도록 fusion gate에서 상대적 중요도를 조절합니다.
 
-train/validate 스크립트 모두 이 함수를 통해 설정을 로드하므로,
-새 씬 추가 시 **`scenes.yaml` 한 곳만 수정**하면 됩니다.
+---
+
+## Project Status
+
+| Component | Status |
+|---|---|
+| Drawer RGB-D and target-reference dataset | Complete |
+| DINOv3 ViT-B/16 dense similarity baseline | Complete |
+| DINOv3 + SigLIP Similarity stream | Complete |
+| Unseen banana qualitative test | Complete |
+| Object/category-held-out benchmark | Planned |
+| Occlusion stream training | Planned |
+| Complexity stream training | Planned |
+| Three-stream fusion | Planned |
+| Exploration policy integration | Planned |
+| Sim-to-real drawer experiment | Planned |
+
+### Core Files
+
+| File | Purpose |
+|---|---|
+| `backbone.py` | Frozen DINOv3 multi-layer feature extractor |
+| `target_utils.py` | Target crop, mask alignment, masked feature pooling |
+| `similarity_model.py` | Scene–target interaction, MatchingBlocks, similarity head |
+| `train_similarity_v2.py` | Multi-target DINOv3 + SigLIP training pipeline |
+| `train_common.py` | Scene split, target caches, metrics, early stopping |
+| `gt_similarity.py` | Category-based similarity-map generation |
+| `precompute_gt.py` | Precomputed similarity GT cache |
+| `paths_config.py` | Model, asset, dataset path configuration |
+
+---
+
+## Roadmap
+
+- [x] Drawer scene and target RGB-D acquisition
+- [x] Multi-layer DINOv3 ViT-B/16 representation
+- [x] SigLIP image/text semantic fusion
+- [x] Pixel-wise Similarity map training
+- [x] Unseen target qualitative evaluation
+- [ ] Held-out object and category benchmark
+- [ ] Occlusion stream
+- [ ] Complexity stream
+- [ ] Learned three-stream fusion
+- [ ] DRL-based exploration policy
+- [ ] Sim-to-real validation
+
+---
+
+## Acknowledgements
+
+This project uses DINOv3 for dense visual representation and SigLIP for vision-language semantic representation.
