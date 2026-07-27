@@ -343,6 +343,10 @@ a photo of a {category}
 
 학습에 포함되지 않은 banana를 target query로 입력했을 때, scene에서 fruit category에 해당하는 영역이 활성화되는 정성적 결과를 확인했습니다.
 
+![image_1](img/panel_Book-Book_1_scene00002_env0168_top.png)
+![image_2](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
+![image_3](img/panel_Fruit-Orange_scene00003_env0274_center.png)
+
 이 결과는 다음 두 표현의 상호 보완성을 보여줍니다.
 
 - DINOv3: target과 scene의 dense visual appearance
