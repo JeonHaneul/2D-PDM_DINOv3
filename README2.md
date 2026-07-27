@@ -56,30 +56,25 @@ flowchart LR
 - 기존 similarity/occlusion에 **scene complexity**를 추가
 - 학습하지 않은 target instance를 입력할 수 있는 **zero-shot target-conditioned inference** 지향
 
-### 전체 수식
+### 전체 모듈 결합
 
-세 모듈의 출력 feature를 각각 \(F_S\), \(F_O\), \(F_C\)라 하면 최종 분포는 다음과 같이 표현할 수 있습니다.
+세 모듈의 출력 feature를 `F_S`, `F_O`, `F_C`라 하면 최종 2D-PDM은 다음 순서로 생성됩니다.
 
-$$
-F_{\mathrm{fuse}}
-=
-\mathcal{G}
-\left(
-\operatorname{Concat}(F_S,F_O,F_C)
-\right)
-$$
+```text
+F_fuse = FusionGate(Concat(F_S, F_O, F_C))
+P_2D   = Sigmoid(Decoder(F_fuse))
+```
 
-$$
-P_{\mathrm{2D}}
-=
-\sigma\left(
-\mathcal{D}(F_{\mathrm{fuse}})
-\right)
-$$
-
-- \(\mathcal{G}\): 세 단서의 중요도를 공간적으로 조절하는 fusion gate
-- \(\mathcal{D}\): fused feature를 원 영상 좌표의 확률분포로 복원하는 decoder
-- \(\sigma\): 각 위치의 출력을 \([0,1]\) 범위로 만드는 sigmoid
+| 기호 | 이름 | 의미 |
+|---|---|---|
+| `F_S` | Similarity feature | 타겟과 scene 물체 사이의 시각적·의미적 유사도 |
+| `F_O` | Occlusion feature | 타겟이 물체 더미 아래에 가려질 수 있는 기하학적 가능성 |
+| `F_C` | Complexity feature | 물체 밀도와 depth 변화로 표현한 국소 clutter 복잡도 |
+| `Concat(·)` | Feature concatenation | 세 feature를 channel 방향으로 연결 |
+| `FusionGate(·)` | Fusion gate | 위치와 scene 상태에 따라 세 단서의 중요도를 조절 |
+| `Decoder(·)` | Decoder | fused feature를 원 영상 좌표의 2D map으로 복원 |
+| `Sigmoid(·)` | Output activation | 각 위치의 값을 `[0, 1]` 범위의 확률로 변환 |
+| `P_2D` | Final 2D-PDM | 탐색 정책에 전달되는 최종 target-existence probability map |
 
 현재 저장소에서는 세 모듈 중 **Similarity module을 우선 구현하고 검증하는 단계**입니다. Occlusion 및 Complexity module과 최종 fusion은 아래 설계를 기반으로 순차적으로 통합할 예정입니다.
 
@@ -125,16 +120,16 @@ SigLIP은 이미지와 텍스트를 같은 의미 공간에 정렬합니다. 따
 
 현재 학습 코드에서는 target의 상위 카테고리를 `"a photo of a {category}"` 형식으로 정규화하여 사용합니다. 새로운 물체를 평가할 때는 물체 이름 또는 상위 카테고리를 같은 형식의 prompt로 입력할 수 있습니다. Target semantic vector는 다음과 같습니다.
 
-$$
+```text
 s_{\mathrm{img}}
 =
 \operatorname{Norm}
 \left(
 \operatorname{SigLIP}_{\mathrm{vision}}(I_t)
 \right)
-$$
+```
 
-$$
+```text
 s_{\mathrm{text}}
 =
 \operatorname{Norm}
@@ -142,16 +137,16 @@ s_{\mathrm{text}}
 \operatorname{SigLIP}_{\mathrm{text}}
 (\text{``a photo of a [category/target]''})
 \right)
-$$
+```
 
-$$
+```text
 s
 =
 \operatorname{Norm}
 \left(
 \frac{s_{\mathrm{img}}+s_{\mathrm{text}}}{2}
 \right)
-$$
+```
 
 이미지와 텍스트가 동일한 SigLIP embedding space에 있으므로 평균 fusion을 사용합니다. 텍스트가 없는 inference에서는 target image embedding만 사용하는 구성도 가능합니다.
 
@@ -215,13 +210,48 @@ flowchart TB
     UP --> FULL["Full-resolution similarity map P_S"]
 ```
 
+### 모델 상세 구성
+
+| 단계 | 모듈 | 입력 | 핵심 연산 | 출력 | 정보의 의미 | 학습 여부 |
+|---:|---|---|---|---|---|---|
+| 1 | Target preprocessing | Target RGB, segmentation mask | 물체 영역 crop, 224×224 resize, mask 정렬 | Target crop, target mask | 배경을 제거하고 target 자체의 정보만 보존 | 연산만 수행 |
+| 2 | DINOv3 scene encoder | Scene RGB | ViT-B/16의 layer 2, 5, 8, 11에서 patch feature 추출 | Layer별 `B × 768 × H_p × W_p` | 각 scene 위치의 색상, 질감, 형상 및 고수준 visual appearance | Frozen |
+| 3 | DINOv3 target encoder | Target crop, target mask | Multi-layer patch feature 추출 후 mask-weighted pooling과 L2 normalization | Layer별 appearance vector `a_t^l`, `B × 768` | “타겟이 시각적으로 어떻게 생겼는가?” | Frozen |
+| 4 | SigLIP vision encoder | Target crop | SigLIP SO400M image encoding과 L2 normalization | Image semantic vector `s_img`, 1152-D | 타겟 이미지의 open-vocabulary 의미 | Frozen |
+| 5 | SigLIP text encoder | Target category 또는 text prompt | Text encoding과 L2 normalization | Text semantic vector `s_text`, 1152-D | 타겟의 이름·카테고리 의미로 이미지의 모호함 보완 | Frozen |
+| 6 | Image–text semantic fusion | `s_img`, `s_text` | 평균 후 L2 normalization | Semantic vector `s`, 1152-D | 이미지와 언어가 공유하는 통합 의미 | 연산만 수행 |
+| 7 | Layer-wise semantic projection | Semantic vector `s` | DINOv3 layer마다 독립적인 `Linear(1152 → 768)` | Layer별 semantic vector `s_t^l`, `B × 768` | SigLIP 의미 공간을 DINOv3 feature 차원에 정렬 | **Trainable** |
+| 8 | Target query fusion | `a_t^l`, `s_t^l` | Element-wise addition | `q_t^l = a_t^l + s_t^l` | appearance와 semantics를 함께 가진 target condition | 연산만 수행 |
+| 9 | Cosine matching | Scene patch `X_s^l`, target query `q_t^l` | 모든 patch에서 cosine similarity 계산 후 `[-1,1] → [0,1]` 변환 | Cosine map `c_hat^l`, `B × 1 × H_p × W_p` | 각 위치와 target 사이의 명시적 matching score | 연산만 수행 |
+| 10 | Interaction construction | `X_s^l`, broadcast된 `q_t^l`, `c_hat^l` | Channel-wise concatenation | Layer별 interaction `Z^l` | Scene 원본 정보, target 조건, 직접 유사도를 동시에 보존 | 연산만 수행 |
+| 11 | MatchingBlock | Layer별 `Z^l` | `3×3 Conv → GN → ReLU → 1×1 Conv → GN → ReLU` | Layer별 matching feature `F_l`, 64 channels | 위치별 비선형 scene–target 관계 학습 | **Trainable** |
+| 12 | Multi-layer fusion | `F_2`, `F_5`, `F_8`, `F_11` | Channel concat 후 1×1 convolution | Similarity feature `F_S`, 64 channels | 저수준 appearance와 고수준 semantics 통합 | **Trainable** |
+| 13 | Similarity head | Similarity feature `F_S` | 1×1 convolution과 sigmoid | Patch-resolution similarity map `P_S` | 위치별 target-related probability | **Trainable** |
+| 14 | Output upsampling | Patch-resolution `P_S` | Bilinear interpolation | Full-resolution similarity map | 원본 RGB 좌표에 정렬된 최종 Similarity stream 출력 | 연산만 수행 |
+
+### 주요 tensor 크기
+
+| Tensor | Shape | 설명 |
+|---|---|---|
+| Scene patch feature `X_s^l` | `B × 768 × H_p × W_p` | DINOv3 layer `l`의 dense scene feature |
+| Target appearance `a_t^l` | `B × 768` | Mask pooling된 DINOv3 target vector |
+| SigLIP image/text embedding | `B × 1152` | Target의 image/text semantic representation |
+| Projected semantics `s_t^l` | `B × 768` | DINOv3 layer에 맞게 투영된 semantic vector |
+| Target query `q_t^l` | `B × 768` | Appearance와 semantics가 합쳐진 target vector |
+| Cosine map `c_hat^l` | `B × 1 × H_p × W_p` | Patch별 직접 유사도 |
+| Interaction `Z^l` | `B × 1537 × H_p × W_p` | Scene 768 + target 768 + cosine 1 |
+| Matching feature `F_l` | `B × 64 × H_p × W_p` | 각 layer의 MatchingBlock 출력 |
+| Concatenated feature | `B × 256 × H_p × W_p` | 4개 layer matching feature의 concat |
+| Similarity feature `F_S` | `B × 64 × H_p × W_p` | Multi-layer fusion 결과 |
+| Similarity map `P_S` | `B × 1 × H_p × W_p` | Sigmoid가 적용된 patch-resolution 예측 |
+
 ### 1. Target 전처리와 DINOv3 appearance vector
 
 Target 단독 RGB와 segmentation mask로부터 물체 영역을 crop합니다. 배경이 target feature를 희석하지 않도록 DINOv3 patch feature를 mask-weighted pooling합니다.
 
-layer \(l\)의 target patch feature를 \(X_t^l\), downsample된 mask를 \(M_t\)라 하면:
+layer `l`의 target patch feature를 `X_t^l`, downsample된 mask를 `M_t`라 하면:
 
-$$
+```text
 a_t^l
 =
 \operatorname{Norm}
@@ -232,19 +262,19 @@ a_t^l
 \sum_{u,v}M_t(u,v)+\epsilon
 }
 \right)
-$$
+```
 
-\(a_t^l\)는 target의 색상, 질감, 부분 형상과 같은 **appearance query**를 의미합니다.
+`a_t^l`는 target의 색상, 질감, 부분 형상과 같은 **appearance query**를 의미합니다.
 
 ### 2. SigLIP semantic projection
 
-SigLIP의 1152차원 semantic vector \(s\)를 각 DINOv3 layer에 맞는 768차원 vector로 투영합니다.
+SigLIP의 1152차원 semantic vector `s`를 각 DINOv3 layer에 맞는 768차원 vector로 투영합니다.
 
-$$
+```text
 s_t^l=W_l s+b_l
-$$
+```
 
-각 layer마다 서로 다른 projection \(W_l\)을 사용합니다. DINOv3의 얕은 층과 깊은 층이 담는 정보의 성격이 다르기 때문에, 동일한 semantic vector도 layer별로 다르게 정렬할 수 있도록 설계했습니다.
+각 layer마다 서로 다른 projection `W_l`을 사용합니다. DINOv3의 얕은 층과 깊은 층이 담는 정보의 성격이 다르기 때문에, 동일한 semantic vector도 layer별로 다르게 정렬할 수 있도록 설계했습니다.
 
 DINOv3 및 SigLIP encoder는 frozen이며, 이 projection layer는 학습됩니다.
 
@@ -252,21 +282,21 @@ DINOv3 및 SigLIP encoder는 frozen이며, 이 projection layer는 학습됩니�
 
 최종 target query는 DINOv3 appearance와 projected SigLIP semantics를 더해 구성합니다.
 
-$$
+```text
 q_t^l=a_t^l+s_t^l
-$$
+```
 
 각 항의 의미는 다음과 같습니다.
 
-- \(a_t^l\): “이 target은 시각적으로 어떻게 생겼는가?”
-- \(s_t^l\): “이 target은 의미적으로 무엇인가?”
-- \(q_t^l\): appearance와 semantics를 함께 가진 layer별 target condition
+- `a_t^l`: “이 target은 시각적으로 어떻게 생겼는가?”
+- `s_t^l`: “이 target은 의미적으로 무엇인가?”
+- `q_t^l`: appearance와 semantics를 함께 가진 layer별 target condition
 
 ### 4. Patch-wise cosine similarity
 
-scene의 각 patch feature \(X_s^l(:,u,v)\)와 target query \(q_t^l\) 사이의 cosine similarity를 계산합니다.
+scene의 각 patch feature `X_s^l(:,u,v)`와 target query `q_t^l` 사이의 cosine similarity를 계산합니다.
 
-$$
+```text
 c^l(u,v)
 =
 \frac{
@@ -275,21 +305,21 @@ X_s^l(:,u,v)^\top q_t^l
 \lVert X_s^l(:,u,v)\rVert_2
 \lVert q_t^l\rVert_2
 }
-$$
+```
 
-cosine similarity의 범위를 GT probability와 같은 \([0,1]\)로 맞춥니다.
+cosine similarity의 범위를 GT probability와 같은 `[0,1]`로 맞춥니다.
 
-$$
+```text
 \hat{c}^l(u,v)=\frac{c^l(u,v)+1}{2}
-$$
+```
 
-\(\hat{c}^l\)는 특정 위치가 target query와 얼마나 직접적으로 가까운지를 나타내는 명시적 matching cue입니다. 다만 단일 cosine 값만으로 모든 카테고리 관계를 표현하기 어렵기 때문에, 원본 feature도 함께 matching head에 제공합니다.
+`\hat{c}^l`는 특정 위치가 target query와 얼마나 직접적으로 가까운지를 나타내는 명시적 matching cue입니다. 다만 단일 cosine 값만으로 모든 카테고리 관계를 표현하기 어렵기 때문에, 원본 feature도 함께 matching head에 제공합니다.
 
 ### 5. Scene–target interaction construction
 
 target query를 scene patch grid 전체에 broadcast한 뒤, scene feature 및 cosine map과 channel 방향으로 concat합니다.
 
-$$
+```text
 Z^l(u,v)
 =
 \operatorname{Concat}
@@ -298,25 +328,25 @@ X_s^l(:,u,v),\;
 q_t^l,\;
 \hat{c}^l(u,v)
 \right]
-$$
+```
 
 각 입력은 서로 다른 정보를 유지합니다.
 
-- \(X_s^l\): 해당 scene 위치의 원본 시각 정보
-- \(q_t^l\): 찾고자 하는 target의 시각·의미 조건
-- \(\hat{c}^l\): 두 feature 사이의 명시적인 cosine matching score
+- `X_s^l`: 해당 scene 위치의 원본 시각 정보
+- `q_t^l`: 찾고자 하는 target의 시각·의미 조건
+- `\hat{c}^l`: 두 feature 사이의 명시적인 cosine matching score
 
 원본 feature를 보존하면 학습 가능한 head가 cosine score 하나로는 표현하기 어려운 비선형 관계까지 학습할 수 있습니다.
 
 ### 6. Multi-layer matching과 similarity map
 
-각 DINOv3 layer의 interaction \(Z^l\)은 독립적인 MatchingBlock을 통과합니다.
+각 DINOv3 layer의 interaction `Z^l`은 독립적인 MatchingBlock을 통과합니다.
 
-$$
+```text
 F_l
 =
 \operatorname{MatchingBlock}_l(Z^l)
-$$
+```
 
 MatchingBlock은 공간 구조를 유지하기 위해 MLP가 아닌 CNN으로 구성됩니다.
 
@@ -329,27 +359,27 @@ MatchingBlock은 공간 구조를 유지하기 위해 MLP가 아닌 CNN으로 �
 → ReLU
 ```
 
-모든 layer의 결과를 concat하고 \(1\times1\) convolution으로 융합합니다.
+모든 layer의 결과를 concat하고 `1\times1` convolution으로 융합합니다.
 
-$$
+```text
 F_S
 =
 \operatorname{Fuse}
 \left(
 \operatorname{Concat}[F_2,F_5,F_8,F_{11}]
 \right)
-$$
+```
 
-$$
+```text
 P_S
 =
 \sigma
 \left(
 \operatorname{Head}(F_S)
 \right)
-$$
+```
 
-patch-resolution 결과는 bilinear interpolation으로 원 영상 크기에 맞게 복원합니다. \(P_S\)는 최종 3-stream fusion에 전달될 similarity probability map입니다.
+patch-resolution 결과는 bilinear interpolation으로 원 영상 크기에 맞게 복원합니다. `P_S`는 최종 3-stream fusion에 전달될 similarity probability map입니다.
 
 ### 학습
 
@@ -362,7 +392,7 @@ patch-resolution 결과는 bilinear interpolation으로 원 영상 크기에 맞
 
 현재 similarity map은 MSE loss로 학습합니다.
 
-$$
+```text
 \mathcal{L}_{\mathrm{sim}}
 =
 \frac{1}{HW}
@@ -370,9 +400,9 @@ $$
 \left(
 P_S(u,v)-Y_S(u,v)
 \right)^2
-$$
+```
 
-여기서 \(Y_S\)는 target과 scene object 사이의 관계를 나타내는 similarity-map ground truth입니다.
+여기서 `Y_S`는 target과 scene object 사이의 관계를 나타내는 similarity-map ground truth입니다.
 
 ### Zero-shot 정성 결과: Unseen Banana
 
@@ -431,7 +461,7 @@ Similarity가 “어디를 우선 탐색할 것인가”에 대한 의미적 단
 
 서랍의 후보 위치에 target 3D mesh를 가상 배치하고, 위치·자세·크기를 변화시키며 현재 depth 관측과 비교합니다. 해당 pose의 target이 앞쪽 물체에 의해 가려질 수 있으면 그 투영 영역에 값을 누적합니다.
 
-$$
+```text
 Y_O(u,v)
 \propto
 \sum_{p\in\mathcal{P}}
@@ -441,11 +471,11 @@ D_{\mathrm{target}}^{p}(u,v)
 >
 D_{\mathrm{scene}}(u,v)
 \right]
-$$
+```
 
-- \(\mathcal{P}\): 가능한 target 위치, 회전 및 scale의 집합
-- \(D_{\mathrm{target}}^{p}\): pose \(p\)에 배치한 target의 렌더링 depth
-- \(D_{\mathrm{scene}}\): 현재 관측된 scene depth
+- `\mathcal{P}`: 가능한 target 위치, 회전 및 scale의 집합
+- `D_{\mathrm{target}}^{p}`: pose `p`에 배치한 target의 렌더링 depth
+- `D_{\mathrm{scene}}`: 현재 관측된 scene depth
 
 다양한 target scale을 사용하여 모델이 절대 크기를 암기하지 않고, scene과 target 사이의 상대 크기 및 가림 관계를 학습하도록 합니다.
 
@@ -497,9 +527,9 @@ Complexity module은 다음 질문에 답합니다.
 - depth discontinuity와 물체 경계 밀도
 - 물체 간 overlap 및 적층 정도
 
-local window \(\Omega_{u,v}\)에서의 complexity ground truth는 다음 형태로 구성할 수 있습니다.
+local window `\Omega_{u,v}`에서의 complexity ground truth는 다음 형태로 구성할 수 있습니다.
 
-$$
+```text
 Y_C(u,v)
 =
 \lambda_n
@@ -512,11 +542,11 @@ D_{\mathrm{scene}}(\Omega_{u,v})
 \right)
 +
 \lambda_e E_{\mathrm{depth}}(\Omega_{u,v})
-$$
+```
 
-- \(N_{\mathrm{obj}}\): local window에 포함된 물체 instance 수
-- \(\operatorname{Var}(D)\): 국소 depth 분산
-- \(E_{\mathrm{depth}}\): depth edge 또는 discontinuity 밀도
+- `N_{\mathrm{obj}}`: local window에 포함된 물체 instance 수
+- `\operatorname{Var}(D)`: 국소 depth 분산
+- `E_{\mathrm{depth}}`: depth edge 또는 discontinuity 밀도
 
 ### 예정 구조
 
