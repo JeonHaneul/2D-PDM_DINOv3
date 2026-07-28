@@ -5,8 +5,7 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 
-# model/ 폴더 (src/model) 경로 -- 로컬에 받아둔 .pth 가중치 파일들이 여기 있음
-MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "model")
+from paths_config import MODEL_DIR
 
 # variant 이름 -> (torch.hub 진입점 함수명, 로컬 가중치 파일명, 임베딩 차원(C), 레이어(block) 수)
 # DINOv3는 이 6개 크기로 사전학습된 체크포인트를 공개했고, 전부 로컬에 받아둔 상태.
