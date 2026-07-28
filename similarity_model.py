@@ -34,18 +34,24 @@ class SimilarityMapModel(nn.Module):
     target_vecs: list (one per DINO layer) of masked-pooled target vectors (B,C), L2-normalized
     """
 
-    def __init__(self, embed_dim: int, num_layers: int, hidden_ch: int = 64):
+    def __init__(self, embed_dim: int, num_layers: int, hidden_ch: int = 64, category_dim: int = 0):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_layers = num_layers
+        self.category_dim = category_dim
         # interaction(=matching block에 들어갈 입력)의 채널 수 구성:
         #   scene patch feature (embed_dim) : "이 위치에 뭐가 있는지"에 대한 원본 정보
         #   target을 그대로 공간에 broadcast한 것 (embed_dim) : "우리가 찾는 게 뭔지"에 대한 원본 정보
         #   cosine similarity (1) : 위 둘을 직접 비교한 유사도 스칼라값 -- head에게 강한 힌트를 주는 채널
+        #   category 확률 분포 broadcast (category_dim, 옵션) : "target이 book/toy/fruit/packaged_food
+        #     중 뭘로 보이는가"를 DINOv3 CLS 토큰 프로토타입(train_common.py)으로 미리 계산해 넣어주는
+        #     채널. cosine/raw feature만으로는 "형상은 다르지만 같은 카테고리"라는 관계를 순전히
+        #     학습에만 의존해서 유추해야 하는데, 이 채널이 그 판단의 명시적 사전 정보를 줘서
+        #     학습 때 못 본 카테고리 조합에 대해서도 head가 근거 있는 예측을 하도록 돕는다.
         # raw feature 두 개 + cosine 스칼라 하나를 다 같이 넣는 이유: cosine 값만 주면 head가
         # "형상이 비슷한가"라는 얕은 신호만 보게 되는데, raw feature까지 주면 head가 학습을 통해
         # "형상은 달라도 같은 카테고리다" 같은 더 깊은 관계도 배울 여지가 생김.
-        interaction_ch = embed_dim + embed_dim + 1  # scene_feat + target_broadcast + cos_sim
+        interaction_ch = embed_dim + embed_dim + 1 + category_dim
         self.matching_blocks = nn.ModuleList(
             [MatchingBlock(interaction_ch, hidden_ch) for _ in range(num_layers)]
         )
@@ -59,7 +65,10 @@ class SimilarityMapModel(nn.Module):
         # 최종적으로 채널을 1개(=유사도 값 하나)로 압축하는 head. 이것도 1x1 conv (MLP 아님).
         self.aux_head = nn.Conv2d(hidden_ch, 1, kernel_size=1)
 
-    def forward(self, scene_feats, target_vecs, out_size=None):
+    def forward(self, scene_feats, target_vecs, category_probs=None, out_size=None):
+        if self.category_dim > 0 and category_probs is None:
+            raise ValueError("category_dim > 0인 모델인데 category_probs가 안 넘어옴")
+
         layer_outs = []
         # DINO layer마다 (scene patch, target vector) 쌍을 하나씩 순회하며 interaction을 만든다
         for (patch, _cls), target_vec in zip(scene_feats, target_vecs):
@@ -74,8 +83,14 @@ class SimilarityMapModel(nn.Module):
             cos = (cos + 1.0) / 2.0  # cosine 값 범위 [-1,1] -> [0,1]로 재조정 (GT와 같은 스케일로 맞춤)
             # target 벡터(원래는 위치 정보가 없는 단일 벡터)를 scene의 모든 위치에 똑같이 복제해서 붙임
             target_bcast = target_vec.view(B, C, 1, 1).expand(-1, -1, Hp, Wp)
-            # 세 가지를 채널 방향으로 이어붙임(concat) -> 이게 이번 layer의 interaction feature
-            interaction = torch.cat([patch, target_bcast, cos], dim=1)
+            interaction_parts = [patch, target_bcast, cos]
+            if self.category_dim > 0:
+                # category_probs도 target_vec과 마찬가지로 위치 정보가 없는 (B,K) 벡터이므로
+                # 동일한 방식으로 모든 위치에 복제해서 붙인다.
+                cat_bcast = category_probs.view(B, self.category_dim, 1, 1).expand(-1, -1, Hp, Wp)
+                interaction_parts.append(cat_bcast)
+            # 채널 방향으로 이어붙임(concat) -> 이게 이번 layer의 interaction feature
+            interaction = torch.cat(interaction_parts, dim=1)
             layer_outs.append(interaction)
 
         # layer별 interaction을 각자의 MatchingBlock(CNN)에 통과시킴
