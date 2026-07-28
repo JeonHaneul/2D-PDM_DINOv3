@@ -5,12 +5,15 @@ import time
 import cv2
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+from transformers import AutoTokenizer, SiglipModel
 
 from backbone import DINOv3Backbone, PATCH_SIZE
 from gt_similarity import build_color_to_score, discover_assets, load_scene_mapping, render_gt_map, resolve_target_from_data_folder
+from paths_config import ASSET_DIR
 from similarity_model import SimilarityMapModel
 from target_utils import bgr_to_chw, bgr_to_tensor, crop_with_mask, discover_target_frame_id, load_target_reference
 from train_common import (
@@ -19,15 +22,13 @@ from train_common import (
     split_scene_ids, target_paths,
 )
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ASSET_DIR = os.path.join(ROOT, "asset")
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 
 # 260714_data에 데이터가 준비된 15개 target 전체 (packaged_food_1은 scene 데이터 자체가 없어서 제외)
 TARGETS = [
     "book_1", "book_2", "book_3", "book_4",
     "fruit_1", "fruit_2", "fruit_3", "fruit_4",
-    "packaged_food_2", "packaged_food_3", "packaged_food_4",
+    "packaged_food_1", "packaged_food_2", "packaged_food_3", "packaged_food_4",
     "toy_1", "toy_2", "toy_3", "toy_4",
 ]
 TARGET_CAMS = ["center", "top", "left", "right", "bottom"]
@@ -35,9 +36,8 @@ TARGET_CAMS = ["center", "top", "left", "right", "bottom"]
 TRAIN_RATIO = 0.8   # target마다 scene 그룹을 셔플한 뒤 이 비율로 train/val 분할
 SPLIT_SEED = None      # 정수 -> 항상 같은 분할(재현 가능). None -> 매 실행 랜덤(사용된 시드는 로그 출력)
 CAMS = ["center", "top", "left", "right", "bottom"]  # scene 쪽 카메라 5개 전부 사용
-ENV_STRIDE = 1         # 300개 env 중 몇 개마다 하나씩 쓸지. 디스크에서 그때그때 읽는 방식이라
-                       # 메모리 상한과는 무관 -- "epoch 하나 도는 데 걸리는 시간 vs 데이터 다양성"
-                       # 트레이드오프일 뿐. 1이면 전체(15target*10scene*300env*5cam) 다 씀.
+ENV_STRIDE = 10         # 300개 env 중 몇 개마다 하나씩 쓸지. 디스크에서 그때그때 읽는 방식이라
+                       # 메모리 상한과는 무관 -- v1과 동일한 트레이드오프.
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 LAYERS = (2, 5, 8, 11)
@@ -46,11 +46,19 @@ EPOCHS = 100
 LR = 1e-3
 
 SAVE_INTERVAL = 2
-EARLY_STOP_PATIENCE = 10
+EARLY_STOP_PATIENCE = 5
 EARLY_STOP_MIN_DELTA_PCT = 0.05
+
+# --- SigLIP semantic encoder 설정 (2D_PDM-TH와 동일 체크포인트) ---
+SIGLIP_MODEL_ID = "google/siglip-so400m-patch14-384"
+SIGLIP_DIM = 1152
+SIGLIP_IMG_SZ = 384
+_SIG_MEAN = torch.tensor([0.5, 0.5, 0.5]).view(1, 3, 1, 1)
+_SIG_STD = torch.tensor([0.5, 0.5, 0.5]).view(1, 3, 1, 1)
 
 
 class MultiTargetSceneDataset(Dataset):
+    """v1(train_similarity.py)과 완전히 동일 -- 디스크 스트리밍, RAM 캐싱 없음."""
     def __init__(self, target_scene_ids: dict, usd_to_category: dict, target_usd_names: dict):
         self.samples = []  # [(target_name, fname, prefix), ...]
         self.mapping_cache = {}  # (target_name, prefix) -> {usd_name: bgr색상}
@@ -71,8 +79,6 @@ class MultiTargetSceneDataset(Dataset):
         self.target_usd_names = target_usd_names
 
     def load_sample(self, idx):
-        """디스크에서 RGB(BGR uint8 ndarray)와 GT(float32 [0,1] ndarray)를 읽어서 반환.
-        __getitem__과 make_panel이 공통으로 사용."""
         target_name, fname, prefix = self.samples[idx]
         paths = self.paths[target_name]
         rgb = cv2.imread(os.path.join(paths["scene_dir"], "rgb", f"{fname}.png"))
@@ -86,7 +92,7 @@ class MultiTargetSceneDataset(Dataset):
             color_to_score = build_color_to_score(
                 self.mapping_cache[(target_name, prefix)], self.target_usd_names[target_name], self.usd_to_category
             )
-            gt = render_gt_map(seg, color_to_score)  # (H,W) float32 in [0,1]
+            gt = render_gt_map(seg, color_to_score)
 
         return rgb, gt
 
@@ -99,9 +105,112 @@ class MultiTargetSceneDataset(Dataset):
         return bgr_to_chw(rgb), torch.from_numpy(gt.astype(np.float32)), target_name
 
 
-def run_epoch(backbone, model, loader, target_vec_cache, optim=None, desc=""):
+def bgr_to_siglip_tensor(bgr: np.ndarray, device: str = "cuda") -> torch.Tensor:
+    """BGR uint8 -> (1,3,384,384) SigLIP 정규화(mean=0.5,std=0.5) 텐서."""
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    rgb = cv2.resize(rgb, (SIGLIP_IMG_SZ, SIGLIP_IMG_SZ), interpolation=cv2.INTER_LINEAR)
+    t = torch.from_numpy(rgb.astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
+    return ((t - _SIG_MEAN) / _SIG_STD).to(device)
+
+
+class SemanticProjection(nn.Module):
+    """SigLIP semantic 임베딩(1152,)을 DINOv3 레이어별 차원(768)으로 투영하는 학습 가능한 어댑터.
+    유일하게 gradient가 흐르는 semantic 관련 파라미터. 레이어마다 독립된 Linear를 쓰는 이유는 DINOv3 얕은 층/깊은 층이 담는 정보
+    성격이 달라서(형태 vs 의미), 같은 SigLIP 신호도 레이어마다 다르게 변형해서 주입하는 게유리하기 때문."""
+    def __init__(self, siglip_dim: int, embed_dim: int, num_layers: int):
+        super().__init__()
+        self.proj = nn.ModuleList([nn.Linear(siglip_dim, embed_dim) for _ in range(num_layers)])
+
+    def forward(self, semantic_raw: torch.Tensor) -> list:
+        """semantic_raw: (B, siglip_dim) -> [(B, embed_dim), ...] per layer"""
+        return [p(semantic_raw) for p in self.proj]
+
+TARGET_LABELS = {
+    "book_1": "a hardcover book",
+    "book_2": "a hardcover book",
+    "book_3": "a hardcover book",
+    "book_4": "a hardcover book",
+    "fruit_1": "an apple",
+    "fruit_2": "an avocado",
+    "fruit_3": "a lime",
+    "fruit_4": "an orange",
+    "packaged_food_1": "a can of tomato soup",
+    "packaged_food_2": "a can of potted meat",
+    "packaged_food_3": "a bottle of mustard",
+    "packaged_food_4": "a box of pudding",
+    "packaged_food_5": "a bag of instant coffee",
+    "toy_1": "a toy truck",
+    "toy_2": "a wooden ball toy",
+    "toy_3": "a shield-shaped game controller toy",
+    "toy_4": "a rubik's cube toy",
+}
+
+
+def target_to_prompt(target_name: str, category: str) -> str:
+    """target -> "a photo of {구체적 이름}, a type of {category}" (TH의 PROMPT_TEMPLATE과 동일 형식).
+    TARGET_LABELS에 없는 target(라벨 미작성)은 카테고리 수준으로 자동 폴백."""
+    specific = TARGET_LABELS.get(target_name, f"a {category.replace('_', ' ')}")
+    return f"a photo of {specific}, a type of {category.replace('_', ' ')}"
+
+
+@torch.no_grad()
+def encode_text_siglip(siglip_model, tokenizer, prompt: str, device: str) -> torch.Tensor:
+    """텍스트(카테고리 프롬프트) -> L2정규화 (1152,) SigLIP 텍스트 임베딩."""
+    tokens = tokenizer([prompt], padding="max_length", max_length=64, truncation=True,
+                        return_tensors="pt").to(device)
+    out = siglip_model.text_model(**tokens)
+    return F.normalize(out.pooler_output[0], dim=0)  # (1152,)
+
+
+@torch.no_grad()
+def encode_target_semantic(siglip_model, device: str, target_rgb_dir: str, target_seg_dir: str,
+                            target_mapping_path: str, target_frame_id: str, cam: str,
+                            text_embed: torch.Tensor = None) -> torch.Tensor:
+    """target crop 한 장을 SigLIP에 넣어 L2정규화된 (1152,) semantic 임베딩을 뽑는다.
+    마스크는 우리 segmentation 기반(crop_with_mask)을 재사용
+    text_embed가 주어지면 이미지 임베딩과 평균 fusion(TH와 동일, 같은 SigLIP 공간이라 평균이
+    수학적으로 유효) -- 없으면 image-only."""
+    tgt_rgb, tgt_mask, _ = load_target_reference(target_rgb_dir, target_seg_dir, target_mapping_path,
+                                                  target_frame_id, cam)
+    crop_rgb, _crop_mask, _ = crop_with_mask(tgt_rgb, tgt_mask, pad_ratio=0.25)
+    sig_tensor = bgr_to_siglip_tensor(crop_rgb, device=device)
+    out = siglip_model.vision_model(pixel_values=sig_tensor)
+    img_embed = F.normalize(out.pooler_output[0], dim=0)  # (1152,)
+    if text_embed is None:
+        return img_embed
+    return F.normalize((img_embed + text_embed) / 2.0, dim=0)
+
+
+def precompute_target_semantic_cache(siglip_model, tokenizer, targets: list, device: str,
+                                      target_categories: dict) -> dict:
+    """target마다 semantic 임베딩 하나(center 카메라 기준 대표 시점 1장 + 인스턴스별 텍스트)를
+    미리 계산해 캐싱. DINOv3 appearance(gather_target_vecs)와 달리 카메라별 augmentation이
+    필요 없다고 보고("개념"은 보는 각도와 무관해야 함) center 한 장만 사용 -- 2D_PDM-TH도 target
+    이미지 1장 기준. 텍스트는 프롬프트 문자열 기준으로 캐싱(TARGET_LABELS에 없어 폴백된 target들은
+    같은 카테고리 프롬프트를 공유하게 됨)."""
+    text_cache = {}
+    cache = {}
+    for name in targets:
+        paths = target_paths(name)
+        frame_id = discover_target_frame_id(paths["target_rgb_dir"])
+        prompt = target_to_prompt(name, target_categories[name])
+        if prompt not in text_cache:
+            text_cache[prompt] = encode_text_siglip(siglip_model, tokenizer, prompt, device)
+        cache[name] = encode_target_semantic(
+            siglip_model, device, paths["target_rgb_dir"], paths["target_seg_dir"],
+            paths["target_mapping_path"], frame_id, "center", text_embed=text_cache[prompt]
+        )
+    return cache
+
+
+def gather_target_semantic(semantic_cache: dict, target_names: list, device: str) -> torch.Tensor:
+    return torch.stack([semantic_cache[name] for name in target_names], dim=0).to(device)
+
+
+def run_epoch(backbone, model, semantic_proj, loader, target_vec_cache, semantic_cache, optim=None, desc=""):
     train_mode = optim is not None
     model.train(train_mode)
+    semantic_proj.train(train_mode)
     total_loss, total_n = 0.0, 0
     acc_counts = [0.0, 0.0, 0.0, 0.0, 0.0]
 
@@ -112,11 +221,16 @@ def run_epoch(backbone, model, loader, target_vec_cache, optim=None, desc=""):
         B = rgb_batch.shape[0]
         names = list(target_names)
 
-        scene_feats = backbone(rgb_batch)  # frozen, no_grad internally -- target과 무관하므로 1번만
+        scene_feats = backbone(rgb_batch)  # frozen, no_grad internally
         gt_patch = F.avg_pool2d(gt_batch[:, None], kernel_size=PATCH_SIZE, stride=PATCH_SIZE)
 
+        # semantic은 카메라 각도와 무관(target 하나당 값 하나)이므로 cam 루프 밖에서 한 번만 투영
+        semantic_raw = gather_target_semantic(semantic_cache, names, DEVICE)
+        sem_proj = semantic_proj(semantic_raw)  # [(B,768), ...] per layer, gradient 흐름
+
         if train_mode:
-            target_vecs = gather_target_vecs(target_vec_cache, names, len(LAYERS), DEVICE, TARGET_CAMS, cam=None)
+            appearance = gather_target_vecs(target_vec_cache, names, len(LAYERS), DEVICE, TARGET_CAMS, cam=None)
+            target_vecs = [a + s for a, s in zip(appearance, sem_proj)]  # additive fusion (TH와 동일)
             out = model(scene_feats, target_vecs)
             pred_patch = out["prob_patch_res"]
             loss = F.mse_loss(pred_patch, gt_patch)
@@ -134,7 +248,8 @@ def run_epoch(backbone, model, loader, target_vec_cache, optim=None, desc=""):
             with torch.no_grad():
                 cam_losses = []
                 for cam in TARGET_CAMS:
-                    target_vecs = gather_target_vecs(target_vec_cache, names, len(LAYERS), DEVICE, TARGET_CAMS, cam=cam)
+                    appearance = gather_target_vecs(target_vec_cache, names, len(LAYERS), DEVICE, TARGET_CAMS, cam=cam)
+                    target_vecs = [a + s for a, s in zip(appearance, sem_proj)]
                     out = model(scene_feats, target_vecs)
                     pred_patch = out["prob_patch_res"]
                     loss = F.mse_loss(pred_patch, gt_patch)
@@ -151,7 +266,8 @@ def run_epoch(backbone, model, loader, target_vec_cache, optim=None, desc=""):
     return total_loss / total_n, acc, bal_acc, iou
 
 
-def make_panel(backbone, model, val_ds, target_vec_cache, sample_idx=None, extra_label=""):
+def make_panel(backbone, model, semantic_proj, val_ds, target_vec_cache, semantic_cache,
+               sample_idx=None, extra_label=""):
     if sample_idx is None:
         sample_idx = random.randrange(len(val_ds))
     target_name, fname, _prefix = val_ds.samples[sample_idx]
@@ -164,14 +280,19 @@ def make_panel(backbone, model, val_ds, target_vec_cache, sample_idx=None, extra
                                                    paths["target_mapping_path"], frame_id, "center")
     crop_rgb, _crop_mask, _ = crop_with_mask(tgt_rgb, tgt_mask, pad_ratio=0.25)
 
-    target_vecs = [target_vec_cache[(target_name, "center")][li].unsqueeze(0) for li in range(len(LAYERS))]
+    appearance = [target_vec_cache[(target_name, "center")][li].unsqueeze(0) for li in range(len(LAYERS))]
+    semantic_raw = semantic_cache[target_name].unsqueeze(0).to(DEVICE)
 
-    was_training = model.training
+    was_training_m, was_training_s = model.training, semantic_proj.training
     model.eval()
+    semantic_proj.eval()
     with torch.no_grad():
+        sem_proj = semantic_proj(semantic_raw)
+        target_vecs = [a + s for a, s in zip(appearance, sem_proj)]
         scene_feats = backbone(bgr_to_tensor(query_rgb, device=DEVICE))
         out = model(scene_feats, target_vecs, out_size=(H, W))
-    model.train(was_training)
+    model.train(was_training_m)
+    semantic_proj.train(was_training_s)
     pred_full = out["prob_full_res"][0, 0].cpu().numpy()
 
     return build_qualitative_panel(f"{target_name}", crop_rgb, query_rgb, gt_map, pred_full, fname, extra_label)
@@ -179,7 +300,7 @@ def make_panel(backbone, model, val_ds, target_vec_cache, sample_idx=None, extra
 
 def main():
     run_id = time.strftime("%Y%m%d_%H%M%S")
-    run_dir = os.path.join(OUT_DIR, f"multi_target_{run_id}")
+    run_dir = os.path.join(OUT_DIR, f"multi_target_{run_id}_siglip")
     os.makedirs(run_dir, exist_ok=True)
     print(f"이번 실행 결과물 저장 위치: {run_dir}")
 
@@ -192,11 +313,24 @@ def main():
         usd_name, _ = resolve_target_from_data_folder(ASSET_DIR, name)
         target_usd_names[name] = usd_name
 
-    print(f"precomputing target vectors for {len(TARGETS)} targets x {len(TARGET_CAMS)} cams...")
+    print(f"precomputing target appearance vectors for {len(TARGETS)} targets x {len(TARGET_CAMS)} cams...")
     target_vec_cache, usable_targets, skipped_targets = precompute_target_vec_cache(backbone, TARGETS, DEVICE, TARGET_CAMS)
     if skipped_targets:
         print(f"    [WARN] target/mapping.json 없어서 제외됨: {skipped_targets}")
     print(f"    usable targets ({len(usable_targets)}): {usable_targets}")
+
+    print(f"loading SigLIP so400m ({SIGLIP_MODEL_ID}, frozen) ...")
+    siglip_model = SiglipModel.from_pretrained(SIGLIP_MODEL_ID)
+    siglip_model.eval()
+    for p in siglip_model.parameters():
+        p.requires_grad_(False)
+    siglip_model.to(DEVICE)
+    siglip_tokenizer = AutoTokenizer.from_pretrained(SIGLIP_MODEL_ID)
+
+    target_categories = {name: usd_to_category[target_usd_names[name]] for name in usable_targets}
+    print(f"precomputing target semantic embeddings ({len(usable_targets)} targets, image+text fusion)...")
+    semantic_cache = precompute_target_semantic_cache(siglip_model, siglip_tokenizer, usable_targets, DEVICE,
+                                                       target_categories)
 
     # target별로 scene을 discover하고 leakage 없이 분할한 뒤, train/val 각각 전부 합침
     train_scene_ids, val_scene_ids = {}, {}
@@ -220,7 +354,8 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, pin_memory=True)
 
     model = SimilarityMapModel(embed_dim=backbone.embed_dim, num_layers=len(LAYERS)).to(DEVICE)
-    optim = torch.optim.AdamW(model.parameters(), lr=LR)
+    semantic_proj = SemanticProjection(SIGLIP_DIM, backbone.embed_dim, len(LAYERS)).to(DEVICE)
+    optim = torch.optim.AdamW(list(model.parameters()) + list(semantic_proj.parameters()), lr=LR)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=EPOCHS)
 
     log_path = os.path.join(run_dir, "train_log.txt")
@@ -229,12 +364,18 @@ def main():
     last_ckpt_path = os.path.join(run_dir, "similarity_head_last.pt")
     early_stopper = EarlyStopping(patience=EARLY_STOP_PATIENCE, min_delta_pct=EARLY_STOP_MIN_DELTA_PCT)
 
+    def save_ckpt(path):
+        # DINOv3/SigLIP은 frozen이라 저장 안 함 -- 학습 대상(model, semantic_proj)만 저장
+        torch.save({"model_state": model.state_dict(), "semantic_proj_state": semantic_proj.state_dict()}, path)
+
     history = []
     for epoch in range(EPOCHS):
         train_loss, train_acc, train_bal_acc, train_iou = run_epoch(
-            backbone, model, train_loader, target_vec_cache, optim, desc=f"epoch {epoch + 1}/{EPOCHS} [train]")
+            backbone, model, semantic_proj, train_loader, target_vec_cache, semantic_cache, optim,
+            desc=f"epoch {epoch + 1}/{EPOCHS} [train]")
         val_loss, val_acc, val_bal_acc, val_iou = run_epoch(
-            backbone, model, val_loader, target_vec_cache, optim=None, desc=f"epoch {epoch + 1}/{EPOCHS} [val]")
+            backbone, model, semantic_proj, val_loader, target_vec_cache, semantic_cache, optim=None,
+            desc=f"epoch {epoch + 1}/{EPOCHS} [val]")
         scheduler.step()
         history.append((epoch + 1, train_loss, val_loss))
         log_line = (f"epoch {epoch + 1:2d}/{EPOCHS}  train_mse={train_loss:.5f}  val_mse={val_loss:.5f}  "
@@ -245,13 +386,13 @@ def main():
         append_log(log_path, log_line)
 
         if early_stopper(val_loss):
-            torch.save(model.state_dict(), best_ckpt_path)
+            save_ckpt(best_ckpt_path)
             print(f"    -> best model 저장: {best_ckpt_path}")
             append_log(log_path, f"    -> new best (val_mse={val_loss:.5f}), saved {best_ckpt_path}")
 
         if (epoch + 1) % SAVE_INTERVAL == 0 or (epoch + 1) == EPOCHS:
-            torch.save(model.state_dict(), last_ckpt_path)
-            panel = make_panel(backbone, model, val_ds, target_vec_cache,
+            save_ckpt(last_ckpt_path)
+            panel = make_panel(backbone, model, semantic_proj, val_ds, target_vec_cache, semantic_cache,
                                 extra_label=f"(epoch {epoch + 1}/{EPOCHS})")
             panel_path = os.path.join(run_dir, f"trained_result_panel_epoch{epoch + 1:03d}.png")
             cv2.imwrite(panel_path, panel)
@@ -273,7 +414,7 @@ def main():
         plt.plot(epochs_, va, label="val MSE")
         plt.xlabel("epoch")
         plt.ylabel("MSE (patch-res, [0,1] targets)")
-        plt.title(f"SimilarityMapModel training v1 (multi-target, {len(usable_targets)} targets)")
+        plt.title(f"SimilarityMapModel training v2/SigLIP (multi-target, {len(usable_targets)} targets)")
         plt.legend()
         plt.tight_layout()
         loss_plot_path = os.path.join(run_dir, "train_loss_curve.png")
