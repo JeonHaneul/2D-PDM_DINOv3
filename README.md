@@ -536,7 +536,8 @@ SigLIP vision embedding과 category text embedding을 같은 semantic space에�
 
 이 구성에서 학습에 사용하지 않은 target을 넣었을 때 target과 같은 카테고리 영역이 활성화되는 결과를 확인했습니다. Appearance-only 또는 CLS-prototype 접근에서 부족했던 category-level semantic generalization이 vision-language representation을 통해 보완된 것입니다.
 
-![image_4](img/panel_Fruit-Orange_scene00003_env0274_center.png)
+![image_4](img/packaged_food_5_zeroshot_nolabel_2.png)
+![image_5](img/packaged_food_5_zeroshot_v2.png)
 
 **Conclusion:** SigLIP 결합으로 unseen target에 대한 의미 기반 zero-shot activation이 가능해졌습니다.
 
