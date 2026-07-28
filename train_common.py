@@ -4,10 +4,10 @@ import random
 import cv2
 import numpy as np
 import torch
+import torch.nn.functional as F
 
+from paths_config import GT_DIR, SCENE_DIR, TARGET_DIR
 from target_utils import bgr_to_tensor, crop_with_mask, discover_target_frame_id, load_target_reference, masked_pool, prepare_target_input
-
-DATA_ROOT_260714 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "260714_data")
 
 
 def discover_scene_ids(scene_dir: str) -> list:
@@ -64,11 +64,11 @@ def sample_target_vecs(backbone, device, target_rgb_dir, target_seg_dir, target_
 def target_paths(name: str) -> dict:
     """target 이름 하나에 대한 모든 관련 경로를 한번에 계산. v1(디스크 스트리밍)과 v2(VRAM
     preload) 둘 다 여러 target을 섞어 학습하므로 이 경로 계산 로직을 공유한다."""
-    scene_dir = os.path.join(DATA_ROOT_260714, "scene", name)
-    target_dir = os.path.join(DATA_ROOT_260714, "target", name)
+    scene_dir = os.path.join(SCENE_DIR, name)
+    target_dir = os.path.join(TARGET_DIR, name)
     return {
         "scene_dir": scene_dir,
-        "gt_dir": os.path.join(DATA_ROOT_260714, "GT_data", name),
+        "gt_dir": os.path.join(GT_DIR, name),
         "target_rgb_dir": os.path.join(target_dir, "rgb"),
         "target_seg_dir": os.path.join(target_dir, "seg"),
         "target_mapping_path": os.path.join(target_dir, "mapping.json"),
@@ -107,6 +107,134 @@ def gather_target_vecs(target_vec_cache: dict, target_names: list, num_layers: i
     else:
         per_sample = [target_vec_cache[(name, random.choice(target_cams))] for name in target_names]
     return [torch.stack([vecs[li] for vecs in per_sample], dim=0).to(device) for li in range(num_layers)]
+
+
+# === 카테고리 zero-shot 분류 (DINOv3 CLS 토큰 기반 최근접 프로토타입) ===
+# 문제의식: 지금까지 target 벡터(encode_target/masked_pool)는 patch grid를 풀링한 "공간적 매칭용"
+# 벡터라 scene 안에서 target과 비슷한 위치를 찾는 데는 쓰이지만, "이 target이 애초에 toy인지
+# book인지"를 판단하는 의미론적 신호는 아니다. GT를 만들 때 카테고리는 asset 폴더 구조(사람이
+# 미리 정해둔 값)에서만 나오고, 학습된 모델 자체는 새로운(asset 폴더에 없는) 물체가 오면 그 물체의
+# 카테고리를 스스로 추론할 방법이 없다. 아래는 그 문제를 DINOv3만으로(추가 대규모 모델 없이)
+# 푸는 가장 가벼운 방법: CLS 토큰(패치 grid가 아니라 이미지 전체를 요약하는 벡터, 물체의 "종류"를
+# patch보다 더 잘 담고 있음)을 카테고리별로 평균 내서 프로토타입을 만들고, 새 물체는 그 프로토타입
+# 중 가장 가까운 것으로 분류한다 (few-shot/prototypical network의 zero-shot 버전 -- 새 물체
+# 자체에 대한 학습은 전혀 필요 없고, 인코딩 1번 + 코사인 유사도 비교만 하면 됨).
+
+def encode_target_cls(backbone, device, target_rgb_dir, target_seg_dir, target_mapping_path,
+                       target_frame_id, cam, layer_idx: int = -1) -> torch.Tensor:
+    """target 사진 한 장을 crop해서 DINOv3에 넣고, patch grid가 아니라 CLS 토큰을 뽑아 L2
+    정규화해서 반환. layer_idx=-1(요청한 layer들 중 가장 깊은 층)을 쓰는 이유: 얕은 층은
+    색/질감 같은 저수준 특징이 강하고, 깊은 층일수록 더 추상화된(의미론적) 정보를 담기 때문에
+    "이 물체가 무슨 종류인가" 판단에는 깊은 층 쪽이 유리하다."""
+    tgt_rgb, tgt_mask, _ = load_target_reference(target_rgb_dir, target_seg_dir, target_mapping_path,
+                                                  target_frame_id, cam)
+    crop_rgb, crop_mask, _ = crop_with_mask(tgt_rgb, tgt_mask, pad_ratio=0.25)
+    target_input_bgr, _target_input_mask = prepare_target_input(crop_rgb, crop_mask, size=224)
+    target_tensor = bgr_to_tensor(target_input_bgr, device=device)
+    target_feats = backbone(target_tensor)  # [(patch, cls), ...] per requested layer
+    _patch, cls = target_feats[layer_idx]
+    return F.normalize(cls[0], dim=0)  # (C,)
+
+
+def precompute_target_cls_cache(backbone, targets: list, device: str, target_cams: list) -> tuple:
+    """target마다 카메라 5장의 CLS 벡터를 평균 내서 target 하나당 벡터 하나로 캐싱.
+    (patch 벡터 캐시(precompute_target_vec_cache)와는 별개 용도 -- 이건 카테고리 분류용, 그건
+    scene 안에서의 공간적 매칭용.) 카메라를 평균 내는 이유: "이 물체가 어떤 종류인가"는 보는
+    각도와 무관해야 하는 성질이라, 각도별 CLS 임베딩 편차를 평균으로 지운다."""
+    cache = {}
+    usable, skipped = [], []
+    for name in targets:
+        paths = target_paths(name)
+        if not os.path.isfile(paths["target_mapping_path"]):
+            skipped.append(name)
+            continue
+        frame_id = discover_target_frame_id(paths["target_rgb_dir"])
+        vecs = [
+            encode_target_cls(backbone, device, paths["target_rgb_dir"], paths["target_seg_dir"],
+                               paths["target_mapping_path"], frame_id, cam)
+            for cam in target_cams
+        ]
+        cache[name] = F.normalize(torch.stack(vecs).mean(dim=0), dim=0)
+        usable.append(name)
+    return cache, usable, skipped
+
+
+def build_category_prototypes(target_cls_cache: dict, target_categories: dict) -> dict:
+    """target별 CLS 벡터를 카테고리별로 묶어서 평균 낸 뒤 재정규화 -> {category: 프로토타입 벡터}.
+    target_cls_cache: {target_name: (C,) 벡터} (precompute_target_cls_cache의 반환값 형식)
+    target_categories: {target_name: category_str}"""
+    by_cat = {}
+    for name, vec in target_cls_cache.items():
+        cat = target_categories[name]
+        by_cat.setdefault(cat, []).append(vec)
+    return {cat: F.normalize(torch.stack(vecs).mean(dim=0), dim=0) for cat, vecs in by_cat.items()}
+
+
+def classify_category(query_vec: torch.Tensor, prototypes: dict) -> list:
+    """query_vec과 각 카테고리 프로토타입의 코사인 유사도를 계산해 (category, score) 내림차순
+    리스트로 반환. 둘 다 L2 정규화된 벡터이므로 코사인 유사도 = 내적."""
+    scores = [(cat, (query_vec * proto).sum().item()) for cat, proto in prototypes.items()]
+    return sorted(scores, key=lambda kv: kv[1], reverse=True)
+
+
+# === 카테고리 확률을 SimilarityMapModel의 입력 feature로 반영 ===
+# 여기까지는 카테고리 분류가 순수 "보조 신호"(추론 결과를 얼마나 믿을지 판단하는 용도)였는데,
+# 이제 그 확률 분포 자체를 모델 입력에 concat해서 pixel 단위 예측에 직접 반영한다 -- 그러면
+# 2D-PDM 결과 이미지에서 "이 target은 book 카테고리다"라는 정보가 하이라이트되는 영역 자체에
+# 반영된다. (SimilarityMapModel.forward의 category_probs 인자, similarity_model.py 참고)
+CATEGORY_ORDER = ["book", "toy", "fruit", "packaged_food"]  # 모델 입력 벡터의 채널 순서 고정용
+
+
+def category_probs_from_scores(ranked: list, category_order: list = CATEGORY_ORDER,
+                                temperature: float = 0.1) -> torch.Tensor:
+    """classify_category()가 반환한 (category, cos유사도) 목록을 고정된 순서의 확률 분포로 변환.
+    cos유사도 범위(대략 0.1~0.7)가 좁아서 그냥 softmax하면 거의 균등분포가 되므로, temperature로
+    나눠서 확률 분포가 뚜렷하게 갈리게 만든다 (작을수록 더 확신에 찬 분포)."""
+    score_by_cat = dict(ranked)
+    logits = torch.tensor([score_by_cat[c] for c in category_order], dtype=torch.float32)
+    return F.softmax(logits / temperature, dim=0)
+
+
+def precompute_target_category_probs(target_cls_cache: dict, target_categories: dict,
+                                      category_order: list = CATEGORY_ORDER,
+                                      temperature: float = 0.1) -> dict:
+    """target마다 leave-one-out 프로토타입(자기 자신은 제외한 나머지 target들로 만든 프로토타입)
+    으로 카테고리 확률 분포를 계산해 {target_name: (K,) 확률벡터} 로 반환.
+
+    자기 자신을 포함해서 프로토타입을 만들면 카테고리 확률이 항상 정답에 100% 확신을 갖고
+    나오게 되어(카닝) 모델이 "카테고리 신호는 항상 완벽하다"고 잘못 학습한다. 실제 배포 때는
+    지금까지 한 번도 못 본 새 물체가 들어오므로, 학습 때도 "이 target을 프로토타입 계산에서
+    아예 빼고 나머지로만 분류했을 때 나올 법한, 가끔 애매하거나 틀리기도 하는" 확률 분포를
+    그대로 학습 신호로 써야 head가 그런 불확실성에도 안정적으로 대응하는 법을 배운다.
+
+    단, 어떤 카테고리에 instance가 단 하나뿐이면(예: 작은 subset으로 스모크 테스트할 때)
+    그 하나를 빼는 순간 카테고리 자체가 프로토타입에서 통째로 사라져 분류가 불가능해지므로,
+    그 경우에 한해 예외적으로 자기 자신을 포함해서 계산한다(경고 출력). 실제 15-target 전체
+    사용 시(카테고리당 3~4개)는 이 예외가 발생하지 않는다."""
+    cat_counts = {}
+    for name in target_cls_cache:
+        cat_counts[target_categories[name]] = cat_counts.get(target_categories[name], 0) + 1
+
+    probs = {}
+    for name in target_cls_cache:
+        cat = target_categories[name]
+        if cat_counts[cat] >= 2:
+            remaining_cache = {n: v for n, v in target_cls_cache.items() if n != name}
+        else:
+            print(f"    [WARN] '{name}' ({cat}) 카테고리에 다른 instance가 없어 leave-one-out 불가 "
+                  f"-- 자기 자신을 포함해서 계산")
+            remaining_cache = dict(target_cls_cache)
+        remaining_categories = {n: target_categories[n] for n in remaining_cache}
+        prototypes = build_category_prototypes(remaining_cache, remaining_categories)
+        ranked = classify_category(target_cls_cache[name], prototypes)
+        probs[name] = category_probs_from_scores(ranked, category_order, temperature)
+    return probs
+
+
+def gather_category_probs(target_category_probs: dict, target_names: list, device: str) -> torch.Tensor:
+    """배치 안 각 샘플의 target 이름에 맞는 카테고리 확률 벡터를 캐시에서 조회해 (B,K)로 쌓는다.
+    gather_target_vecs와 짝을 이루는 함수 -- 이쪽은 카메라 각도와 무관(target 하나당 값 하나)."""
+    return torch.stack([target_category_probs[name] for name in target_names], dim=0).to(device)
 
 
 class EarlyStopping:
@@ -221,3 +349,53 @@ def build_qualitative_panel(target_usd_name: str, crop_rgb: np.ndarray, query_rg
         ],
         axis=1,
     )
+
+
+if __name__ == "__main__":
+    # 이 파일을 직접 실행하면: DINOv3 CLS-프로토타입 카테고리 분류기가 "완전히 처음 보는 물체"에
+    # 대해서도 동작하는지 leave-one-out으로 검증한다. target 15개 중 하나(held_out)를 프로토타입
+    # 계산에서 완전히 빼고, 나머지 14개로만 카테고리 프로토타입을 만든 뒤, held_out을 분류해본다
+    # -- "학습 데이터에 전혀 없던 새 물체가 온 상황"을 그대로 흉내낸 것이라 이게 곧 zero-shot
+    # 일반화 성능의 실측치가 된다.
+    from backbone import DINOv3Backbone
+    from gt_similarity import discover_assets, resolve_target_from_data_folder
+    from paths_config import ASSET_DIR
+
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    LAYERS = (2, 5, 8, 11)
+    TARGET_CAMS = ["center", "top", "left", "right", "bottom"]
+    TARGETS = [
+        "book_1", "book_2", "book_3", "book_4",
+        "fruit_1", "fruit_2", "fruit_3", "fruit_4",
+        "packaged_food_2", "packaged_food_3", "packaged_food_4",
+        "toy_1", "toy_2", "toy_3", "toy_4",
+    ]
+
+    print(f"loading DINOv3 backbone (device={DEVICE})...")
+    backbone = DINOv3Backbone(variant="vitb16", layers=LAYERS, device=DEVICE)
+    usd_to_category = discover_assets(ASSET_DIR)
+    target_categories = {}
+    for name in TARGETS:
+        usd_name, _ = resolve_target_from_data_folder(ASSET_DIR, name)
+        target_categories[name] = usd_to_category[usd_name]
+
+    print("encoding CLS vectors for all targets (5 cams averaged each)...")
+    cls_cache, usable, skipped = precompute_target_cls_cache(backbone, TARGETS, DEVICE, TARGET_CAMS)
+    if skipped:
+        print(f"    [WARN] skipped (no mapping.json): {skipped}")
+
+    print(f"\nleave-one-out zero-shot category classification ({len(usable)} targets):")
+    correct = 0
+    for held_out in usable:
+        remaining_cache = {n: v for n, v in cls_cache.items() if n != held_out}
+        remaining_categories = {n: target_categories[n] for n in remaining_cache}
+        prototypes = build_category_prototypes(remaining_cache, remaining_categories)
+        ranked = classify_category(cls_cache[held_out], prototypes)
+        pred_cat, pred_score = ranked[0]
+        true_cat = target_categories[held_out]
+        ok = pred_cat == true_cat
+        correct += int(ok)
+        all_scores = "  ".join(f"{c}:{s:.3f}" for c, s in ranked)
+        print(f"    [{'OK   ' if ok else 'WRONG'}] {held_out:20s} true={true_cat:15s} "
+              f"pred={pred_cat:15s} ({all_scores})")
+    print(f"\nleave-one-out accuracy: {correct}/{len(usable)} = {correct / len(usable) * 100:.1f}%")
