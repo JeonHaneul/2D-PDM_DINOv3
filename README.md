@@ -358,14 +358,14 @@ a photo of a {category}
 
 학습에 포함되지 않은 banana를 target query로 입력했을 때, scene에서 fruit category에 해당하는 영역이 활성화되는 정성적 결과를 확인했습니다.
 
+![image_1](img/panel_Book-Book_1_scene00002_env0168_top.png)
+![image_2](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
+![image_3](img/panel_Fruit-Orange_scene00003_env0274_center.png)
+
 이 결과는 다음 두 표현의 상호 보완성을 보여줍니다.
 
 - DINOv3: target과 scene의 dense visual appearance
 - SigLIP: banana와 fruit 사이의 open-vocabulary semantic relation
-
-![image_1](img/panel_Book-Book_1_scene00002_env0168_top.png)
-![image_2](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
-![image_3](img/panel_Fruit-Orange_scene00003_env0274_center.png)
 
 > **Planned evaluation:** object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation.
 
@@ -534,7 +534,9 @@ Target query    : q_t^l = a_t^l + s_t^l
 
 SigLIP vision embedding과 category text embedding을 같은 semantic space에서 평균하고, layer별 projection으로 DINOv3 차원에 정렬했습니다. DINOv3와 SigLIP encoder는 frozen으로 유지하고 projection과 matching head만 학습했습니다.
 
-이 구성에서 학습에 사용하지 않은 banana를 target으로 입력했을 때 fruit 영역이 활성화되는 결과를 확인했습니다. Appearance-only 또는 CLS-prototype 접근에서 부족했던 category-level semantic generalization이 vision-language representation을 통해 보완된 것입니다.
+이 구성에서 학습에 사용하지 않은 target을 넣었을 때 target과 같은 카테고리 영역이 활성화되는 결과를 확인했습니다. Appearance-only 또는 CLS-prototype 접근에서 부족했던 category-level semantic generalization이 vision-language representation을 통해 보완된 것입니다.
+
+![image_4](img/panel_Fruit-Orange_scene00003_env0274_center.png)
 
 **Conclusion:** SigLIP 결합으로 unseen target에 대한 의미 기반 zero-shot activation이 가능해졌습니다.
 
