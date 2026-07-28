@@ -130,8 +130,13 @@ flowchart TB
     COS --> INTERACT
     INTERACT --> BLOCKS["MatchingBlock × 4"]
     BLOCKS --> LFUSE["Multi-layer Fusion"]
-    LFUSE --> HEAD["Similarity Head + Sigmoid"]
-    HEAD --> PMAP["Similarity Map P_S"]
+    LFUSE --> HEAD["Learned Similarity Logit"]
+    COS --> CAVG["Average over 4 Layers"]
+    CAVG --> SKIP["Learnable Cosine Shortcut"]
+    HEAD --> ADDLOGIT["Logit Addition"]
+    SKIP --> ADDLOGIT
+    ADDLOGIT --> SIGMOID["Sigmoid"]
+    SIGMOID --> PMAP["Similarity Map P_S"]
 ```
 
 ### Model Specification
@@ -150,8 +155,10 @@ flowchart TB
 | 10 | Interaction | Scene, target, cosine | Channel concatenation | `Z^l: B × 1537 × H_p × W_p` | Fixed |
 | 11 | MatchingBlock | `Z^l` | `3×3 Conv → GN → ReLU → 1×1 Conv → GN → ReLU` | `F_l: B × 64 × H_p × W_p` | **Trainable** |
 | 12 | Layer fusion | Four `F_l` tensors | Concat + 1×1 convolution | `F_S: B × 64 × H_p × W_p` | **Trainable** |
-| 13 | Output head | `F_S` | 1×1 convolution + sigmoid | `P_S: B × 1 × H_p × W_p` | **Trainable** |
-| 14 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
+| 13 | Output head | `F_S` | 1×1 convolution | Learned logit `L_head` | **Trainable** |
+| 14 | Cosine shortcut | Four `c_hat^l` maps | Layer average × learnable scale | Residual logit `alpha · c_avg` | **Trainable** |
+| 15 | Output activation | `L_head`, residual logit | Addition + sigmoid | `P_S: B × 1 × H_p × W_p` | Fixed |
+| 16 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
 
 ### Target Representation
 
@@ -204,13 +211,20 @@ Z^l(u,v) = Concat[
 ]
 ```
 
-각 DINOv3 layer는 독립적인 MatchingBlock을 통과하고, 네 결과를 channel 방향으로 결합합니다.
+각 DINOv3 layer는 독립적인 MatchingBlock을 통과하고, 네 결과를 channel 방향으로 결합합니다. 현재 모델은 여기에 cosine residual shortcut을 추가하여, cosine cue가 깊은 CNN 경로에서 희석되지 않고 최종 logit에 직접 도달하도록 합니다.
 
 ```text
-F_l = MatchingBlock_l(Z^l)
-F_S = Fuse(Concat[F_2, F_5, F_8, F_11])
-P_S = Sigmoid(Head(F_S))
+F_l     = MatchingBlock_l(Z^l)
+F_S     = Fuse(Concat[F_2, F_5, F_8, F_11])
+L_head  = Head(F_S)
+c_avg   = Mean[c_hat^2, c_hat^5, c_hat^8, c_hat^11]
+P_S     = Sigmoid(L_head + alpha · c_avg)
 ```
+
+`alpha`는 초기값 `2.0`에서 시작하는 학습 가능한 scalar입니다. 이 shortcut은 ResNet의 residual connection과 유사하게, exact-instance match처럼 학습 데이터에서 상대적으로 희귀한 신호가 출력까지 짧은 경로로 전달되도록 설계했습니다.
+
+> **Implementation note**
+> 현재 코드의 `c_hat^l`는 scene DINOv3 patch `X_s^l`와 fused target query `q_t^l = a_t^l + s_t^l` 사이의 cosine입니다. 따라서 엄밀한 DINOv3 appearance-only cosine이 아니라 SigLIP semantics가 투영된 target query와의 cosine입니다. 향후 ablation에서는 `Cosine(X_s^l, a_t^l)`를 사용하는 pure-appearance shortcut과 현재 fused-query shortcut을 비교할 예정입니다.
 
 ### Trainable Parameters
 
@@ -224,7 +238,8 @@ DINOv3와 SigLIP encoder는 고정하고 semantic adapter와 matching head만 �
 | MatchingBlock × 4 | 3,559,168 | **Trainable** |
 | Multi-layer fusion | 16,576 | **Trainable** |
 | Similarity head | 65 | **Trainable** |
-| **Total trainable** | **7,117,825** | |
+| Cosine shortcut scale `alpha` | 1 | **Trainable** |
+| **Total trainable** | **7,117,826** | |
 
 Only the lightweight task-specific layers are stored in the checkpoint; frozen foundation-model weights are loaded separately.
 
@@ -441,6 +456,8 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 - [x] SigLIP image/text semantic fusion
 - [x] Pixel-wise Similarity map training
 - [x] Unseen target qualitative evaluation
+- [x] Learnable cosine residual shortcut
+- [ ] Pure-DINO vs fused-query shortcut ablation
 - [ ] Held-out object and category benchmark
 - [ ] Occlusion stream
 - [ ] Complexity stream
@@ -450,6 +467,109 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 
 ---
 
-## Acknowledgements
+## Development Log
 
-This project uses DINOv3 for dense visual representation and SigLIP for vision-language semantic representation.
+이 프로젝트의 Similarity stream은 단일 설계에서 바로 완성된 것이 아니라, zero-shot 실패 원인을 단계적으로 분석하며 발전했습니다. 아래 로그는 각 실험의 가설, 구현, 관찰된 한계와 다음 설계로 이어진 이유를 기록합니다.
+
+### 2026-07-21 · Phase 1 — DINOv3 Appearance Matching
+
+**Reference:** `code_260721/train_similarity.py`
+
+첫 번째 접근은 frozen DINOv3만으로 scene과 target을 표현하는 것이었습니다. DINOv3가 대규모 self-supervised pretraining을 거친 foundation model이므로, 학습하지 않은 target도 feature space에서 비교하면 zero-shot similarity map을 만들 수 있다고 가정했습니다.
+
+```text
+Scene RGB  → DINOv3 patch features X_s^l
+Target RGB → DINOv3 masked-pooled vector a_t^l
+
+c_hat^l = ShiftTo01(CosineSimilarity(X_s^l, a_t^l))
+Z^l     = Concat[X_s^l, a_t^l, c_hat^l]
+P_S     = CNN_Head(Z^l)
+```
+
+이 방식은 색상, 재질, 국소 형상과 같은 visual appearance가 유사한 영역을 찾는 데에는 유효했습니다. 그러나 연구에서 필요한 유사도는 단순한 외형 일치가 아니라 “바나나와 사과는 모두 과일이다”와 같은 category-level semantic relation입니다.
+
+DINOv3 feature에도 일정 수준의 의미 정보가 포함되지만, 본 데이터와 학습 구조에서는 appearance cue가 더 지배적으로 나타났고 새로운 물체의 category relation을 안정적으로 전달하지 못했습니다. 결과적으로 원하는 형태의 zero-shot semantic activation을 얻지 못했습니다.
+
+**Conclusion:** Dense appearance matching만으로는 target–category–scene object 관계를 충분히 표현할 수 없었습니다.
+
+---
+
+### 2026-07-27 · Phase 2 — CLS Prototype Category Conditioning
+
+**Reference:** `code_260727/train_similarity.py`, `code_260727/train_common.py`
+
+두 번째 접근에서는 DINOv3의 CLS token을 활용했습니다. Patch token이 위치별 appearance를 표현한다면 CLS token은 이미지 전체를 요약하므로 더 추상적인 category information을 제공할 수 있다고 보았습니다.
+
+각 category에 속한 target들의 CLS vector를 평균하여 네 개의 prototype을 구성하고, 새로운 target의 CLS vector와 cosine similarity를 계산했습니다.
+
+```text
+prototype_k = L2Norm(Mean[CLS(target_i) | category_i = k])
+
+category_prob = Softmax(
+    CosineSimilarity(CLS(unseen_target), prototype_k) / temperature
+)
+```
+
+학습 중 자기 자신이 prototype에 포함되어 정답을 누설하지 않도록 leave-one-out prototype을 사용했습니다. 계산된 `book / toy / fruit / packaged_food` 확률은 모든 spatial location에 broadcast한 뒤 scene–target interaction에 concat했습니다.
+
+```text
+Z^l = Concat[
+    scene patch,
+    target appearance,
+    patch-wise cosine,
+    category probability
+]
+```
+
+이 방식은 category prior를 명시적으로 제공했지만, prototype 자체가 동일한 DINOv3 visual history의 평균이라는 한계가 있었습니다. 즉, category label을 부여하는 구조는 생겼지만 semantic grounding이 외부 언어 공간과 연결된 것은 아니었습니다. 새로운 물체의 geometry와 appearance가 기존 prototype에서 벗어나면 category 추론도 불안정해졌습니다.
+
+**Conclusion:** CLS prototype은 유용한 visual category prior이지만, 원하는 open-vocabulary semantics의 근본적인 해결책은 아니었습니다.
+
+---
+
+### 2026-07-28 · Phase 3 — DINOv3 + SigLIP Semantic Fusion
+
+**Reference:** `code_260728_ver2/train_similarity_v2.py`
+
+세 번째 접근에서는 vision-language model인 SigLIP을 도입했습니다. 비교적 compact한 VLM을 사용하여 DINOv3의 dense spatial representation은 유지하면서, target 측에 language-aligned semantics를 추가했습니다.
+
+```text
+DINO appearance : a_t^l ∈ R^768
+SigLIP semantics: s ∈ R^1152
+Projection      : s_t^l = W_l · s + b_l
+Target query    : q_t^l = a_t^l + s_t^l
+```
+
+SigLIP vision embedding과 category text embedding을 같은 semantic space에서 평균하고, layer별 projection으로 DINOv3 차원에 정렬했습니다. DINOv3와 SigLIP encoder는 frozen으로 유지하고 projection과 matching head만 학습했습니다.
+
+이 구성에서 학습에 사용하지 않은 banana를 target으로 입력했을 때 fruit 영역이 활성화되는 결과를 확인했습니다. Appearance-only 또는 CLS-prototype 접근에서 부족했던 category-level semantic generalization이 vision-language representation을 통해 보완된 것입니다.
+
+**Conclusion:** SigLIP 결합으로 unseen target에 대한 의미 기반 zero-shot activation이 가능해졌습니다.
+
+---
+
+### 2026-07-28 · Phase 4 — Exact-Instance Recovery with a Cosine Shortcut
+
+**Reference:** `train_similarity_v2.py`, `similarity_model.py` in the project root
+
+SigLIP 결합 후 category-level zero-shot은 가능해졌지만 새로운 문제가 확인되었습니다. Unseen target 자체가 scene에 직접 보이는 경우 GT는 exact instance에 `1.0`을 요구하지만, 모델 출력은 같은 category score인 약 `0.8` 수준으로 수렴하는 경향을 보였습니다.
+
+학습 데이터에서 exact target pixel은 상대적으로 적고 same-category pixel은 훨씬 자주 등장합니다. 또한 cosine cue가 여러 MatchingBlock과 fusion head를 통과하는 동안 category-level pattern으로 일반화되면서, exact-instance signal이 약해졌을 가능성이 있습니다.
+
+이를 보완하기 위해 네 DINOv3 layer에서 계산한 cosine map의 평균을 최종 head logit에 직접 더하는 residual shortcut을 추가했습니다.
+
+```text
+L_head = Head(F_S)
+c_avg  = Mean[c_hat^2, c_hat^5, c_hat^8, c_hat^11]
+
+P_S = Sigmoid(L_head + alpha · c_avg)
+```
+
+이 구조에서 CNN head는 category-level semantic distribution을 학습하고, shortcut은 매우 높은 scene–target correspondence를 출력까지 직접 전달하는 역할을 담당합니다. `alpha`는 고정 hyperparameter가 아니라 학습 가능한 scalar입니다.
+
+현재 구현의 cosine은 scene DINOv3 patch와 `DINO appearance + SigLIP semantics`로 만든 fused query 사이에서 계산됩니다. 따라서 다음 실험에서는 아래 두 구조를 분리해 비교할 예정입니다.
+
+1. **Fused-query shortcut:** `Cosine(X_s^l, a_t^l + s_t^l)` — 현재 구현
+2. **Pure-appearance shortcut:** `Cosine(X_s^l, a_t^l)` — exact-instance recovery에 더 직접적인 대안
+
+**Current objective:** Same-category semantic activation은 유지하면서, scene에 실제 target instance가 보일 때 해당 영역을 `1.0`에 가깝게 복원하는 것입니다.
