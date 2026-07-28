@@ -363,9 +363,9 @@ a photo of a {category}
 - DINOv3: target과 scene의 dense visual appearance
 - SigLIP: banana와 fruit 사이의 open-vocabulary semantic relation
 
-<!--
-![Unseen banana zero-shot result](assets/results/unseen_banana_similarity.png)
--->
+![image_1](img/panel_Book-Book_1_scene00002_env0168_top.png)
+![image_2](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
+![image_3](img/panel_Fruit-Orange_scene00003_env0274_center.png)
 
 > **Planned evaluation:** object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation.
 
