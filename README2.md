@@ -350,16 +350,18 @@ Target image를 query로 직접 인코딩하므로 unseen object 입력 가능.
 a photo of a {category}
 ```
 
+### Qualitative Similarity Maps
+
+![Book target similarity result](img/panel_Book-Book_1_scene00002_env0168_top.png)
+![Avocado target similarity result](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
+![Orange target similarity result](img/panel_Fruit-Orange_scene00003_env0274_center.png)
+
 ### Unseen Banana
 
 Unseen banana 입력 시 fruit 영역 활성화 확인.
 
 - DINOv3: target–scene dense appearance
 - SigLIP: banana–fruit open-vocabulary semantics
-
-<!--
-![Unseen banana zero-shot result](assets/results/unseen_banana_similarity.png)
--->
 
 > **Planned evaluation:** object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation.
 
@@ -537,7 +539,10 @@ Target query    : q_t^l = a_t^l + s_t^l
 
 SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차원에 정렬. 두 backbone은 frozen으로 유지하고 projection과 matching head만 학습.
 
-**결과:** Unseen banana 입력 시 fruit 영역 활성화 확인.
+**결과:** 학습에 포함되지 않은 packaged-food target에서 same-category 영역 활성화 확인.
+
+![Unseen packaged-food target: image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
+![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_v2.png)
 
 **결론:** SigLIP 결합으로 category-level zero-shot activation 확보.
 
