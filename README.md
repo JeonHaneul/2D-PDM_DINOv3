@@ -545,6 +545,8 @@ SigLIP vision embedding과 category text embedding을 같은 semantic space에�
 
 ### 2026-07-28 · Phase 4 — Exact-Instance Recovery with a Cosine Shortcut
 
+**Reference:** `train_similarity_v2.py`, `similarity_model.py` in the project root
+
 SigLIP 결합 후 category-level zero-shot은 가능해졌지만 새로운 문제가 확인되었습니다. Unseen target 자체가 scene에 직접 보이는 경우 GT는 exact instance에 `1.0`을 요구하지만, 모델 출력은 같은 category score인 약 `0.8` 수준으로 수렴하는 경향을 보였습니다.
 
 학습 데이터에서 exact target pixel은 상대적으로 적고 same-category pixel은 훨씬 자주 등장합니다. 또한 cosine cue가 여러 MatchingBlock과 fusion head를 통과하는 동안 category-level pattern으로 일반화되면서, exact-instance signal이 약해졌을 가능성이 있습니다.
@@ -560,9 +562,71 @@ P_S = Sigmoid(L_head + alpha · c_avg)
 
 이 구조에서 CNN head는 category-level semantic distribution을 학습하고, shortcut은 매우 높은 scene–target correspondence를 출력까지 직접 전달하는 역할을 담당합니다. `alpha`는 고정 hyperparameter가 아니라 학습 가능한 scalar입니다.
 
+그러나 새 checkpoint `similarity_head_best.pt`에서 학습된 `alpha`가 `1.8884`까지 유지되었음에도 exact target의 최종 출력이 same-category object보다 낮아지는 사례가 확인되었습니다. 따라서 shortcut의 존재만으로 문제가 해결되었다고 볼 수 없으며, 어떤 DINOv3 layer를 직접 전달할 것인지 추가 분석이 필요했습니다.
+
 현재 구현의 cosine은 scene DINOv3 patch와 `DINO appearance + SigLIP semantics`로 만든 fused query 사이에서 계산됩니다. 따라서 다음 실험에서는 아래 두 구조를 분리해 비교할 예정입니다.
 
 1. **Fused-query shortcut:** `Cosine(X_s^l, a_t^l + s_t^l)` — 현재 구현
 2. **Pure-appearance shortcut:** `Cosine(X_s^l, a_t^l)` — exact-instance recovery에 더 직접적인 대안
 
-**Current objective:** Same-category semantic activation은 유지하면서, scene에 실제 target instance가 보일 때 해당 영역을 `1.0`에 가깝게 복원하는 것입니다.
+**Conclusion:** Four-layer shortcut은 cosine evidence를 출력에 직접 보존했지만, exact-instance와 same-category 사이의 작은 차이를 안정적으로 유지하기에는 충분하지 않았습니다.
+
+---
+
+### 2026-07-29 · Phase 5 — Layer-Selective Cosine Shortcut
+
+**Reference:** `similarity_model.py`, `train_similarity_v2.py` in the project root
+
+Visible target가 포함된 scene에서 shortcut checkpoint를 다시 평가했습니다. `packaged_food_5`를 unseen target으로 사용하고 `packaged_food_1` scene을 입력했을 때, raw cosine은 exact target을 올바르게 가장 높게 평가했지만 최종 prediction에서는 same-category mustard bottle이 근소하게 앞섰습니다.
+
+| Scene region | Raw four-layer cosine | Final prediction |
+|---|---:|---:|
+| Exact target `World1` | `0.610` | `0.595` |
+| Same-category mustard bottle | `0.591` | `0.598` |
+| Rubik's cube | `0.580` | `0.390` |
+| Apple | `0.571` | `0.413` |
+
+Raw feature space에는 exact-instance ranking이 존재했지만 exact target과 same-category object의 차이는 약 `0.019`에 불과했습니다. 네 layer를 모두 평균한 작은 residual signal은 learned head를 통과한 category-level response의 순서를 되돌리기에 충분하지 않았고, 최종 출력에서 순위가 역전되었습니다.
+
+특정 한 장면에 맞춘 layer 선택을 피하기 위해 16개 target에서 각각 10개 표본을 수집해 총 160개 scene–target pair의 layer별 cosine gap을 분석했습니다.
+
+```text
+gap_l = MeanCosine(exact target, layer l)
+      - MeanCosine(same-category objects, layer l)
+```
+
+| DINOv3 layer | Mean gap ↑ | Std. ↓ | Median gap ↑ | Positive ratio ↑ |
+|---:|---:|---:|---:|---:|
+| **2** | **+0.0493** | 0.0832 | +0.0376 | 74% |
+| **5** | +0.0464 | **0.0677** | **+0.0408** | **77%** |
+| 8 | +0.0352 | 0.0559 | +0.0366 | 72% |
+| 11 | +0.0384 | 0.0706 | +0.0177 | 69% |
+
+Layer 2는 평균 separation이 가장 컸고, layer 5는 가장 낮은 표준편차와 가장 높은 median 및 positive ratio를 보였습니다. 반면 더 깊은 layer 8과 11은 category-level abstraction에는 유용하지만 exact target과 같은 category의 다른 instance를 분리하는 shortcut cue로는 상대적으로 약했습니다.
+
+이에 따라 main interaction path는 기존처럼 layer `2, 5, 8, 11`을 모두 사용하되, 최종 logit으로 직접 전달하는 shortcut만 layer `2 + 5` 평균으로 변경했습니다.
+
+```text
+F_S    = Fuse(F_2, F_5, F_8, F_11)
+L_head = Head(F_S)
+
+c_skip = Mean[c_hat^2, c_hat^5]
+P_S    = Sigmoid(L_head + alpha · c_skip)
+```
+
+```python
+# similarity_model.py
+SKIP_LAYER_INDICES = (0, 1)  # requested DINOv3 layers 2 and 5
+cos_skip = torch.stack(
+    [cos_list[i] for i in SKIP_LAYER_INDICES], dim=0
+).mean(dim=0)
+logits = learned_logits + cos_skip_scale * cos_skip
+```
+
+Cosine 값을 비선형 증폭하는 방식도 고려할 수 있지만, 현재 단계에서는 noise까지 함께 증폭할 위험이 있습니다. 먼저 대규모 표본에서 확인된 분별력에 따라 shortcut layer를 선택하고, 학습 가능한 `alpha`가 residual의 크기를 조정하도록 두었습니다.
+
+> **Current status — training in progress**
+>
+> Layer-selective shortcut을 적용한 새 checkpoint를 학습하고 있습니다. 학습 완료 후에는 (1) exact target이 same-category object보다 높은지, (2) unseen target의 semantic activation이 유지되는지, (3) target/category-held-out split에서도 같은 경향이 재현되는지를 평가할 예정입니다. 현재 수정은 분석에 근거한 가설이며, 문제 해결이 완료되었다고 판단하지 않습니다.
+
+**Current objective:** Same-category semantic generalization을 유지하면서 visible exact target의 순위를 안정적으로 복원하는 것입니다.
