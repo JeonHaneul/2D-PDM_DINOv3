@@ -3,15 +3,13 @@
 ### Zero-Shot Probability Distribution Mapping for Occluded Object Search in Cluttered Drawers
 
 > **Research in progress**  
-> RGB-D 관측만으로 다른 물체 아래에 완전히 가려진 target object의 존재 위치를 추론하고, 효율적인 탐색 행동을 위한 pixel-wise probability map을 생성합니다.
+> RGB-D 관측으로 가려진 target object의 위치를 추론하고, 탐색 행동을 위한 pixel-wise probability map 생성
 
 ---
 
 ## Overview
 
-사람은 서랍 속에서 보이지 않는 물체를 찾을 때 무작위로 물체를 제거하지 않습니다. 타겟과 비슷한 물체가 모인 곳을 살피고, 물체가 가려질 수 있는 공간을 추정하며, 더미가 얼마나 복잡하게 얽혀 있는지를 함께 판단합니다.
-
-2D-PDM은 이 탐색 전략을 세 개의 독립적인 probability stream으로 모델링합니다.
+사람의 물체 탐색에 사용되는 세 단서인 유사도, 가림 가능성, 장면 복잡도를 독립적인 probability stream으로 모델링함.
 
 | Stream | 핵심 질문 | 출력 |
 |---|---|---|
@@ -49,19 +47,19 @@ F_fuse = FusionGate(Concat(F_S, F_O, F_C))
 P_2D   = Sigmoid(Decoder(F_fuse))
 ```
 
-최종 `P_2D`는 target이 존재할 가능성이 높은 영역을 원 영상 좌표계에 표현하며, 이후 DRL 또는 다른 action policy의 probabilistic guidance로 사용됩니다.
+최종 `P_2D`는 target의 위치 확률을 원 영상 좌표계에 표현하며, DRL action policy의 탐색 prior로 사용됨.
 
 ---
 
 ## From Shelf Search to Drawer Search
 
-본 프로젝트는 기존의 선반 환경 연구를 비정형 drawer 환경으로 확장합니다.
+기존 선반 환경 연구를 비정형 drawer 환경으로 확장함.
 
 > H. Jeon et al., *A study on deep reinforcement learning-based exploration intelligence for occluded object search*, Engineering Applications of Artificial Intelligence, 2026.
 
-기존 연구는 similarity와 occlusion을 결합한 column-wise distribution으로 탐색 방향을 결정했습니다. 하지만 물체 간 유사도를 사람이 정의한 category score에 의존했기 때문에, 학습에 존재하지 않았던 새로운 물체를 직접 해석하는 데 한계가 있었습니다.
+기존 연구는 similarity와 occlusion 기반 column-wise distribution을 사용함. 물체 유사도를 수동 정의한 category score에 의존하여 unseen object에 대한 zero-shot 탐색이 불가능했음.
 
-이번 연구의 확장점은 다음과 같습니다.
+주요 확장:
 
 - 정규적인 shelf column에서 **비정형 cluttered drawer**로 확장
 - Column-wise distribution에서 **pixel-wise 2D-PDM**으로 확장
@@ -75,9 +73,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))
 
 > **Status: Implemented**
 
-Similarity stream은 현재 보이는 물체 중 target 자체 또는 target과 의미적으로 관련된 물체가 위치한 영역을 활성화합니다.
-
-DINOv3만 사용하면 동일하거나 외형이 비슷한 instance를 찾는 데에는 유리하지만, 모양이 다른 두 물체가 같은 상위 category라는 관계는 안정적으로 표현되지 않을 수 있습니다. 이를 보완하기 위해 target 측에 SigLIP image/text semantics를 결합합니다.
+Similarity stream은 target 및 의미적으로 관련된 물체 영역을 활성화함. DINOv3의 dense appearance와 SigLIP의 image/text semantics를 결합하여 instance-level 외형과 category-level 의미를 함께 표현함.
 
 ### Design Rationale
 
@@ -162,7 +158,7 @@ flowchart TB
 
 ### Target Representation
 
-Target appearance는 segmentation mask가 포함하는 patch만 pooling하여 계산합니다.
+Segmentation mask 내부 patch만 pooling하여 target appearance 계산.
 
 ```text
 a_t^l = L2Norm(
@@ -171,7 +167,7 @@ a_t^l = L2Norm(
 )
 ```
 
-SigLIP semantic vector는 image와 text embedding을 같은 embedding space에서 결합합니다.
+SigLIP image/text embedding을 동일한 semantic space에서 결합.
 
 ```text
 s_img  = L2Norm(SigLIP_Vision(target_crop))
@@ -180,7 +176,7 @@ s      = L2Norm((s_img + s_text) / 2)
 s_t^l  = W_l · s + b_l
 ```
 
-최종 target query는 appearance와 semantics의 합입니다.
+Appearance와 semantics를 합산하여 최종 target query 생성.
 
 ```text
 q_t^l = a_t^l + s_t^l
@@ -194,14 +190,14 @@ q_t^l = a_t^l + s_t^l
 
 ### Scene–Target Interaction
 
-각 scene patch와 target query의 cosine similarity를 계산하고 `[0, 1]` 범위로 변환합니다.
+Scene patch와 target query의 cosine similarity를 계산한 뒤 `[0, 1]`로 변환.
 
 ```text
 c^l(u,v)     = CosineSimilarity(X_s^l(:,u,v), q_t^l)
 c_hat^l(u,v) = (c^l(u,v) + 1) / 2
 ```
 
-Cosine score만 사용하면 두 feature의 복잡한 관계가 하나의 scalar로 압축됩니다. 따라서 원본 scene feature와 target query를 함께 보존합니다.
+Scalar cosine score의 정보 손실을 보완하기 위해 scene feature와 target query를 함께 concat.
 
 ```text
 Z^l(u,v) = Concat[
@@ -211,7 +207,7 @@ Z^l(u,v) = Concat[
 ]
 ```
 
-각 DINOv3 layer는 독립적인 MatchingBlock을 통과하고, 네 결과를 channel 방향으로 결합합니다. 현재 모델은 여기에 cosine residual shortcut을 추가하여, cosine cue가 깊은 CNN 경로에서 희석되지 않고 최종 logit에 직접 도달하도록 합니다. Main matching path는 네 layer를 모두 사용하지만, shortcut은 실험적으로 exact-instance 분별력이 높았던 layer 2와 5만 사용합니다.
+각 DINOv3 layer를 독립적인 MatchingBlock으로 처리한 뒤 channel 방향으로 결합. Main path는 layer `2, 5, 8, 11`을 모두 사용하고, cosine shortcut은 exact-instance 분별력이 높은 layer `2, 5`만 사용.
 
 ```text
 F_l     = MatchingBlock_l(Z^l)
@@ -221,14 +217,14 @@ c_skip  = Mean[c_hat^2, c_hat^5]
 P_S     = Sigmoid(L_head + alpha · c_skip)
 ```
 
-`alpha`는 초기값 `2.0`에서 시작하는 학습 가능한 scalar입니다. 이 shortcut은 ResNet의 residual connection과 유사하게, exact-instance match처럼 학습 데이터에서 상대적으로 희귀한 신호가 출력까지 짧은 경로로 전달되도록 설계했습니다. Layer 8과 11을 shortcut에서 제외한 것은 임의의 선택이 아니라 160개 표본의 layer별 cosine-gap 분석에 따른 결정이며, 해당 layer의 feature는 main matching path에는 그대로 남아 있습니다.
+`alpha`는 초기값 `2.0`의 학습 가능한 scalar. Shortcut layer는 160개 표본의 cosine-gap 분석으로 선정. 제외된 layer `8, 11`은 main matching path에서 계속 사용.
 
 > **Implementation note**
-> 현재 코드의 `c_hat^l`는 scene DINOv3 patch `X_s^l`와 fused target query `q_t^l = a_t^l + s_t^l` 사이의 cosine입니다. 따라서 엄밀한 DINOv3 appearance-only cosine이 아니라 SigLIP semantics가 투영된 target query와의 cosine입니다. 향후 ablation에서는 `Cosine(X_s^l, a_t^l)`를 사용하는 pure-appearance shortcut과 현재 fused-query shortcut을 비교할 예정입니다.
+> 현재 `c_hat^l`는 scene DINOv3 patch와 fused target query 사이의 cosine임. Pure-DINO appearance cosine이 아니므로 향후 `Cosine(X_s^l, a_t^l)`와 ablation 필요.
 
 ### Trainable Parameters
 
-DINOv3와 SigLIP encoder는 고정하고 semantic adapter와 matching head만 학습합니다.
+DINOv3와 SigLIP은 고정하고 semantic adapter와 matching head만 학습.
 
 | Module | Parameters | State |
 |---|---:|---|
@@ -241,13 +237,13 @@ DINOv3와 SigLIP encoder는 고정하고 semantic adapter와 matching head만 �
 | Cosine shortcut scale `alpha` | 1 | **Trainable** |
 | **Total trainable** | **7,117,826** | |
 
-Only the lightweight task-specific layers are stored in the checkpoint; frozen foundation-model weights are loaded separately.
+Checkpoint에는 task-specific layer만 저장하며, frozen backbone은 별도로 로드.
 
 ---
 
 ## Ground-Truth Similarity Map
 
-현재 similarity supervision은 scene segmentation과 asset category를 이용해 생성합니다. Foundation model은 입력 representation을 일반화하지만, GT 자체는 기존 연구와의 직접 비교를 위해 명시적인 category relation을 유지합니다.
+Similarity GT는 scene segmentation과 asset category로 생성. 기존 연구와의 비교를 위해 명시적인 category relation 유지.
 
 | Target–scene relation | Score |
 |---|---:|
@@ -257,7 +253,7 @@ Only the lightweight task-specific layers are stored in the checkpoint; frozen f
 | Other category | `0.2` |
 | Background / unknown | `0.0` |
 
-Category-level relation은 다음과 같습니다.
+Category-level score:
 
 | Target ↓ / Scene → | Book | Toy | Fruit | Packaged food |
 |---|---:|---:|---:|---:|
@@ -266,14 +262,14 @@ Category-level relation은 다음과 같습니다.
 | **Fruit** | 0.2 | 0.2 | 0.8 | 0.5 |
 | **Packaged food** | 0.2 | 0.2 | 0.5 | 0.8 |
 
-GT는 미리 계산된 grayscale map을 우선 사용하고, 캐시가 없으면 segmentation image와 scene mapping으로 즉시 생성합니다. 학습 시에는 원본 GT를 DINOv3 patch resolution으로 average pooling합니다.
+Precomputed grayscale GT를 우선 사용하며, cache가 없으면 segmentation과 scene mapping으로 생성. 학습 시 DINOv3 patch resolution으로 average pooling.
 
 ```text
 Y_patch = AvgPool2D(Y_full, kernel=16, stride=16)
 L_sim   = MSE(P_S, Y_patch)
 ```
 
-> 이 supervision과 zero-shot evaluation은 구분해야 합니다. 학습 GT는 category relation을 사용하지만, unseen target은 DINOv3와 SigLIP으로 직접 인코딩되며 target instance 자체는 학습에 포함되지 않습니다.
+> 학습 GT의 category relation과 zero-shot evaluation은 별개임. Unseen target은 DINOv3와 SigLIP으로 직접 인코딩되며 해당 instance는 학습에서 제외.
 
 ---
 
@@ -281,7 +277,7 @@ L_sim   = MSE(P_S, Y_patch)
 
 ### Data Split
 
-동일한 scene에서 생성된 center/top/left/right/bottom view가 train과 validation에 섞이면 data leakage가 발생합니다. 따라서 개별 image가 아니라 `scene_id` 그룹 단위로 분할합니다.
+동일 scene의 여러 camera view가 train/validation에 섞이지 않도록 `scene_id` 단위로 분할.
 
 | Setting | Value |
 |---|---|
@@ -313,22 +309,22 @@ flowchart LR
     HEAD --> LOSS["MSE Loss"]
 ```
 
-- Target DINOv3 appearance는 target별 다섯 camera view를 미리 계산합니다.
-- 학습 시 camera view를 무작위 선택하여 lightweight viewpoint augmentation으로 사용합니다.
-- Validation은 각 camera view를 고정 순회하여 무작위성에 따른 metric 변동을 줄입니다.
-- SigLIP image/text embedding은 target별로 캐싱합니다.
-- Semantic projection은 반드시 training step 안에서 적용하여 gradient가 유지되도록 합니다.
+- Target별 5개 camera view의 DINOv3 appearance 사전 계산
+- 학습 시 camera view 무작위 선택
+- Validation 시 camera view 고정 순회
+- Target별 SigLIP image/text embedding caching
+- Gradient 유지를 위해 semantic projection은 training step 내부에서 적용
 
 ### Evaluation and Checkpoints
 
-학습 중 다음 지표를 기록합니다.
+평가 지표:
 
 - Mean squared error
 - Pixel accuracy
 - Balanced accuracy
 - Intersection over Union
 
-Checkpoint에는 학습되는 모듈만 저장합니다.
+Checkpoint에는 trainable module만 저장.
 
 ```python
 {
@@ -341,14 +337,14 @@ Checkpoint에는 학습되는 모듈만 저장합니다.
 
 ## Zero-Shot Target Conditioning
 
-Similarity stream은 target image를 query로 직접 인코딩하므로, 학습에 없던 물체도 새로운 query로 입력할 수 있습니다.
+Target image를 query로 직접 인코딩하므로 unseen object 입력 가능.
 
 | Mode | Target input | 특징 |
 |---|---|---|
 | **Image-only** | Target RGB | 별도의 category label 없이 visual/semantic image embedding 사용 가능 |
 | **Image + text** | Target RGB + prompt | 물체 이름이나 category semantics로 모호한 외형을 보완 |
 
-현재 학습은 category prompt를 사용합니다.
+현재 category prompt 사용:
 
 ```text
 a photo of a {category}
@@ -356,12 +352,10 @@ a photo of a {category}
 
 ### Unseen Banana
 
-학습에 포함되지 않은 banana를 target query로 입력했을 때, scene에서 fruit category에 해당하는 영역이 활성화되는 정성적 결과를 확인했습니다.
+Unseen banana 입력 시 fruit 영역 활성화 확인.
 
-이 결과는 다음 두 표현의 상호 보완성을 보여줍니다.
-
-- DINOv3: target과 scene의 dense visual appearance
-- SigLIP: banana와 fruit 사이의 open-vocabulary semantic relation
+- DINOv3: target–scene dense appearance
+- SigLIP: banana–fruit open-vocabulary semantics
 
 <!--
 ![Unseen banana zero-shot result](assets/results/unseen_banana_similarity.png)
@@ -375,7 +369,7 @@ a photo of a {category}
 
 > **Status: Data prepared / Model integration planned**
 
-Occlusion stream은 similarity와 별개로, target이 현재 보이는 물체 아래에 물리적으로 들어갈 수 있는지를 추론합니다.
+Occlusion stream은 target이 현재 보이는 물체 아래에 가려질 가능성을 추론.
 
 | Input | 역할 |
 |---|---|
@@ -384,7 +378,7 @@ Occlusion stream은 similarity와 별개로, target이 현재 보이는 물체 �
 | Target RGB/depth | Target appearance와 상대 크기 |
 | Target 3D geometry | 후보 pose에서의 실제 가림 여부 계산 |
 
-GT 생성 시 target mesh를 drawer의 후보 위치·회전·scale에 가상 배치합니다. 렌더링된 target depth가 scene surface 뒤에 존재하는 영역을 누적하여 occlusion probability를 구성합니다.
+Target mesh를 후보 위치·회전·scale에 배치하고, target depth가 scene surface 뒤에 위치하는 영역을 누적하여 GT 생성.
 
 ```text
 Y_O(u,v) ∝ Sum over candidate poses [
@@ -392,7 +386,7 @@ Y_O(u,v) ∝ Sum over candidate poses [
 ]
 ```
 
-Scale augmentation은 모델이 특정 물체의 절대 크기를 암기하지 않고 scene과 target 사이의 상대적인 가림 관계를 학습하도록 합니다.
+Scale augmentation으로 절대 크기 암기를 억제하고 상대적 가림 관계 학습.
 
 ---
 
@@ -400,7 +394,7 @@ Scale augmentation은 모델이 특정 물체의 절대 크기를 암기하지 �
 
 > **Status: Formulation in progress**
 
-Complexity stream은 target identity와 무관한 scene-level prior입니다. 물체가 많이 존재하는 것뿐 아니라, 서로 얼마나 겹치고 depth 구조가 얼마나 불규칙한지를 표현합니다.
+Complexity stream은 object density, overlap, depth irregularity를 표현하는 target-independent scene prior.
 
 | Cue | 의미 |
 |---|---|
@@ -415,7 +409,7 @@ Y_C = lambda_n · ObjectDensity
     + lambda_e · DepthEdgeDensity
 ```
 
-Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 비효율적일 수 있습니다. 따라서 Similarity와 Occlusion의 target-conditioned evidence를 함께 고려하도록 fusion gate에서 상대적 중요도를 조절합니다.
+Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대적 중요도 조절.
 
 ---
 
@@ -472,13 +466,13 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 
 ## Development Log
 
-이 프로젝트의 Similarity stream은 단일 설계에서 바로 완성된 것이 아니라, zero-shot 실패 원인을 단계적으로 분석하며 발전했습니다. 아래 로그는 각 실험의 가설, 구현, 관찰된 한계와 다음 설계로 이어진 이유를 기록합니다.
+Similarity stream의 가설, 실험 결과, 한계, 수정 사항을 단계별로 기록.
 
 ### 2026-07-21 · Phase 1 — DINOv3 Appearance Matching
 
 **Reference:** `code_260721/train_similarity.py`
 
-첫 번째 접근은 frozen DINOv3만으로 scene과 target을 표현하는 것이었습니다. DINOv3가 대규모 self-supervised pretraining을 거친 foundation model이므로, 학습하지 않은 target도 feature space에서 비교하면 zero-shot similarity map을 만들 수 있다고 가정했습니다.
+**가설:** Frozen DINOv3 feature 비교만으로 unseen target의 zero-shot similarity map 생성 가능.
 
 ```text
 Scene RGB  → DINOv3 patch features X_s^l
@@ -489,11 +483,9 @@ Z^l     = Concat[X_s^l, a_t^l, c_hat^l]
 P_S     = CNN_Head(Z^l)
 ```
 
-이 방식은 색상, 재질, 국소 형상과 같은 visual appearance가 유사한 영역을 찾는 데에는 유효했습니다. 그러나 연구에서 필요한 유사도는 단순한 외형 일치가 아니라 “바나나와 사과는 모두 과일이다”와 같은 category-level semantic relation입니다.
+**결과:** 색상·재질·형상 등 appearance가 유사한 영역은 탐지했으나, category-level semantic relation은 표현하지 못함.
 
-DINOv3 feature에도 일정 수준의 의미 정보가 포함되지만, 본 데이터와 학습 구조에서는 appearance cue가 더 지배적으로 나타났고 새로운 물체의 category relation을 안정적으로 전달하지 못했습니다. 결과적으로 원하는 형태의 zero-shot semantic activation을 얻지 못했습니다.
-
-**Conclusion:** Dense appearance matching만으로는 target–category–scene object 관계를 충분히 표현할 수 없었습니다.
+**결론:** Dense appearance matching만으로 target–category–scene 관계 표현 불가.
 
 ---
 
@@ -501,9 +493,9 @@ DINOv3 feature에도 일정 수준의 의미 정보가 포함되지만, 본 데�
 
 **Reference:** `code_260727/train_similarity.py`, `code_260727/train_common.py`
 
-두 번째 접근에서는 DINOv3의 CLS token을 활용했습니다. Patch token이 위치별 appearance를 표현한다면 CLS token은 이미지 전체를 요약하므로 더 추상적인 category information을 제공할 수 있다고 보았습니다.
+**가설:** Image-level CLS token을 category prototype으로 사용하면 patch feature보다 추상적인 category 정보 제공 가능.
 
-각 category에 속한 target들의 CLS vector를 평균하여 네 개의 prototype을 구성하고, 새로운 target의 CLS vector와 cosine similarity를 계산했습니다.
+Category별 CLS vector 평균으로 네 개의 prototype을 구성하고 unseen target CLS와 cosine similarity 계산.
 
 ```text
 prototype_k = L2Norm(Mean[CLS(target_i) | category_i = k])
@@ -513,7 +505,7 @@ category_prob = Softmax(
 )
 ```
 
-학습 중 자기 자신이 prototype에 포함되어 정답을 누설하지 않도록 leave-one-out prototype을 사용했습니다. 계산된 `book / toy / fruit / packaged_food` 확률은 모든 spatial location에 broadcast한 뒤 scene–target interaction에 concat했습니다.
+정답 누설 방지를 위해 leave-one-out prototype 사용. Category 확률을 spatial location에 broadcast한 뒤 interaction feature에 concat.
 
 ```text
 Z^l = Concat[
@@ -524,9 +516,9 @@ Z^l = Concat[
 ]
 ```
 
-이 방식은 category prior를 명시적으로 제공했지만, prototype 자체가 동일한 DINOv3 visual history의 평균이라는 한계가 있었습니다. 즉, category label을 부여하는 구조는 생겼지만 semantic grounding이 외부 언어 공간과 연결된 것은 아니었습니다. 새로운 물체의 geometry와 appearance가 기존 prototype에서 벗어나면 category 추론도 불안정해졌습니다.
+**결과:** Category prior는 제공했으나 prototype도 DINOv3 appearance history의 평균이므로 외부 semantic grounding이 없음. 기존 prototype과 외형 차이가 큰 unseen object에서 category 추론 불안정.
 
-**Conclusion:** CLS prototype은 유용한 visual category prior이지만, 원하는 open-vocabulary semantics의 근본적인 해결책은 아니었습니다.
+**결론:** CLS prototype만으로 open-vocabulary semantics 확보 불가.
 
 ---
 
@@ -534,7 +526,7 @@ Z^l = Concat[
 
 **Reference:** `code_260728_ver2/train_similarity_v2.py`
 
-세 번째 접근에서는 vision-language model인 SigLIP을 도입했습니다. 비교적 compact한 VLM을 사용하여 DINOv3의 dense spatial representation은 유지하면서, target 측에 language-aligned semantics를 추가했습니다.
+**수정:** DINOv3의 dense spatial representation을 유지하고, SigLIP의 language-aligned semantics를 target query에 추가.
 
 ```text
 DINO appearance : a_t^l ∈ R^768
@@ -543,11 +535,11 @@ Projection      : s_t^l = W_l · s + b_l
 Target query    : q_t^l = a_t^l + s_t^l
 ```
 
-SigLIP vision embedding과 category text embedding을 같은 semantic space에서 평균하고, layer별 projection으로 DINOv3 차원에 정렬했습니다. DINOv3와 SigLIP encoder는 frozen으로 유지하고 projection과 matching head만 학습했습니다.
+SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차원에 정렬. 두 backbone은 frozen으로 유지하고 projection과 matching head만 학습.
 
-이 구성에서 학습에 사용하지 않은 banana를 target으로 입력했을 때 fruit 영역이 활성화되는 결과를 확인했습니다. Appearance-only 또는 CLS-prototype 접근에서 부족했던 category-level semantic generalization이 vision-language representation을 통해 보완된 것입니다.
+**결과:** Unseen banana 입력 시 fruit 영역 활성화 확인.
 
-**Conclusion:** SigLIP 결합으로 unseen target에 대한 의미 기반 zero-shot activation이 가능해졌습니다.
+**결론:** SigLIP 결합으로 category-level zero-shot activation 확보.
 
 ---
 
@@ -555,11 +547,11 @@ SigLIP vision embedding과 category text embedding을 같은 semantic space에�
 
 **Reference:** `train_similarity_v2.py`, `similarity_model.py` in the project root
 
-SigLIP 결합 후 category-level zero-shot은 가능해졌지만 새로운 문제가 확인되었습니다. Unseen target 자체가 scene에 직접 보이는 경우 GT는 exact instance에 `1.0`을 요구하지만, 모델 출력은 같은 category score인 약 `0.8` 수준으로 수렴하는 경향을 보였습니다.
+**문제:** Category-level zero-shot은 가능했으나 visible exact target도 same-category score인 약 `0.8`로 출력됨.
 
-학습 데이터에서 exact target pixel은 상대적으로 적고 same-category pixel은 훨씬 자주 등장합니다. 또한 cosine cue가 여러 MatchingBlock과 fusion head를 통과하는 동안 category-level pattern으로 일반화되면서, exact-instance signal이 약해졌을 가능성이 있습니다.
+**가설:** Exact-target pixel 부족과 MatchingBlock의 category-level 일반화로 instance cue가 약화됨.
 
-이를 보완하기 위해 네 DINOv3 layer에서 계산한 cosine map의 평균을 최종 head logit에 직접 더하는 residual shortcut을 추가했습니다.
+**수정:** 네 DINOv3 layer의 cosine 평균을 최종 logit에 더하는 residual shortcut 추가.
 
 ```text
 L_head = Head(F_S)
@@ -568,16 +560,16 @@ c_avg  = Mean[c_hat^2, c_hat^5, c_hat^8, c_hat^11]
 P_S = Sigmoid(L_head + alpha · c_avg)
 ```
 
-이 구조에서 CNN head는 category-level semantic distribution을 학습하고, shortcut은 매우 높은 scene–target correspondence를 출력까지 직접 전달하는 역할을 담당합니다. `alpha`는 고정 hyperparameter가 아니라 학습 가능한 scalar입니다.
+CNN head는 category-level distribution을 학습하고 shortcut은 scene–target correspondence를 직접 전달. `alpha`는 학습 가능한 scalar.
 
-그러나 새 checkpoint `similarity_head_best.pt`에서 학습된 `alpha`가 `1.8884`까지 유지되었음에도 exact target의 최종 출력이 same-category object보다 낮아지는 사례가 확인되었습니다. 따라서 shortcut의 존재만으로 문제가 해결되었다고 볼 수 없으며, 어떤 DINOv3 layer를 직접 전달할 것인지 추가 분석이 필요했습니다.
+**결과:** Checkpoint의 `alpha=1.8884`에도 exact target 출력이 same-category object보다 낮은 사례 확인. Layer별 shortcut 기여도 분석 필요.
 
-현재 구현의 cosine은 scene DINOv3 patch와 `DINO appearance + SigLIP semantics`로 만든 fused query 사이에서 계산됩니다. 따라서 다음 실험에서는 아래 두 구조를 분리해 비교할 예정입니다.
+현재 cosine은 scene DINOv3 patch와 fused query 사이에서 계산됨. 다음 ablation 후보:
 
 1. **Fused-query shortcut:** `Cosine(X_s^l, a_t^l + s_t^l)` — 현재 구현
 2. **Pure-appearance shortcut:** `Cosine(X_s^l, a_t^l)` — exact-instance recovery에 더 직접적인 대안
 
-**Conclusion:** Four-layer shortcut은 cosine evidence를 출력에 직접 보존했지만, exact-instance와 same-category 사이의 작은 차이를 안정적으로 유지하기에는 충분하지 않았습니다.
+**결론:** Four-layer shortcut만으로 exact-instance와 same-category 분리 불가.
 
 ---
 
@@ -585,7 +577,7 @@ P_S = Sigmoid(L_head + alpha · c_avg)
 
 **Reference:** `similarity_model.py`, `train_similarity_v2.py` in the project root
 
-Visible target가 포함된 scene에서 shortcut checkpoint를 다시 평가했습니다. `packaged_food_5`를 unseen target으로 사용하고 `packaged_food_1` scene을 입력했을 때, raw cosine은 exact target을 올바르게 가장 높게 평가했지만 최종 prediction에서는 same-category mustard bottle이 근소하게 앞섰습니다.
+**문제 재현:** `packaged_food_5` unseen target과 `packaged_food_1` scene으로 visible-target 평가. Raw cosine은 exact target을 1위로 판별했으나 최종 prediction에서 same-category object가 더 높게 출력됨.
 
 | Scene region | Raw four-layer cosine | Final prediction |
 |---|---:|---:|
@@ -594,9 +586,9 @@ Visible target가 포함된 scene에서 shortcut checkpoint를 다시 평가했�
 | Rubik's cube | `0.580` | `0.390` |
 | Apple | `0.571` | `0.413` |
 
-Raw feature space에는 exact-instance ranking이 존재했지만 exact target과 same-category object의 차이는 약 `0.019`에 불과했습니다. 네 layer를 모두 평균한 작은 residual signal은 learned head를 통과한 category-level response의 순서를 되돌리기에 충분하지 않았고, 최종 출력에서 순위가 역전되었습니다.
+Raw cosine gap은 약 `0.019`로 작았으며, learned head 출력에서 순위 역전 발생.
 
-특정 한 장면에 맞춘 layer 선택을 피하기 위해 16개 target에서 각각 10개 표본을 수집해 총 160개 scene–target pair의 layer별 cosine gap을 분석했습니다.
+**분석:** 16개 target × 10개 표본, 총 160개 scene–target pair의 layer별 cosine gap 측정.
 
 ```text
 gap_l = MeanCosine(exact target, layer l)
@@ -610,9 +602,9 @@ gap_l = MeanCosine(exact target, layer l)
 | 8 | +0.0352 | 0.0559 | +0.0366 | 72% |
 | 11 | +0.0384 | 0.0706 | +0.0177 | 69% |
 
-Layer 2는 평균 separation이 가장 컸고, layer 5는 가장 낮은 표준편차와 가장 높은 median 및 positive ratio를 보였습니다. 반면 더 깊은 layer 8과 11은 category-level abstraction에는 유용하지만 exact target과 같은 category의 다른 instance를 분리하는 shortcut cue로는 상대적으로 약했습니다.
+**결과:** Layer 2는 mean gap이 가장 높고, layer 5는 표준편차가 가장 낮으며 median과 positive ratio가 가장 높음. Layer 8·11은 exact-instance 분별력이 상대적으로 낮음.
 
-이에 따라 main interaction path는 기존처럼 layer `2, 5, 8, 11`을 모두 사용하되, 최종 logit으로 직접 전달하는 shortcut만 layer `2 + 5` 평균으로 변경했습니다.
+**수정:** Main path는 layer `2, 5, 8, 11`을 유지하고, shortcut만 layer `2 + 5` 평균으로 변경.
 
 ```text
 F_S    = Fuse(F_2, F_5, F_8, F_11)
@@ -631,10 +623,10 @@ cos_skip = torch.stack(
 logits = learned_logits + cos_skip_scale * cos_skip
 ```
 
-Cosine 값을 비선형 증폭하는 방식도 고려할 수 있지만, 현재 단계에서는 noise까지 함께 증폭할 위험이 있습니다. 먼저 대규모 표본에서 확인된 분별력에 따라 shortcut layer를 선택하고, 학습 가능한 `alpha`가 residual의 크기를 조정하도록 두었습니다.
+비선형 cosine 증폭은 noise도 함께 증폭할 수 있어 제외. 표본 분석으로 shortcut layer를 선택하고 학습 가능한 `alpha`로 residual 크기 조절.
 
 > **Current status — training in progress**
 >
-> Layer-selective shortcut을 적용한 새 checkpoint를 학습하고 있습니다. 학습 완료 후에는 (1) exact target이 same-category object보다 높은지, (2) unseen target의 semantic activation이 유지되는지, (3) target/category-held-out split에서도 같은 경향이 재현되는지를 평가할 예정입니다. 현재 수정은 분석에 근거한 가설이며, 문제 해결이 완료되었다고 판단하지 않습니다.
+> Layer-selective shortcut checkpoint 학습 중. 학습 후 exact-target ranking, unseen-target semantic activation, held-out split 재현성 평가 필요. 현재 해결 여부 미확정.
 
-**Current objective:** Same-category semantic generalization을 유지하면서 visible exact target의 순위를 안정적으로 복원하는 것입니다.
+**목표:** Same-category semantic generalization을 유지하면서 visible exact target의 우선순위 복원.
