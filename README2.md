@@ -569,6 +569,8 @@ CNN head는 category-level distribution을 학습하고 shortcut은 scene–targ
 
 **결과:** Checkpoint의 `alpha=1.8884`에도 exact target 출력이 same-category object보다 낮은 사례 확인. Layer별 shortcut 기여도 분석 필요.
 
+![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_nolabel.png)
+
 현재 cosine은 scene DINOv3 patch와 fused query 사이에서 계산됨. 다음 ablation 후보:
 
 1. **Fused-query shortcut:** `Cosine(X_s^l, a_t^l + s_t^l)` — 현재 구현
