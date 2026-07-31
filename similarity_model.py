@@ -68,6 +68,11 @@ class SimilarityMapModel(nn.Module):
     def forward(self, scene_feats, target_vecs, category_probs=None, out_size=None):
         if self.category_dim > 0 and category_probs is None:
             raise ValueError("category_dim > 0인 모델인데 category_probs가 안 넘어옴")
+        # zip()은 길이가 안 맞으면 조용히 짧은 쪽에 맞춰버려서, 이 체크가 없으면 layer 개수가
+        # 잘못 넘어와도 에러 없이 일부 layer만 쓰고 지나감 -- 미리 크게 실패하게 함.
+        if len(scene_feats) != self.num_layers or len(target_vecs) != self.num_layers:
+            raise ValueError(f"num_layers={self.num_layers}인데 scene_feats={len(scene_feats)}개, "
+                              f"target_vecs={len(target_vecs)}개가 넘어옴")
 
         layer_outs = []
         # DINO layer마다 (scene patch, target vector) 쌍을 하나씩 순회하며 interaction을 만든다
