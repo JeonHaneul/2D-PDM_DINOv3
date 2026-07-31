@@ -126,12 +126,8 @@ flowchart TB
     COS --> INTERACT
     INTERACT --> BLOCKS["MatchingBlock × 4"]
     BLOCKS --> LFUSE["Multi-layer Fusion"]
-    LFUSE --> HEAD["Learned Similarity Logit"]
-    COS --> CAVG["Average Layers 2 + 5"]
-    CAVG --> SKIP["Learnable Cosine Shortcut"]
-    HEAD --> ADDLOGIT["Logit Addition"]
-    SKIP --> ADDLOGIT
-    ADDLOGIT --> SIGMOID["Sigmoid"]
+    LFUSE --> HEAD["Similarity Head"]
+    HEAD --> SIGMOID["Sigmoid"]
     SIGMOID --> PMAP["Similarity Map P_S"]
 ```
 
@@ -151,10 +147,8 @@ flowchart TB
 | 10 | Interaction | Scene, target, cosine | Channel concatenation | `Z^l: B × 1537 × H_p × W_p` | Fixed |
 | 11 | MatchingBlock | `Z^l` | `3×3 Conv → GN → ReLU → 1×1 Conv → GN → ReLU` | `F_l: B × 64 × H_p × W_p` | **Trainable** |
 | 12 | Layer fusion | Four `F_l` tensors | Concat + 1×1 convolution | `F_S: B × 64 × H_p × W_p` | **Trainable** |
-| 13 | Output head | `F_S` | 1×1 convolution | Learned logit `L_head` | **Trainable** |
-| 14 | Cosine shortcut | `c_hat^2`, `c_hat^5` | Selected-layer average × learnable scale | Residual logit `alpha · c_skip` | **Trainable** |
-| 15 | Output activation | `L_head`, residual logit | Addition + sigmoid | `P_S: B × 1 × H_p × W_p` | Fixed |
-| 16 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
+| 13 | Output head | `F_S` | 1×1 convolution + sigmoid | `P_S: B × 1 × H_p × W_p` | **Trainable** |
+| 14 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
 
 ### Target Representation
 
@@ -207,20 +201,14 @@ Z^l(u,v) = Concat[
 ]
 ```
 
-각 DINOv3 layer를 독립적인 MatchingBlock으로 처리한 뒤 channel 방향으로 결합. Main path는 layer `2, 5, 8, 11`을 모두 사용하고, cosine shortcut은 exact-instance 분별력이 높은 layer `2, 5`만 사용.
+각 DINOv3 layer를 독립적인 MatchingBlock으로 처리한 뒤 channel 방향으로 결합.
 
 ```text
 F_l     = MatchingBlock_l(Z^l)
 F_S     = Fuse(Concat[F_2, F_5, F_8, F_11])
 L_head  = Head(F_S)
-c_skip  = Mean[c_hat^2, c_hat^5]
-P_S     = Sigmoid(L_head + alpha · c_skip)
+P_S     = Sigmoid(L_head)
 ```
-
-`alpha`는 초기값 `2.0`의 학습 가능한 scalar. Shortcut layer는 160개 표본의 cosine-gap 분석으로 선정. 제외된 layer `8, 11`은 main matching path에서 계속 사용.
-
-> **Implementation note**
-> 현재 `c_hat^l`는 scene DINOv3 patch와 fused target query 사이의 cosine임. Pure-DINO appearance cosine이 아니므로 향후 `Cosine(X_s^l, a_t^l)`와 ablation 필요.
 
 ### Trainable Parameters
 
@@ -234,8 +222,7 @@ DINOv3와 SigLIP은 고정하고 semantic adapter와 matching head만 학습.
 | MatchingBlock × 4 | 3,559,168 | **Trainable** |
 | Multi-layer fusion | 16,576 | **Trainable** |
 | Similarity head | 65 | **Trainable** |
-| Cosine shortcut scale `alpha` | 1 | **Trainable** |
-| **Total trainable** | **7,117,826** | |
+| **Total trainable** | **7,117,825** | |
 
 Checkpoint에는 task-specific layer만 저장하며, frozen backbone은 별도로 로드.
 
@@ -423,7 +410,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | DINOv3 ViT-B/16 dense similarity baseline | Complete |
 | DINOv3 + SigLIP Similarity stream | Complete |
 | Unseen banana qualitative test | Complete |
-| Layer-selective cosine shortcut | Training in progress |
+| Cosine shortcut ablation | Evaluated and excluded |
 | Object/category-held-out benchmark | Planned |
 | Occlusion stream training | Planned |
 | Complexity stream training | Planned |
@@ -453,10 +440,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] SigLIP image/text semantic fusion
 - [x] Pixel-wise Similarity map training
 - [x] Unseen target qualitative evaluation
-- [x] Learnable cosine residual shortcut
-- [x] Data-driven shortcut layer selection (`2 + 5`)
-- [ ] Retrained layer-selective checkpoint evaluation
-- [ ] Pure-DINO vs fused-query shortcut ablation
+- [x] Cosine shortcut evaluation and removal
+- [x] Reproducible scene-level split seed
 - [ ] Held-out object and category benchmark
 - [ ] Occlusion stream
 - [ ] Complexity stream
@@ -548,92 +533,14 @@ SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차
 
 ---
 
-### 2026-07-28 · Phase 4 — Exact-Instance Recovery with a Cosine Shortcut
+### 2026-07-28–29 · Phase 4 — Exact-Instance Shortcut Evaluation
 
-**Reference:** `train_similarity_v2.py`, `similarity_model.py` in the project root
+**문제:** SigLIP 결합으로 unseen target의 category-level activation은 확보했으나, visible exact target이 same-category object보다 높게 출력되지 않는 사례 확인.
 
-**문제:** Category-level zero-shot은 가능했으나 visible exact target도 same-category score인 약 `0.8`로 출력됨.
+**실험:** DINOv3 cosine을 output logit에 직접 더하는 residual shortcut과 layer `2 + 5` 선택 방식을 평가. Global pooling, raw appearance cosine, visibility, patch matching도 함께 분석.
 
-**가설:** Exact-target pixel 부족과 MatchingBlock의 category-level 일반화로 instance cue가 약화됨.
+**결과:** 공통 held-out scene에서 no-shortcut과 shortcut의 exact-target positive ranking은 각각 `29.0%`, `29.7%`로 거의 동일. Median gap은 소폭 개선됐지만 두 모델 모두 instance-level ranking에 실패. 공간 구조를 사용하지 않는 patch matching도 competitor score를 함께 높여 문제를 해결하지 못함.
 
-**수정:** 네 DINOv3 layer의 cosine 평균을 최종 logit에 더하는 residual shortcut 추가.
+**결론:** Shortcut은 계산 비용보다 구조와 해석의 복잡성을 늘리는 반면 실질적인 개선이 제한적이므로 최종 Similarity stream에서 제거. 현재 모델은 DINOv3–SigLIP interaction과 learned matching head만 사용함.
 
-```text
-L_head = Head(F_S)
-c_avg  = Mean[c_hat^2, c_hat^5, c_hat^8, c_hat^11]
-
-P_S = Sigmoid(L_head + alpha · c_avg)
-```
-
-CNN head는 category-level distribution을 학습하고 shortcut은 scene–target correspondence를 직접 전달. `alpha`는 학습 가능한 scalar.
-
-**결과:** Checkpoint의 `alpha=1.8884`에도 exact target 출력이 same-category object보다 낮은 사례 확인. Layer별 shortcut 기여도 분석 필요.
-
-![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_nolabel.png)
-
-현재 cosine은 scene DINOv3 patch와 fused query 사이에서 계산됨. 다음 ablation 후보:
-
-1. **Fused-query shortcut:** `Cosine(X_s^l, a_t^l + s_t^l)` — 현재 구현
-2. **Pure-appearance shortcut:** `Cosine(X_s^l, a_t^l)` — exact-instance recovery에 더 직접적인 대안
-
-**결론:** Four-layer shortcut만으로 exact-instance와 same-category 분리 불가.
-
----
-
-### 2026-07-29 · Phase 5 — Layer-Selective Cosine Shortcut
-
-**Reference:** `similarity_model.py`, `train_similarity_v2.py` in the project root
-
-**문제 재현:** `packaged_food_5` unseen target과 `packaged_food_1` scene으로 visible-target 평가. Raw cosine은 exact target을 1위로 판별했으나 최종 prediction에서 same-category object가 더 높게 출력됨.
-
-| Scene region | Raw four-layer cosine | Final prediction |
-|---|---:|---:|
-| Exact target `World1` | `0.610` | `0.595` |
-| Same-category mustard bottle | `0.591` | `0.598` |
-| Rubik's cube | `0.580` | `0.390` |
-| Apple | `0.571` | `0.413` |
-
-Raw cosine gap은 약 `0.019`로 작았으며, learned head 출력에서 순위 역전 발생.
-
-**분석:** 16개 target × 10개 표본, 총 160개 scene–target pair의 layer별 cosine gap 측정.
-
-```text
-gap_l = MeanCosine(exact target, layer l)
-      - MeanCosine(same-category objects, layer l)
-```
-
-| DINOv3 layer | Mean gap ↑ | Std. ↓ | Median gap ↑ | Positive ratio ↑ |
-|---:|---:|---:|---:|---:|
-| **2** | **+0.0493** | 0.0832 | +0.0376 | 74% |
-| **5** | +0.0464 | **0.0677** | **+0.0408** | **77%** |
-| 8 | +0.0352 | 0.0559 | +0.0366 | 72% |
-| 11 | +0.0384 | 0.0706 | +0.0177 | 69% |
-
-**결과:** Layer 2는 mean gap이 가장 높고, layer 5는 표준편차가 가장 낮으며 median과 positive ratio가 가장 높음. Layer 8·11은 exact-instance 분별력이 상대적으로 낮음.
-
-**수정:** Main path는 layer `2, 5, 8, 11`을 유지하고, shortcut만 layer `2 + 5` 평균으로 변경.
-
-```text
-F_S    = Fuse(F_2, F_5, F_8, F_11)
-L_head = Head(F_S)
-
-c_skip = Mean[c_hat^2, c_hat^5]
-P_S    = Sigmoid(L_head + alpha · c_skip)
-```
-
-```python
-# similarity_model.py
-SKIP_LAYER_INDICES = (0, 1)  # requested DINOv3 layers 2 and 5
-cos_skip = torch.stack(
-    [cos_list[i] for i in SKIP_LAYER_INDICES], dim=0
-).mean(dim=0)
-logits = learned_logits + cos_skip_scale * cos_skip
-```
-
-비선형 cosine 증폭은 noise도 함께 증폭할 수 있어 제외. 표본 분석으로 shortcut layer를 선택하고 학습 가능한 `alpha`로 residual 크기 조절.
-
-> **Current status — training in progress**
->
-> Layer-selective shortcut checkpoint 학습 중. 학습 후 exact-target ranking, unseen-target semantic activation, held-out split 재현성 평가 필요. 현재 해결 여부 미확정.
-
-**목표:** Same-category semantic generalization을 유지하면서 visible exact target의 우선순위 복원.
+추가로 target별로 서로 다른 무작위 split seed가 생성되던 문제를 수정. 실행마다 seed를 한 번만 확정하여 모든 target의 scene-level train/validation split을 재현할 수 있도록 정리.
