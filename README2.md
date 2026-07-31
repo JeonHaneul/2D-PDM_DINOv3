@@ -47,7 +47,7 @@ F_fuse = FusionGate(Concat(F_S, F_O, F_C))
 P_2D   = Sigmoid(Decoder(F_fuse))
 ```
 
-최종 `P_2D`는 target의 위치 확률을 원 영상 좌표계에 표현하며, DRL action policy의 탐색 prior로 사용됨.
+최종 `P_2D`는 target이 존재할 확률이 높은 영역을 나타내며, DRL이 확률이 높은 영역부터 우선 탐색할 수 있도록 사용됨.
 
 ---
 
