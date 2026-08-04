@@ -592,3 +592,27 @@ SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차
 **결론:** Shortcut은 계산 비용보다 구조와 해석의 복잡성을 늘리는 반면 실질적인 개선이 제한적이므로 최종 Similarity stream에서 제거. 현재 모델은 DINOv3–SigLIP interaction과 learned matching head만 사용함.
 
 추가로 target별로 서로 다른 무작위 split seed가 생성되던 문제를 수정. 실행마다 seed를 한 번만 확정하여 모든 target의 scene-level train/validation split을 재현할 수 있도록 정리.
+
+---
+
+### 2026-08-04 · Phase 5 — Zero-Shot Occlusion Pipeline Design
+
+**문제:** 기존 방식은 target당 `44,100`개 pose와 5개 camera를 촬영하여 중간 RGB·depth·mask를 대량 저장함. 최종 GT도 유효 pose의 depth-weighted occupancy를 scene별 min–max로 정규화하므로 서로 다른 scene에서 흰색의 절대적 의미가 일정하지 않음.
+
+**GT 설계:** Target을 물리적으로 반복 촬영하는 과정을 USD/OBJ mesh depth 계산으로 대체. 기존 pose grid와 `70%` occlusion 판정은 legacy 재현에 유지하고, 실제 학습용 GT는 다음 확률로 별도 생성함.
+
+```text
+P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
+```
+
+Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여부와 새 정규화 효과를 분리해 평가. Visible-target 강조는 Similarity stream과 역할이 겹치므로 Occlusion GT에서 제외함.
+
+**Scale conditioning:** Mesh scale과 target RGB·mask scale을 반드시 동일하게 구성. 동일한 target 입력에 서로 다른 scale GT를 주면 모델이 scale별 정답의 평균으로 수렴하므로 size-effect를 학습할 수 없음. Pilot은 `0.7`, `1.0`, `1.3`으로 시작함.
+
+**모델 설계:** Scene RGB는 frozen DINOv3, scene depth와 valid mask는 ResNet-18로 처리. Target mask에서 추출한 size·silhouette condition으로 depth feature에만 FiLM을 적용하고, target appearance는 MatchingBlock에서 별도로 결합함. 검증되지 않은 cosine shortcut은 baseline에서 제외함.
+
+**배포 조건:** 매 추론 입력은 scene RGB, scene depth, target RGB. Target mask는 고정 촬영 환경의 empty-background reference로 자동 생성하며, USD/OBJ와 scale 정보는 GT 생성에만 사용함.
+
+**Zero-shot 검증:** Frozen encoder 사용만으로 zero-shot을 가정하지 않고, 학습에서 제외한 target instance와 unseen intermediate scale을 별도 test split으로 평가함.
+
+**다음 단계:** `packaged_food_2`, center camera, scale `1.0`, scene 20~50장으로 mesh-depth 재현 pilot을 먼저 수행. Target silhouette IoU와 depth MAE를 확인한 뒤 legacy/probability GT 생성 및 전체 target 확장 여부를 결정함.
