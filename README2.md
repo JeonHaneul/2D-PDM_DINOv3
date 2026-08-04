@@ -356,26 +356,74 @@ Unseen banana 입력 시 fruit 영역 활성화 확인.
 
 ## Occlusion Stream
 
-> **Status: Data prepared / Model integration planned**
+> **Status: GT generation pilot / Model design completed**
 
-Occlusion stream은 target이 현재 보이는 물체 아래에 가려질 가능성을 추론.
+Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
-| Input | 역할 |
-|---|---|
-| Scene RGB | 물체 영역과 visual context |
-| Scene depth | 현재 보이는 표면까지의 거리 |
-| Target RGB/depth | Target appearance와 상대 크기 |
-| Target 3D geometry | 후보 pose에서의 실제 가림 여부 계산 |
+### Occlusion GT Generation
 
-Target mesh를 후보 위치·회전·scale에 배치하고, target depth가 scene surface 뒤에 위치하는 영역을 누적하여 GT 생성.
+학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 기존 pose grid와 depth 판정 기준을 유지하되, 중간 RGB·depth·mask를 대량 저장하지 않음.
 
 ```text
-Y_O(u,v) ∝ Sum over candidate poses [
-    TargetDepth_pose(u,v) > SceneDepth(u,v)
-]
+Target mesh + scale + candidate pose
+                ↓
+        Rendered target depth
+                ↓
+Compare with scene depth
+                ↓
+Occluded-pixel ratio ≥ threshold
+                ↓
+Legacy GT + normalized probability GT
 ```
 
-Scale augmentation으로 절대 크기 암기를 억제하고 상대적 가림 관계 학습.
+확률 GT는 해당 위치를 target이 덮는 전체 후보 pose 중 충분히 가려지는 pose의 비율로 정의. Scene별 min–max normalization과 visible-target 강조는 사용하지 않음.
+
+```text
+P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
+```
+
+Mesh와 target 입력은 같은 scale로 구성하며, pilot에서는 `0.7`, `1.0`, `1.3`을 사용. Target RGB와 mask는 bottom-center를 기준으로 scale을 맞춤.
+
+### Zero-Shot Occlusion Model
+
+```mermaid
+flowchart LR
+    SRGB["Scene RGB"] --> DINO_S["DINOv3<br/>Frozen"] --> FRGB["RGB Features"]
+    SDEPTH["Scene Depth + Valid Mask"] --> DENC["Depth Encoder<br/>ResNet-18"] --> FDEPTH["Depth Features"]
+
+    TRGB["Target RGB"] --> DINO_T["DINOv3<br/>Frozen"] --> TAPP["Appearance"]
+    TMASK["Target Mask"] --> SHAPE["Silhouette Encoder"] --> TGEO["Size + Shape Condition"]
+    TMASK --> SIZE["BBox / Area / Aspect Ratio"] --> TGEO
+
+    TGEO --> FILM["Depth-only FiLM"]
+    FDEPTH --> FILM
+    FRGB --> MATCH["MatchingBlocks × 4"]
+    FILM --> MATCH
+    TAPP --> MATCH
+    TGEO --> MATCH
+    MATCH --> HEAD["Fusion + Occlusion Head"] --> PO["Occlusion Map P_O"]
+```
+
+FiLM은 size·silhouette condition으로 depth feature만 조절함.
+
+```text
+gamma, beta = MLP(E_size, E_shape)
+F_depth'    = gamma * F_depth + beta
+```
+
+Target appearance는 depth를 조절하지 않고 MatchingBlock에서 scene RGB-D feature와 결합. DINOv3는 frozen으로 유지하며 depth encoder, silhouette/size encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함.
+
+### Deployment Inputs
+
+매 추론 시 입력은 scene RGB, scene depth, target RGB 세 가지. Target mask는 고정된 target 촬영 환경의 empty-background reference를 이용해 내부 전처리에서 자동 생성함.
+
+| 구분 | 필요 정보 |
+|---|---|
+| 매 추론 입력 | Scene RGB, scene depth, target RGB |
+| 고정 시스템 자산 | Empty-background RGB, camera calibration |
+| GT 생성에만 사용 | Target USD/OBJ, mesh scale, occlusion GT |
+
+Zero-shot 성능은 frozen encoder만으로 가정하지 않고, 학습에 포함되지 않은 target instance와 scale을 분리하여 평가함.
 
 ---
 
