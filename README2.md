@@ -3,15 +3,13 @@
 ### Zero-Shot Probability Distribution Mapping for Occluded Object Search in Cluttered Drawers
 
 > **Research in progress**  
-> RGB-D 관측만으로 다른 물체 아래에 가려진 target object의 존재 위치를 추론하고, 효율적인 탐색 행동을 위한 pixel-wise probability map 생성
+> RGB-D 관측으로 가려진 target object의 위치를 추론하고, 탐색 행동을 위한 pixel-wise probability map 생성
 
 ---
 
 ## Overview
 
-사람은 서랍 속에서 보이지 않는 물체를 찾을 때 무작위로 물체를 제거하지 않음. Target과 비슷한 물체가 모인 곳, target이 물리적으로 가려질 수 있는 공간, 물체 더미가 복잡하게 쌓인 영역을 함께 고려함.
-
-2D-PDM은 이 탐색 전략을 세 개의 독립적인 probability stream으로 모델링함.
+사람의 물체 탐색에 사용되는 세 단서인 유사도, 가림 가능성, 장면 복잡도를 독립적인 probability stream으로 모델링함.
 
 | Stream | 핵심 질문 | 출력 |
 |---|---|---|
