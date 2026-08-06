@@ -360,7 +360,7 @@ a photo of a {category}
 
 ## Occlusion Stream
 
-> **Status: Mesh-depth geometry validated / GT generator and model implementation in progress**
+> **Status: Geometry, GPU rasterization, mesh simplification, and 70% decision pilot validated / probability-map generator in progress**
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
@@ -397,7 +397,7 @@ is_occluded = corrected_ratio >= 0.7
 P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
 ```
 
-Mesh와 target 입력은 같은 scale로 구성하며, pilot에서는 `0.7`, `1.0`, `1.3`을 사용. Target RGB와 mask는 bottom-center를 기준으로 scale을 맞춤.
+Mesh와 target 입력은 같은 scale로 구성해야 함. Multi-scale 학습은 `0.7`, `1.0`, `1.3`을 초기 후보로 두고 있으며, target RGB와 mask도 mesh scale에 맞춰 구성할 예정.
 
 #### Mesh-Depth Validation
 
@@ -414,9 +414,18 @@ USD mesh 계산이 Isaac Sim target capture를 재현하는지 4개 asset, 9개 
 
 낮은 IoU 4건은 모두 `book_1`이 서랍 경계에 있고 외측 camera에서 관측된 조건임. Mesh-only renderer는 target 전체를 계산하지만 Isaac Sim reference에서는 서랍 벽이 target 일부를 가림. 최종 GT generator에서는 empty-drawer depth로 해당 영역을 제외하여 동일한 관측 조건을 구성함.
 
+CPU reference 이후 nvdiffrast 기반 GPU rasterizer로 동일한 검증을 확장함. 원본 4개 asset의 `180`개 조건과 `toy_3` 10k simplified mesh의 `45`개 조건을 포함한 총 `225`개 target–pose–camera 조합을 평가함. `book_1` 경계 4건은 drawer wall visibility 차이로 분리되며, 나머지 asset은 사전 기준을 통과함.
+
+| Asset | Cases | Median silhouette IoU | Worst IoU | Median depth MAE |
+|---|---:|---:|---:|---:|
+| `packaged_food_2` | `45` | `0.9991` | `0.9908` | `0.00245 mm` |
+| `fruit_1` | `45` | `0.9993` | `0.9966` | `0.00239 mm` |
+| `toy_3` original | `45` | `0.9989` | `0.9959` | `0.12545 mm` |
+| `toy_3` 10k | `45` | `0.9971` | `0.9945` | `0.29095 mm` |
+
 #### Automatic Mesh Simplification
 
-현재 검증용 rasterizer는 triangle별 Python loop를 사용하므로 mesh 복잡도에 따라 실행 시간이 급증함.
+초기 CPU reference rasterizer는 triangle별 Python loop를 사용하여 mesh 복잡도에 따라 실행 시간이 급증함.
 
 | Asset | Triangles | Mean render time |
 |---|---:|---:|
@@ -425,7 +434,7 @@ USD mesh 계산이 Isaac Sim target capture를 재현하는지 4개 asset, 9개 
 | `packaged_food_2` | `16,384` | `5.22 s` |
 | `toy_3` | `2,029,960` | `577.72 s` |
 
-새 USD/OBJ asset이 추가되면 triangle 수를 확인하고, 기준을 초과하면 여러 단계로 자동 단순화함. 원본과 `640 × 480`으로 비교하여 기준을 만족하는 가장 작은 mesh를 선택하고 캐시함.
+`toy_3`은 2,029,960 triangles에서 10k mesh로 단순화함. GPU 원본–단순화 직접 비교 결과 45개 조건에서 median IoU `0.9970`, worst IoU `0.9938`, median depth MAE `0.3781 mm`를 기록함. 새 USD/OBJ asset은 triangle 수를 확인하고, 기준을 초과하면 동일한 검증을 거쳐 가장 작은 유효 mesh를 선택하도록 구성할 예정.
 
 ```text
 New USD/OBJ
@@ -439,14 +448,41 @@ New USD/OBJ
 
 단순화 검증에는 silhouette와 depth뿐 아니라 실제 GT 판정의 안정성을 포함함.
 
-| Validation | Planned criterion |
+| Validation | Criterion |
 |---|---:|
 | Silhouette IoU | `≥ 0.98` |
 | Depth MAE | `≤ 1 mm` |
 | Area error | `≤ 2%` |
 | 70% occlusion decision agreement | `≥ 99%` |
 
-단순화는 USD/OBJ를 사용하는 GT 생성 단계에서 asset별 한 번만 수행함. 실제 zero-shot 배포에서는 mesh가 필요하지 않음. 대규모 GT 생성기는 hardware GPU rasterizer와 pose/camera batch 처리로 별도 구현하며, 현재 rasterizer는 정확도 reference로 유지함.
+새 GT 생성기에서는 단순화를 asset별 한 번만 수행하고 결과를 캐시할 예정. 실제 zero-shot 배포에서는 mesh가 필요하지 않음. nvdiffrast 기반 GPU rasterizer는 구현·검증됐으며, 다음 단계에서는 pose/camera batch와 probability accumulator를 결합함.
+
+#### Corrected Occlusion Decision Pilot
+
+20개 clutter scene, 9개 target pose, 5개 camera를 사용하여 Isaac target depth, GPU 원본 mesh, GPU simplified mesh의 `70%` 판정을 비교함.
+
+| Target | Comparison | Cases | Ratio MAE | Decision agreement | Boundary agreement (`0.65–0.75`) |
+|---|---|---:|---:|---:|---:|
+| `packaged_food_2` | Isaac vs GPU original | `900` | `0.0003` | `100.00%` | `100.00%` |
+| `toy_3` | Isaac vs GPU original | `900` | `0.0006` | `99.78%` | `97.70%` |
+| `toy_3` | GPU original vs 10k | `900` | `0.0010` | `99.67%` | `96.59%` |
+
+`book_1` 경계 pose 4개와 clutter scene 20개를 사용한 별도 검사에서는 drawer wall이 target pixel의 `10.01–12.77%`를 제외함. Corrected ratio는 80개 조건 모두 legacy ratio 이상이었으며, `6/80`개 조건에서 `0.7` 판정이 변경됨. 따라서 새 학습 GT는 corrected denominator를 사용하고 legacy ratio는 비교용으로만 보존함.
+
+#### Reproducible Clutter Capture
+
+Clutter capture는 물리 낙하가 끝난 뒤 `world.render()`만 사용하여 5개 camera를 촬영함. 캡처 전후 pose 비교에서 위치 변화 `0 mm`, 회전 변화 최대 `0.000002°`, quaternion component 변화 `0`을 확인함.
+
+각 run과 scene에는 다음 정보를 저장함.
+
+- Seed, run ID, scene 시작·종료 번호와 완료 상태
+- Camera intrinsics/extrinsics와 `640 × 480` 해상도
+- 모든 object의 최종 position, orientation, category와 target 여부
+- `color_bgr`, 실제 RGB 순서의 `color_rgb`, legacy color
+- Existing scene 자동 이어쓰기와 atomic JSON 저장
+- Drawer 내부 actual mesh-vertex QC
+
+현재 1,000-pose stratified validation 스크립트는 준비됐으며 결과 검증 전 단계임. 완료 전까지 10k mesh를 전체 pose grid의 최종 mesh로 확정하지 않음.
 
 ### Occlusion GT Generation Protocol
 
@@ -577,9 +613,13 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Cosine shortcut ablation | Evaluated and excluded |
 | Object/category-held-out benchmark | Planned |
 | Occlusion mesh extraction and camera projection | Validated |
-| Full-resolution mesh-depth pilot | `180` cases evaluated |
-| Automatic mesh simplification | Planned |
-| Batched GPU GT generator | Planned |
+| Full-resolution mesh-depth pilot | CPU `180` + GPU/simplified `225` cases evaluated |
+| nvdiffrast GPU depth rasterizer | Validated |
+| `toy_3` 10k mesh simplification | Pilot validated; 1,000-pose validation pending |
+| Corrected 70% occlusion decision | Validated on standard and drawer-edge poses |
+| Reproducible clutter capture | Implemented and validated |
+| Stratified 1,000-pose validation | Script ready; result pending |
+| Probability-map GT accumulator | Planned |
 | Occlusion stream training | Planned |
 | Complexity stream training | Planned |
 | Three-stream fusion | Planned |
@@ -600,8 +640,14 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `paths_config.py` | Model, asset, dataset path configuration |
 | `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
 | `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
+| `depth_rasterizer_gpu.py` | nvdiffrast-based full-resolution GPU depth renderer |
 | `experiments/occlusion_gt_pilot/validate_rasterizer.py` | Multi-asset, pose and camera mesh-depth validation |
+| `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py` | GPU rasterizer and simplified-mesh validation |
+| `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py` | Legacy/corrected ratio and 70% decision comparison |
+| `experiments/occlusion_gt_pilot/check_clutter_roi_vertices.py` | Drawer-interior mesh-vertex QC |
+| `experiments/occlusion_gt_pilot/stratified_1000_pose_validation.py` | Deterministic stratified original–simplified validation |
 | `scene_generator/occlusion_gt_pilot_capture.py` | Isaac Sim reference capture for occlusion GT validation |
+| `scene_generator/vectorized_scene_v2.py` | Physics-based clutter generation and reproducible RGB-D capture |
 
 ---
 
@@ -616,9 +662,14 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Reproducible scene-level split seed
 - [x] USD mesh extraction and unit conversion validation
 - [x] `640 × 480` mesh-depth validation across 180 conditions
-- [ ] Empty-drawer valid-pixel integration
-- [ ] Automatic mesh simplification and validation
-- [ ] Batched hardware GPU rasterizer
+- [x] Empty-drawer mesh-depth valid-pixel integration
+- [x] nvdiffrast hardware GPU rasterizer validation
+- [x] `toy_3` 10k simplification pilot
+- [x] Legacy/corrected denominator comparison
+- [x] Reproducible render-only clutter capture and metadata
+- [ ] Stratified 1,000-pose original–simplified validation
+- [ ] Automatic simplification cache for arbitrary new assets
+- [ ] Pose/camera batched probability accumulator
 - [ ] Legacy and probability occlusion GT generator
 - [ ] Held-out object and category benchmark
 - [ ] Zero-shot Occlusion stream training and held-out evaluation
@@ -766,3 +817,19 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 **결정:** 해상도는 기존과 동일한 `640 × 480`으로 유지. 기존 `distribution_map_GPU.py`는 legacy reference로 수정하지 않으며, corrected ratio와 probability normalization은 새 GT generator에 구현함. 실제 배포에서는 mesh 단순화를 수행하지 않고 scene RGB, scene depth, target RGB만 입력함.
 
 **다음 단계:** Empty-drawer valid-pixel 처리를 검증에 반영하고, `toy_3`의 단순화 후보를 원본 mesh와 비교하여 자동 선택 기준을 확정한 뒤 batched GPU GT generator를 구현함.
+
+---
+
+### 2026-08-06 · Phase 7 — GPU Rasterization, Corrected Ratio, and Capture Reliability
+
+**Reference:** `depth_rasterizer_gpu.py`, `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py`, `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py`, `scene_generator/vectorized_scene_v2.py`
+
+**GPU rasterization:** nvdiffrast 기반 `640 × 480` depth renderer를 구현함. 원본 4개 asset과 `toy_3` 10k simplified mesh를 포함한 225개 조건에서 silhouette과 depth를 검증함. `toy_3` 10k mesh는 원본 대비 worst IoU `0.9938`, median depth MAE `0.3781 mm`를 기록함.
+
+**70% decision:** 20개 clutter scene과 9개 pose, 5개 camera에서 원본·GPU·단순화 mesh를 비교함. `toy_3` 원본–10k 판정 일치율은 전체 `99.67%`, `0.65–0.75` 경계 구간 `96.59%`임.
+
+**Corrected denominator:** Drawer wall이 target 일부를 가리는 `book_1` 경계 조건에서 valid pixel이 `10.01–12.77%` 감소함. Corrected ratio 적용 시 `6/80`개 조건의 `0.7` 판정이 변경되어 기존 분모 불일치가 실제 결과에 영향을 주는 것을 확인함.
+
+**Clutter capture:** 물리 안정화 이후 카메라 촬영을 `world.step()`에서 render-only `world.render()`로 변경함. 캡처 전후 위치·회전 불변성을 직접 확인하고, run/scene/object pose, camera metadata, seed와 완료 상태를 저장하도록 구성함. 실제 transformed mesh vertex 기준 drawer 내부 QC도 추가함.
+
+**현재 단계:** Stratified 1,000-pose 검증 코드는 준비됐으나 결과는 아직 확정되지 않음. 검증 통과 후 10k mesh를 확정하고 축소 grid probability map과 전체 GT accumulator를 구현함.
