@@ -3,13 +3,15 @@
 ### Zero-Shot Probability Distribution Mapping for Occluded Object Search in Cluttered Drawers
 
 > **Research in progress**  
-> RGB-D 관측으로 가려진 target object의 위치를 추론하고, 탐색 행동을 위한 pixel-wise probability map 생성
+> RGB-D 관측만으로 다른 물체 아래에 가려진 target object의 존재 위치를 추론하고, 효율적인 탐색 행동을 위한 pixel-wise probability map 생성
 
 ---
 
 ## Overview
 
-사람의 물체 탐색에 사용되는 세 단서인 유사도, 가림 가능성, 장면 복잡도를 독립적인 probability stream으로 모델링함.
+사람은 서랍 속에서 보이지 않는 물체를 찾을 때 무작위로 물체를 제거하지 않음. Target과 비슷한 물체가 모인 곳, target이 물리적으로 가려질 수 있는 공간, 물체 더미가 복잡하게 쌓인 영역을 함께 고려함.
+
+2D-PDM은 이 탐색 전략을 세 개의 독립적인 probability stream으로 모델링함.
 
 | Stream | 핵심 질문 | 출력 |
 |---|---|---|
@@ -20,11 +22,12 @@
 ```mermaid
 flowchart LR
     RGB["Scene RGB"] --> S["Similarity Stream"]
-    TARGET["Target Image + Prompt"] --> S
+    TARGET["Target RGB"] --> S
+    PROMPT["Target Prompt"] --> S
 
     RGB --> O["Occlusion Stream"]
     DEPTH["Scene Depth"] --> O
-    GEOM["Target Depth / Geometry"] --> O
+    TARGET --> O
 
     RGB --> C["Complexity Stream"]
     DEPTH --> C
@@ -260,7 +263,7 @@ L_sim   = MSE(P_S, Y_patch)
 
 ---
 
-## Training Protocol
+## Similarity Training Protocol
 
 ### Data Split
 
@@ -343,9 +346,12 @@ a photo of a {category}
 ![Avocado target similarity result](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
 ![Orange target similarity result](img/panel_Fruit-Orange_scene00003_env0274_center.png)
 
-### Unseen Banana
+### Unseen Target Results
 
-Unseen banana 입력 시 fruit 영역 활성화 확인.
+학습에 포함되지 않은 banana 입력 시 fruit 영역 활성화 확인. 학습에 포함되지 않은 packaged-food target에서도 same-category 영역 활성화 확인.
+
+![Unseen packaged-food target: image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
+![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_v2.png)
 
 - DINOv3: target–scene dense appearance
 - SigLIP: banana–fruit open-vocabulary semantics
@@ -356,33 +362,145 @@ Unseen banana 입력 시 fruit 영역 활성화 확인.
 
 ## Occlusion Stream
 
-> **Status: GT generation pilot / Model design completed**
+> **Status: Mesh-depth geometry validated / GT generator and model implementation in progress**
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
 ### Occlusion GT Generation
 
-학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 기존 pose grid와 depth 판정 기준을 유지하되, 중간 RGB·depth·mask를 대량 저장하지 않음.
+학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 해상도는 기존 데이터와 동일한 `640 × 480`을 유지하고, 기존 pose grid와 `70%` occlusion 판정 기준을 적용함. 렌더링된 개별 RGB·depth·mask는 저장하지 않고 scene depth와 즉시 비교하여 누적값만 저장할 예정.
 
 ```text
 Target mesh + scale + candidate pose
                 ↓
         Rendered target depth
                 ↓
-Compare with scene depth
+Empty-drawer depth로 valid pixel 계산
                 ↓
-Occluded-pixel ratio ≥ threshold
+Compare with cluttered scene depth
                 ↓
-Legacy GT + normalized probability GT
+Valid target pixel의 occlusion ratio ≥ 0.7
+                ↓
+Legacy GT + probability GT
 ```
 
-확률 GT는 해당 위치를 target이 덮는 전체 후보 pose 중 충분히 가려지는 pose의 비율로 정의. Scene별 min–max normalization과 visible-target 강조는 사용하지 않음.
+기존 코드의 ratio는 clutter occlusion이 적용된 픽셀을 target 전체 픽셀 수로 나눔. 이 방식은 empty drawer에서 서랍 구조물에 가려지는 픽셀을 분자에서는 제외하면서 분모에는 남기는 불일치가 있음. 기존 결과 재현용 `legacy_ratio`와 학습용 `corrected_ratio`를 분리함.
+
+```text
+legacy_ratio    = N_occluded_valid / N_target_all
+corrected_ratio = N_occluded_valid / (N_valid + epsilon)
+
+is_occluded = corrected_ratio >= 0.7
+```
+
+확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의. Scene별 min–max normalization과 visible-target 강조는 사용하지 않음.
 
 ```text
 P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
 ```
 
 Mesh와 target 입력은 같은 scale로 구성하며, pilot에서는 `0.7`, `1.0`, `1.3`을 사용. Target RGB와 mask는 bottom-center를 기준으로 scale을 맞춤.
+
+#### Mesh-Depth Validation
+
+USD mesh 계산이 Isaac Sim target capture를 재현하는지 4개 asset, 9개 pose, 5개 camera의 총 180개 조건에서 검증함.
+
+| Metric | Result |
+|---|---:|
+| Resolution | `640 × 480` |
+| Evaluated cases | `180` |
+| Median silhouette IoU | `1.0000` |
+| Cases with IoU `0.9993–1.0000` | `176 / 180` |
+| Median depth MAE | `0.75 μm` |
+| Lowest IoU | `0.8723` |
+
+낮은 IoU 4건은 모두 `book_1`이 서랍 경계에 있고 외측 camera에서 관측된 조건임. Mesh-only renderer는 target 전체를 계산하지만 Isaac Sim reference에서는 서랍 벽이 target 일부를 가림. 최종 GT generator에서는 empty-drawer depth로 해당 영역을 제외하여 동일한 관측 조건을 구성함.
+
+#### Automatic Mesh Simplification
+
+현재 검증용 rasterizer는 triangle별 Python loop를 사용하므로 mesh 복잡도에 따라 실행 시간이 급증함.
+
+| Asset | Triangles | Mean render time |
+|---|---:|---:|
+| `book_1` | `732` | `0.23 s` |
+| `fruit_1` | `12,602` | `3.91 s` |
+| `packaged_food_2` | `16,384` | `5.22 s` |
+| `toy_3` | `2,029,960` | `577.72 s` |
+
+새 USD/OBJ asset이 추가되면 triangle 수를 확인하고, 기준을 초과하면 여러 단계로 자동 단순화함. 원본과 `640 × 480`으로 비교하여 기준을 만족하는 가장 작은 mesh를 선택하고 캐시함.
+
+```text
+New USD/OBJ
+    → world-scale mesh extraction
+    → complexity check
+    → simplification candidates
+    → full-resolution geometry validation
+    → smallest valid mesh selection
+    → cache for GT generation
+```
+
+단순화 검증에는 silhouette와 depth뿐 아니라 실제 GT 판정의 안정성을 포함함.
+
+| Validation | Planned criterion |
+|---|---:|
+| Silhouette IoU | `≥ 0.98` |
+| Depth MAE | `≤ 1 mm` |
+| Area error | `≤ 2%` |
+| 70% occlusion decision agreement | `≥ 99%` |
+
+단순화는 USD/OBJ를 사용하는 GT 생성 단계에서 asset별 한 번만 수행함. 실제 zero-shot 배포에서는 mesh가 필요하지 않음. 대규모 GT 생성기는 hardware GPU rasterizer와 pose/camera batch 처리로 별도 구현하며, 현재 rasterizer는 정확도 reference로 유지함.
+
+### Occlusion GT Generation Protocol
+
+| Setting | Value |
+|---|---|
+| Output resolution | `640 × 480` |
+| XY range | `-0.17–0.17 m` |
+| XY interval | `0.01 m` |
+| XY positions | `35 × 35` |
+| Yaw | `0–330°`, interval `30°` |
+| Height levels | Target-specific `BASE_Z` + `0.03 m × {0,1,2}` |
+| Candidate poses | `44,100` per target |
+| Cameras | center, top, left, right, bottom |
+| Occlusion threshold | Valid target pixels의 `70%` |
+
+```text
+1. USD/OBJ를 meter 단위 world mesh로 변환
+2. 복잡한 mesh는 자동 단순화 후 full-resolution 검증
+3. Mesh scale과 target reference scale을 동일하게 설정
+4. Candidate pose와 camera를 batch로 target depth 렌더링
+5. Empty-drawer depth로 drawer structure에 가려지는 pixel 제외
+6. Cluttered scene depth가 target depth보다 가까운 pixel 계산
+7. Corrected occlusion ratio가 0.7 이상인 pose만 occluded pose로 인정
+8. N_candidate와 N_occluded를 즉시 누적하고 개별 depth는 저장하지 않음
+9. Legacy GT와 probability GT를 함께 출력
+```
+
+```text
+valid        = (D_empty == 0) or (D_empty >= D_target)
+occluded     = valid and (D_scene != 0) and (D_scene < D_target)
+ratio        = Sum(occluded) / (Sum(valid) + epsilon)
+accept_pose  = ratio >= 0.7
+P_O          = N_occluded / (N_candidate + epsilon)
+```
+
+기존 `distribution_map_GPU.py`는 legacy 결과 재현용으로 보존함. 분모가 다른 corrected ratio, scene 간 비교 가능한 probability normalization, mesh simplification과 batch accumulation은 새 GT generator에만 구현함.
+
+### New Asset Protocol
+
+새 학습 asset의 USD/OBJ가 추가되면 다음 과정을 자동 실행함.
+
+```text
+Asset discovery
+    → unit and transform validation
+    → triangle-count check
+    → simplification only when required
+    → original/simplified full-resolution comparison
+    → smallest valid mesh cache
+    → multi-scale GT generation
+```
+
+단순화 결과가 기준을 만족하지 못한 asset만 수동 검토 대상으로 분리함. Zero-shot test 및 실제 배포 target은 RGB reference만 사용하므로 이 과정이 필요하지 않음.
 
 ### Zero-Shot Occlusion Model
 
@@ -460,6 +578,10 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Unseen banana qualitative test | Complete |
 | Cosine shortcut ablation | Evaluated and excluded |
 | Object/category-held-out benchmark | Planned |
+| Occlusion mesh extraction and camera projection | Validated |
+| Full-resolution mesh-depth pilot | `180` cases evaluated |
+| Automatic mesh simplification | Planned |
+| Batched GPU GT generator | Planned |
 | Occlusion stream training | Planned |
 | Complexity stream training | Planned |
 | Three-stream fusion | Planned |
@@ -478,6 +600,10 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `gt_similarity.py` | Category-based similarity-map generation |
 | `precompute_gt.py` | Precomputed similarity GT cache |
 | `paths_config.py` | Model, asset, dataset path configuration |
+| `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
+| `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
+| `experiments/occlusion_gt_pilot/validate_rasterizer.py` | Multi-asset, pose and camera mesh-depth validation |
+| `scene_generator/occlusion_gt_pilot_capture.py` | Isaac Sim reference capture for occlusion GT validation |
 
 ---
 
@@ -490,8 +616,14 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Unseen target qualitative evaluation
 - [x] Cosine shortcut evaluation and removal
 - [x] Reproducible scene-level split seed
+- [x] USD mesh extraction and unit conversion validation
+- [x] `640 × 480` mesh-depth validation across 180 conditions
+- [ ] Empty-drawer valid-pixel integration
+- [ ] Automatic mesh simplification and validation
+- [ ] Batched hardware GPU rasterizer
+- [ ] Legacy and probability occlusion GT generator
 - [ ] Held-out object and category benchmark
-- [ ] Occlusion stream
+- [ ] Zero-shot Occlusion stream training and held-out evaluation
 - [ ] Complexity stream
 - [ ] Learned three-stream fusion
 - [ ] DRL-based exploration policy
@@ -501,7 +633,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 
 ## Development Log
 
-Similarity stream의 가설, 실험 결과, 한계, 수정 사항을 단계별로 기록.
+Similarity와 Occlusion stream의 가설, 실험 결과, 한계, 수정 사항을 단계별로 기록.
 
 ### 2026-07-21 · Phase 1 — DINOv3 Appearance Matching
 
@@ -615,4 +747,24 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 **Zero-shot 검증:** Frozen encoder 사용만으로 zero-shot을 가정하지 않고, 학습에서 제외한 target instance와 unseen intermediate scale을 별도 test split으로 평가함.
 
-**다음 단계:** `packaged_food_2`, center camera, scale `1.0`, scene 20~50장으로 mesh-depth 재현 pilot을 먼저 수행. Target silhouette IoU와 depth MAE를 확인한 뒤 legacy/probability GT 생성 및 전체 target 확장 여부를 결정함.
+**다음 단계:** `packaged_food_2`, center camera, scale `1.0`의 mesh-depth 재현 pilot을 수행한 뒤 multi-asset·pose·camera 조건으로 확장함.
+
+---
+
+### 2026-08-04–06 · Phase 6 — Mesh-Depth Validation and GT Refinement
+
+**Reference:** `mesh_utils.py`, `depth_rasterizer.py`, `scene_generator/occlusion_gt_pilot_capture.py`, `experiments/occlusion_gt_pilot/validate_rasterizer.py`
+
+**검증:** `packaged_food_2`, `book_1`, `fruit_1`, `toy_3`을 대상으로 9개 pose와 5개 camera를 조합한 180개 조건에서 USD mesh depth와 Isaac Sim reference를 `640 × 480`으로 비교함.
+
+**수정:** Segmentation reference를 `depth > 0`으로 계산하면 drawer와 background가 포함되는 오류를 확인하고 target segmentation color 기반 mask로 교체. `metersPerUnit=0.01` asset의 자동 unit-compensation scale이 transform 초기화 과정에서 제거되는 문제도 수정함.
+
+**결과:** 176개 조건에서 silhouette IoU `0.9993–1.0000`, 전체 중앙값 `1.0000`, depth MAE 중앙값 `0.75 μm` 확인. 나머지 4개는 서랍 경계에서 drawer wall이 target 일부를 가린 조건으로, mesh projection 오류가 아니라 empty-drawer visibility 처리 차이로 확인함.
+
+**기존 GT 문제:** 기존 `distribution_map_GPU.py`는 occluded pixel에 `valid_pos`를 적용하지만 ratio 분모에는 target 전체 pixel을 사용함. 기존 결과 재현용 `legacy_ratio`는 보존하고, 새 학습 GT는 valid pixel을 분모로 사용하는 `corrected_ratio`와 `70%` threshold를 적용하기로 결정함.
+
+**성능 병목:** 검증용 rasterizer가 triangle별 Python loop를 사용하여 `toy_3`의 2,029,960 triangles에서 평균 `577.72 s/image` 소요. 새 asset에도 적용 가능한 자동 mesh 단순화, full-resolution 정확도 검사, hardware GPU rasterization, pose/camera batch 누적 구조가 필요함.
+
+**결정:** 해상도는 기존과 동일한 `640 × 480`으로 유지. 기존 `distribution_map_GPU.py`는 legacy reference로 수정하지 않으며, corrected ratio와 probability normalization은 새 GT generator에 구현함. 실제 배포에서는 mesh 단순화를 수행하지 않고 scene RGB, scene depth, target RGB만 입력함.
+
+**다음 단계:** Empty-drawer valid-pixel 처리를 검증에 반영하고, `toy_3`의 단순화 후보를 원본 mesh와 비교하여 자동 선택 기준을 확정한 뒤 batched GPU GT generator를 구현함.
