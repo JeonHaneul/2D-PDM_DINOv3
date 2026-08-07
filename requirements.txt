@@ -1,0 +1,10 @@
+# Similarity training and zero-shot inference environment.
+# Isaac Sim owns the additional dependencies required by target_capture.py.
+torch==2.12.0
+torchvision==0.27.0
+transformers==5.14.1
+opencv-python-headless==5.0.0.93
+numpy==2.4.6
+tqdm==4.68.4
+matplotlib==3.11.0
+Pillow==12.2.0

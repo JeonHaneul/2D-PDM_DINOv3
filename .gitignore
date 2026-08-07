@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.log
+
+# Local environments and editor state
+.venv/
+venv/
+.idea/
+.vscode/
+
+# Training and inference artifacts
+outputs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+zeroshot_result*.png
+
+# Large local datasets, assets, and caches
+260714_data/
+model/
+asset/
+mesh_cache/
+occlusion_gt_output*/
+
+# Generated target/scene captures
+scene_generator/output/
