@@ -3,15 +3,13 @@
 ### Zero-Shot Probability Distribution Mapping for Occluded Object Search in Cluttered Drawers
 
 > **Research in progress**  
-> RGB-D 관측만으로 다른 물체 아래에 완전히 가려진 target object의 존재 위치를 추론하고, 효율적인 탐색 행동을 위한 pixel-wise probability map을 생성합니다.
+> RGB-D 관측으로 가려진 target object의 위치를 추론하고, 탐색 행동을 위한 pixel-wise probability map 생성
 
 ---
 
 ## Overview
 
-사람은 서랍 속에서 보이지 않는 물체를 찾을 때 무작위로 물체를 제거하지 않습니다. 타겟과 비슷한 물체가 모인 곳을 살피고, 물체가 가려질 수 있는 공간을 추정하며, 더미가 얼마나 복잡하게 얽혀 있는지를 함께 판단합니다.
-
-2D-PDM은 이 탐색 전략을 세 개의 독립적인 probability stream으로 모델링합니다.
+사람의 물체 탐색에 사용되는 세 단서인 유사도, 가림 가능성, 장면 복잡도를 독립적인 probability stream으로 모델링함.
 
 | Stream | 핵심 질문 | 출력 |
 |---|---|---|
@@ -22,11 +20,12 @@
 ```mermaid
 flowchart LR
     RGB["Scene RGB"] --> S["Similarity Stream"]
-    TARGET["Target Image + Prompt"] --> S
+    TARGET["Target RGB"] --> S
+    PROMPT["Target Prompt"] --> S
 
     RGB --> O["Occlusion Stream"]
     DEPTH["Scene Depth"] --> O
-    GEOM["Target Depth / Geometry"] --> O
+    TARGET --> O
 
     RGB --> C["Complexity Stream"]
     DEPTH --> C
@@ -49,19 +48,19 @@ F_fuse = FusionGate(Concat(F_S, F_O, F_C))
 P_2D   = Sigmoid(Decoder(F_fuse))
 ```
 
-최종 `P_2D`는 target이 존재할 가능성이 높은 영역을 원 영상 좌표계에 표현하며, 이후 DRL 또는 다른 action policy의 probabilistic guidance로 사용됩니다.
+최종 `P_2D`는 target이 존재할 확률이 높은 영역을 나타내며, DRL이 확률이 높은 영역부터 우선 탐색할 수 있도록 사용됨.
 
 ---
 
 ## From Shelf Search to Drawer Search
 
-본 프로젝트는 기존의 선반 환경 연구를 비정형 drawer 환경으로 확장합니다.
+기존 선반 환경 연구를 비정형 drawer 환경으로 확장함.
 
 > H. Jeon et al., *A study on deep reinforcement learning-based exploration intelligence for occluded object search*, Engineering Applications of Artificial Intelligence, 2026.
 
-기존 연구는 similarity와 occlusion을 결합한 column-wise distribution으로 탐색 방향을 결정했습니다. 하지만 물체 간 유사도를 사람이 정의한 category score에 의존했기 때문에, 학습에 존재하지 않았던 새로운 물체를 직접 해석하는 데 한계가 있었습니다.
+기존 연구는 similarity와 occlusion 기반 column-wise distribution을 사용함. 물체 유사도를 수동 정의한 category score에 의존하여 unseen object에 대한 zero-shot 탐색이 불가능했음.
 
-이번 연구의 확장점은 다음과 같습니다.
+주요 확장:
 
 - 정규적인 shelf column에서 **비정형 cluttered drawer**로 확장
 - Column-wise distribution에서 **pixel-wise 2D-PDM**으로 확장
@@ -75,9 +74,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))
 
 > **Status: Implemented**
 
-Similarity stream은 현재 보이는 물체 중 target 자체 또는 target과 의미적으로 관련된 물체가 위치한 영역을 활성화합니다.
-
-DINOv3만 사용하면 동일하거나 외형이 비슷한 instance를 찾는 데에는 유리하지만, 모양이 다른 두 물체가 같은 상위 category라는 관계는 안정적으로 표현되지 않을 수 있습니다. 이를 보완하기 위해 target 측에 SigLIP image/text semantics를 결합합니다.
+Similarity stream은 target 및 의미적으로 관련된 물체 영역을 활성화함. DINOv3의 dense appearance와 SigLIP의 image/text semantics를 결합하여 instance-level 외형과 category-level 의미를 함께 표현함.
 
 ### Design Rationale
 
@@ -130,7 +127,7 @@ flowchart TB
     COS --> INTERACT
     INTERACT --> BLOCKS["MatchingBlock × 4"]
     BLOCKS --> LFUSE["Multi-layer Fusion"]
-    LFUSE --> HEAD["Learned Similarity Logit"]
+    LFUSE --> HEAD["Similarity Head"]
     HEAD --> SIGMOID["Sigmoid"]
     SIGMOID --> PMAP["Similarity Map P_S"]
 ```
@@ -151,13 +148,12 @@ flowchart TB
 | 10 | Interaction | Scene, target, cosine | Channel concatenation | `Z^l: B × 1537 × H_p × W_p` | Fixed |
 | 11 | MatchingBlock | `Z^l` | `3×3 Conv → GN → ReLU → 1×1 Conv → GN → ReLU` | `F_l: B × 64 × H_p × W_p` | **Trainable** |
 | 12 | Layer fusion | Four `F_l` tensors | Concat + 1×1 convolution | `F_S: B × 64 × H_p × W_p` | **Trainable** |
-| 13 | Output head | `F_S` | 1×1 convolution | Learned logit `L_head` | **Trainable** |
-| 14 | Output activation | `L_head` | Sigmoid | `P_S: B × 1 × H_p × W_p` | Fixed |
-| 15 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
+| 13 | Output head | `F_S` | 1×1 convolution + sigmoid | `P_S: B × 1 × H_p × W_p` | **Trainable** |
+| 14 | Reconstruction | `P_S` | Bilinear interpolation | Full-resolution similarity map | Fixed |
 
 ### Target Representation
 
-Target appearance는 segmentation mask가 포함하는 patch만 pooling하여 계산합니다.
+Segmentation mask 내부 patch만 pooling하여 target appearance 계산.
 
 ```text
 a_t^l = L2Norm(
@@ -166,7 +162,7 @@ a_t^l = L2Norm(
 )
 ```
 
-SigLIP semantic vector는 image와 text embedding을 같은 embedding space에서 결합합니다.
+SigLIP image/text embedding을 동일한 semantic space에서 결합.
 
 ```text
 s_img  = L2Norm(SigLIP_Vision(target_crop))
@@ -175,7 +171,7 @@ s      = L2Norm((s_img + s_text) / 2)
 s_t^l  = W_l · s + b_l
 ```
 
-최종 target query는 appearance와 semantics의 합입니다.
+Appearance와 semantics를 합산하여 최종 target query 생성.
 
 ```text
 q_t^l = a_t^l + s_t^l
@@ -189,14 +185,14 @@ q_t^l = a_t^l + s_t^l
 
 ### Scene–Target Interaction
 
-각 scene patch와 target query의 cosine similarity를 계산하고 `[0, 1]` 범위로 변환합니다.
+Scene patch와 target query의 cosine similarity를 계산한 뒤 `[0, 1]`로 변환.
 
 ```text
 c^l(u,v)     = CosineSimilarity(X_s^l(:,u,v), q_t^l)
 c_hat^l(u,v) = (c^l(u,v) + 1) / 2
 ```
 
-Cosine score만 사용하면 두 feature의 복잡한 관계가 하나의 scalar로 압축됩니다. 따라서 원본 scene feature와 target query를 함께 보존합니다.
+Scalar cosine score의 정보 손실을 보완하기 위해 scene feature와 target query를 함께 concat.
 
 ```text
 Z^l(u,v) = Concat[
@@ -206,20 +202,18 @@ Z^l(u,v) = Concat[
 ]
 ```
 
-각 DINOv3 layer는 독립적인 MatchingBlock을 통과하고, 네 결과를 channel 방향으로 결합합니다. 최종 구조에는 별도의 cosine residual shortcut을 사용하지 않습니다. Cosine은 scene–target interaction의 입력 채널로만 사용되며, learned matching head가 원본 feature와 함께 해석합니다.
+각 DINOv3 layer를 독립적인 MatchingBlock으로 처리한 뒤 channel 방향으로 결합.
 
 ```text
-F_l = MatchingBlock_l(Z^l)
-F_S = Fuse(Concat[F_2, F_5, F_8, F_11])
-P_S = Sigmoid(Head(F_S))
+F_l     = MatchingBlock_l(Z^l)
+F_S     = Fuse(Concat[F_2, F_5, F_8, F_11])
+L_head  = Head(F_S)
+P_S     = Sigmoid(L_head)
 ```
-
-> **Implementation note**
-> Residual shortcut, layer-selective shortcut, global pooling 및 patch matching을 별도로 분석했으나 exact-instance 순위를 안정적으로 개선하지 못했습니다. 현재 baseline은 검증되지 않은 직접 경로를 제거하고 DINOv3–SigLIP interaction과 learned matching head만 유지합니다.
 
 ### Trainable Parameters
 
-DINOv3와 SigLIP encoder는 고정하고 semantic adapter와 matching head만 학습합니다.
+DINOv3와 SigLIP은 고정하고 semantic adapter와 matching head만 학습.
 
 | Module | Parameters | State |
 |---|---:|---|
@@ -231,13 +225,13 @@ DINOv3와 SigLIP encoder는 고정하고 semantic adapter와 matching head만 �
 | Similarity head | 65 | **Trainable** |
 | **Total trainable** | **7,117,825** | |
 
-Only the lightweight task-specific layers are stored in the checkpoint; frozen foundation-model weights are loaded separately.
+Checkpoint에는 task-specific layer만 저장하며, frozen backbone은 별도로 로드.
 
 ---
 
 ## Ground-Truth Similarity Map
 
-현재 similarity supervision은 scene segmentation과 asset category를 이용해 생성합니다. Foundation model은 입력 representation을 일반화하지만, GT 자체는 기존 연구와의 직접 비교를 위해 명시적인 category relation을 유지합니다.
+Similarity GT는 scene segmentation과 asset category로 생성. 기존 연구와의 비교를 위해 명시적인 category relation 유지.
 
 | Target–scene relation | Score |
 |---|---:|
@@ -247,7 +241,7 @@ Only the lightweight task-specific layers are stored in the checkpoint; frozen f
 | Other category | `0.2` |
 | Background / unknown | `0.0` |
 
-Category-level relation은 다음과 같습니다.
+Category-level score:
 
 | Target ↓ / Scene → | Book | Toy | Fruit | Packaged food |
 |---|---:|---:|---:|---:|
@@ -256,22 +250,22 @@ Category-level relation은 다음과 같습니다.
 | **Fruit** | 0.2 | 0.2 | 0.8 | 0.5 |
 | **Packaged food** | 0.2 | 0.2 | 0.5 | 0.8 |
 
-GT는 미리 계산된 grayscale map을 우선 사용하고, 캐시가 없으면 segmentation image와 scene mapping으로 즉시 생성합니다. 학습 시에는 원본 GT를 DINOv3 patch resolution으로 average pooling합니다.
+Precomputed grayscale GT를 우선 사용하며, cache가 없으면 segmentation과 scene mapping으로 생성. 학습 시 DINOv3 patch resolution으로 average pooling.
 
 ```text
 Y_patch = AvgPool2D(Y_full, kernel=16, stride=16)
 L_sim   = MSE(P_S, Y_patch)
 ```
 
-> 이 supervision과 zero-shot evaluation은 구분해야 합니다. 학습 GT는 category relation을 사용하지만, unseen target은 DINOv3와 SigLIP으로 직접 인코딩되며 target instance 자체는 학습에 포함되지 않습니다.
+> 학습 GT의 category relation과 zero-shot evaluation은 별개임. Unseen target은 DINOv3와 SigLIP으로 직접 인코딩되며 해당 instance는 학습에서 제외.
 
 ---
 
-## Training Protocol
+## Similarity Training Protocol
 
 ### Data Split
 
-동일한 scene에서 생성된 center/top/left/right/bottom view가 train과 validation에 섞이면 data leakage가 발생합니다. 따라서 개별 image가 아니라 `scene_id` 그룹 단위로 분할합니다.
+동일 scene의 여러 camera view가 train/validation에 섞이지 않도록 `scene_id` 단위로 분할.
 
 | Setting | Value |
 |---|---|
@@ -303,22 +297,22 @@ flowchart LR
     HEAD --> LOSS["MSE Loss"]
 ```
 
-- Target DINOv3 appearance는 target별 다섯 camera view를 미리 계산합니다.
-- 학습 시 camera view를 무작위 선택하여 lightweight viewpoint augmentation으로 사용합니다.
-- Validation은 각 camera view를 고정 순회하여 무작위성에 따른 metric 변동을 줄입니다.
-- SigLIP image/text embedding은 target별로 캐싱합니다.
-- Semantic projection은 반드시 training step 안에서 적용하여 gradient가 유지되도록 합니다.
+- Target별 5개 camera view의 DINOv3 appearance 사전 계산
+- 학습 시 camera view 무작위 선택
+- Validation 시 camera view 고정 순회
+- Target별 SigLIP image/text embedding caching
+- Gradient 유지를 위해 semantic projection은 training step 내부에서 적용
 
 ### Evaluation and Checkpoints
 
-학습 중 다음 지표를 기록합니다.
+평가 지표:
 
 - Mean squared error
 - Pixel accuracy
 - Balanced accuracy
 - Intersection over Union
 
-Checkpoint에는 학습되는 모듈만 저장합니다.
+Checkpoint에는 trainable module만 저장.
 
 ```python
 {
@@ -331,31 +325,34 @@ Checkpoint에는 학습되는 모듈만 저장합니다.
 
 ## Zero-Shot Target Conditioning
 
-Similarity stream은 target image를 query로 직접 인코딩하므로, 학습에 없던 물체도 새로운 query로 입력할 수 있습니다.
+Target image를 query로 직접 인코딩하므로 unseen object 입력 가능.
 
 | Mode | Target input | 특징 |
 |---|---|---|
 | **Image-only** | Target RGB | 별도의 category label 없이 visual/semantic image embedding 사용 가능 |
 | **Image + text** | Target RGB + prompt | 물체 이름이나 category semantics로 모호한 외형을 보완 |
 
-현재 학습은 category prompt를 사용합니다.
+현재 category prompt 사용:
 
 ```text
 a photo of a {category}
 ```
 
-### Unseen Banana
+### Qualitative Similarity Maps
 
-학습에 포함되지 않은 banana를 target query로 입력했을 때, scene에서 fruit category에 해당하는 영역이 활성화되는 정성적 결과를 확인했습니다.
+![Book target similarity result](img/panel_Book-Book_1_scene00002_env0168_top.png)
+![Avocado target similarity result](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
+![Orange target similarity result](img/panel_Fruit-Orange_scene00003_env0274_center.png)
 
-![image_1](img/panel_Book-Book_1_scene00002_env0168_top.png)
-![image_2](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
-![image_3](img/panel_Fruit-Orange_scene00003_env0274_center.png)
+### Unseen Target Results
 
-이 결과는 다음 두 표현의 상호 보완성을 보여줍니다.
+학습에 포함되지 않은 banana 입력 시 fruit 영역 활성화 확인. 학습에 포함되지 않은 packaged-food target에서도 same-category 영역 활성화 확인.
 
-- DINOv3: target과 scene의 dense visual appearance
-- SigLIP: banana와 fruit 사이의 open-vocabulary semantic relation
+![Unseen packaged-food target: image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
+![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_v2.png)
+
+- DINOv3: target–scene dense appearance
+- SigLIP: banana–fruit open-vocabulary semantics
 
 > **Planned evaluation:** object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation.
 
@@ -363,26 +360,222 @@ a photo of a {category}
 
 ## Occlusion Stream
 
-> **Status: Data prepared / Model integration planned**
+> **Status: Geometry, GPU rasterization, mesh simplification, and 70% decision pilot validated / probability-map generator in progress**
 
-Occlusion stream은 similarity와 별개로, target이 현재 보이는 물체 아래에 물리적으로 들어갈 수 있는지를 추론합니다.
+Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
-| Input | 역할 |
-|---|---|
-| Scene RGB | 물체 영역과 visual context |
-| Scene depth | 현재 보이는 표면까지의 거리 |
-| Target RGB/depth | Target appearance와 상대 크기 |
-| Target 3D geometry | 후보 pose에서의 실제 가림 여부 계산 |
+### Occlusion GT Generation
 
-GT 생성 시 target mesh를 drawer의 후보 위치·회전·scale에 가상 배치합니다. 렌더링된 target depth가 scene surface 뒤에 존재하는 영역을 누적하여 occlusion probability를 구성합니다.
+학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 해상도는 기존 데이터와 동일한 `640 × 480`을 유지하고, 기존 pose grid와 `70%` occlusion 판정 기준을 적용함. 렌더링된 개별 RGB·depth·mask는 저장하지 않고 scene depth와 즉시 비교하여 누적값만 저장할 예정.
 
 ```text
-Y_O(u,v) ∝ Sum over candidate poses [
-    TargetDepth_pose(u,v) > SceneDepth(u,v)
-]
+Target mesh + scale + candidate pose
+                ↓
+        Rendered target depth
+                ↓
+Empty-drawer depth로 valid pixel 계산
+                ↓
+Compare with cluttered scene depth
+                ↓
+Valid target pixel의 occlusion ratio ≥ 0.7
+                ↓
+Legacy GT + probability GT
 ```
 
-Scale augmentation은 모델이 특정 물체의 절대 크기를 암기하지 않고 scene과 target 사이의 상대적인 가림 관계를 학습하도록 합니다.
+기존 코드의 ratio는 clutter occlusion이 적용된 픽셀을 target 전체 픽셀 수로 나눔. 이 방식은 empty drawer에서 서랍 구조물에 가려지는 픽셀을 분자에서는 제외하면서 분모에는 남기는 불일치가 있음. 기존 결과 재현용 `legacy_ratio`와 학습용 `corrected_ratio`를 분리함.
+
+```text
+legacy_ratio    = N_occluded_valid / N_target_all
+corrected_ratio = N_occluded_valid / (N_valid + epsilon)
+
+is_occluded = corrected_ratio >= 0.7
+```
+
+확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의. Scene별 min–max normalization과 visible-target 강조는 사용하지 않음.
+
+```text
+P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
+```
+
+Mesh와 target 입력은 같은 scale로 구성해야 함. Multi-scale 학습은 `0.7`, `1.0`, `1.3`을 초기 후보로 두고 있으며, target RGB와 mask도 mesh scale에 맞춰 구성할 예정.
+
+#### Mesh-Depth Validation
+
+USD mesh 계산이 Isaac Sim target capture를 재현하는지 4개 asset, 9개 pose, 5개 camera의 총 180개 조건에서 검증함.
+
+| Metric | Result |
+|---|---:|
+| Resolution | `640 × 480` |
+| Evaluated cases | `180` |
+| Median silhouette IoU | `1.0000` |
+| Cases with IoU `0.9993–1.0000` | `176 / 180` |
+| Median depth MAE | `0.75 μm` |
+| Lowest IoU | `0.8723` |
+
+낮은 IoU 4건은 모두 `book_1`이 서랍 경계에 있고 외측 camera에서 관측된 조건임. Mesh-only renderer는 target 전체를 계산하지만 Isaac Sim reference에서는 서랍 벽이 target 일부를 가림. 최종 GT generator에서는 empty-drawer depth로 해당 영역을 제외하여 동일한 관측 조건을 구성함.
+
+CPU reference 이후 nvdiffrast 기반 GPU rasterizer로 동일한 검증을 확장함. 원본 4개 asset의 `180`개 조건과 `toy_3` 10k simplified mesh의 `45`개 조건을 포함한 총 `225`개 target–pose–camera 조합을 평가함. `book_1` 경계 4건은 drawer wall visibility 차이로 분리되며, 나머지 asset은 사전 기준을 통과함.
+
+| Asset | Cases | Median silhouette IoU | Worst IoU | Median depth MAE |
+|---|---:|---:|---:|---:|
+| `packaged_food_2` | `45` | `0.9991` | `0.9908` | `0.00245 mm` |
+| `fruit_1` | `45` | `0.9993` | `0.9966` | `0.00239 mm` |
+| `toy_3` original | `45` | `0.9989` | `0.9959` | `0.12545 mm` |
+| `toy_3` 10k | `45` | `0.9971` | `0.9945` | `0.29095 mm` |
+
+#### Automatic Mesh Simplification
+
+초기 CPU reference rasterizer는 triangle별 Python loop를 사용하여 mesh 복잡도에 따라 실행 시간이 급증함.
+
+| Asset | Triangles | Mean render time |
+|---|---:|---:|
+| `book_1` | `732` | `0.23 s` |
+| `fruit_1` | `12,602` | `3.91 s` |
+| `packaged_food_2` | `16,384` | `5.22 s` |
+| `toy_3` | `2,029,960` | `577.72 s` |
+
+`toy_3`은 2,029,960 triangles에서 10k mesh로 단순화함. GPU 원본–단순화 직접 비교 결과 45개 조건에서 median IoU `0.9970`, worst IoU `0.9938`, median depth MAE `0.3781 mm`를 기록함. 새 USD/OBJ asset은 triangle 수를 확인하고, 기준을 초과하면 동일한 검증을 거쳐 가장 작은 유효 mesh를 선택하도록 구성할 예정.
+
+```text
+New USD/OBJ
+    → world-scale mesh extraction
+    → complexity check
+    → simplification candidates
+    → full-resolution geometry validation
+    → smallest valid mesh selection
+    → cache for GT generation
+```
+
+단순화 검증에는 silhouette와 depth뿐 아니라 실제 GT 판정의 안정성을 포함함.
+
+| Validation | Criterion |
+|---|---:|
+| Silhouette IoU | `≥ 0.98` |
+| Depth MAE | `≤ 1 mm` |
+| Area error | `≤ 2%` |
+| 70% occlusion decision agreement | `≥ 99%` |
+
+새 GT 생성기에서는 단순화를 asset별 한 번만 수행하고 결과를 캐시할 예정. 실제 zero-shot 배포에서는 mesh가 필요하지 않음. nvdiffrast 기반 GPU rasterizer는 구현·검증됐으며, 다음 단계에서는 pose/camera batch와 probability accumulator를 결합함.
+
+#### Corrected Occlusion Decision Pilot
+
+20개 clutter scene, 9개 target pose, 5개 camera를 사용하여 Isaac target depth, GPU 원본 mesh, GPU simplified mesh의 `70%` 판정을 비교함.
+
+| Target | Comparison | Cases | Ratio MAE | Decision agreement | Boundary agreement (`0.65–0.75`) |
+|---|---|---:|---:|---:|---:|
+| `packaged_food_2` | Isaac vs GPU original | `900` | `0.0003` | `100.00%` | `100.00%` |
+| `toy_3` | Isaac vs GPU original | `900` | `0.0006` | `99.78%` | `97.70%` |
+| `toy_3` | GPU original vs 10k | `900` | `0.0010` | `99.67%` | `96.59%` |
+
+`book_1` 경계 pose 4개와 clutter scene 20개를 사용한 별도 검사에서는 drawer wall이 target pixel의 `10.01–12.77%`를 제외함. Corrected ratio는 80개 조건 모두 legacy ratio 이상이었으며, `6/80`개 조건에서 `0.7` 판정이 변경됨. 따라서 새 학습 GT는 corrected denominator를 사용하고 legacy ratio는 비교용으로만 보존함.
+
+#### Reproducible Clutter Capture
+
+Clutter capture는 물리 낙하가 끝난 뒤 `world.render()`만 사용하여 5개 camera를 촬영함. 캡처 전후 pose 비교에서 위치 변화 `0 mm`, 회전 변화 최대 `0.000002°`, quaternion component 변화 `0`을 확인함.
+
+각 run과 scene에는 다음 정보를 저장함.
+
+- Seed, run ID, scene 시작·종료 번호와 완료 상태
+- Camera intrinsics/extrinsics와 `640 × 480` 해상도
+- 모든 object의 최종 position, orientation, category와 target 여부
+- `color_bgr`, 실제 RGB 순서의 `color_rgb`, legacy color
+- Existing scene 자동 이어쓰기와 atomic JSON 저장
+- Drawer 내부 actual mesh-vertex QC
+
+현재 1,000-pose stratified validation 스크립트는 준비됐으며 결과 검증 전 단계임. 완료 전까지 10k mesh를 전체 pose grid의 최종 mesh로 확정하지 않음.
+
+### Occlusion GT Generation Protocol
+
+| Setting | Value |
+|---|---|
+| Output resolution | `640 × 480` |
+| XY range | `-0.17–0.17 m` |
+| XY interval | `0.01 m` |
+| XY positions | `35 × 35` |
+| Yaw | `0–330°`, interval `30°` |
+| Height levels | Target-specific `BASE_Z` + `0.03 m × {0,1,2}` |
+| Candidate poses | `44,100` per target |
+| Cameras | center, top, left, right, bottom |
+| Occlusion threshold | Valid target pixels의 `70%` |
+
+```text
+1. USD/OBJ를 meter 단위 world mesh로 변환
+2. 복잡한 mesh는 자동 단순화 후 full-resolution 검증
+3. Mesh scale과 target reference scale을 동일하게 설정
+4. Candidate pose와 camera를 batch로 target depth 렌더링
+5. Empty-drawer depth로 drawer structure에 가려지는 pixel 제외
+6. Cluttered scene depth가 target depth보다 가까운 pixel 계산
+7. Corrected occlusion ratio가 0.7 이상인 pose만 occluded pose로 인정
+8. N_candidate와 N_occluded를 즉시 누적하고 개별 depth는 저장하지 않음
+9. Legacy GT와 probability GT를 함께 출력
+```
+
+```text
+valid        = (D_empty == 0) or (D_empty >= D_target)
+occluded     = valid and (D_scene != 0) and (D_scene < D_target)
+ratio        = Sum(occluded) / (Sum(valid) + epsilon)
+accept_pose  = ratio >= 0.7
+P_O          = N_occluded / (N_candidate + epsilon)
+```
+
+기존 `distribution_map_GPU.py`는 legacy 결과 재현용으로 보존함. 분모가 다른 corrected ratio, scene 간 비교 가능한 probability normalization, mesh simplification과 batch accumulation은 새 GT generator에만 구현함.
+
+### New Asset Protocol
+
+새 학습 asset의 USD/OBJ가 추가되면 다음 과정을 자동 실행함.
+
+```text
+Asset discovery
+    → unit and transform validation
+    → triangle-count check
+    → simplification only when required
+    → original/simplified full-resolution comparison
+    → smallest valid mesh cache
+    → multi-scale GT generation
+```
+
+단순화 결과가 기준을 만족하지 못한 asset만 수동 검토 대상으로 분리함. Zero-shot test 및 실제 배포 target은 RGB reference만 사용하므로 이 과정이 필요하지 않음.
+
+### Zero-Shot Occlusion Model
+
+```mermaid
+flowchart LR
+    SRGB["Scene RGB"] --> DINO_S["DINOv3<br/>Frozen"] --> FRGB["RGB Features"]
+    SDEPTH["Scene Depth + Valid Mask"] --> DENC["Depth Encoder<br/>ResNet-18"] --> FDEPTH["Depth Features"]
+
+    TRGB["Target RGB"] --> DINO_T["DINOv3<br/>Frozen"] --> TAPP["Appearance"]
+    TMASK["Target Mask"] --> SHAPE["Silhouette Encoder"] --> TGEO["Size + Shape Condition"]
+    TMASK --> SIZE["BBox / Area / Aspect Ratio"] --> TGEO
+
+    TGEO --> FILM["Depth-only FiLM"]
+    FDEPTH --> FILM
+    FRGB --> MATCH["MatchingBlocks × 4"]
+    FILM --> MATCH
+    TAPP --> MATCH
+    TGEO --> MATCH
+    MATCH --> HEAD["Fusion + Occlusion Head"] --> PO["Occlusion Map P_O"]
+```
+
+FiLM은 size·silhouette condition으로 depth feature만 조절함.
+
+```text
+gamma, beta = MLP(E_size, E_shape)
+F_depth'    = gamma * F_depth + beta
+```
+
+Target appearance는 depth를 조절하지 않고 MatchingBlock에서 scene RGB-D feature와 결합. DINOv3는 frozen으로 유지하며 depth encoder, silhouette/size encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함.
+
+### Deployment Inputs
+
+매 추론 시 입력은 scene RGB, scene depth, target RGB 세 가지. Target mask는 고정된 target 촬영 환경의 empty-background reference를 이용해 내부 전처리에서 자동 생성함.
+
+| 구분 | 필요 정보 |
+|---|---|
+| 매 추론 입력 | Scene RGB, scene depth, target RGB |
+| 고정 시스템 자산 | Empty-background RGB, camera calibration |
+| GT 생성에만 사용 | Target USD/OBJ, mesh scale, occlusion GT |
+
+Zero-shot 성능은 frozen encoder만으로 가정하지 않고, 학습에 포함되지 않은 target instance와 scale을 분리하여 평가함.
 
 ---
 
@@ -390,7 +583,7 @@ Scale augmentation은 모델이 특정 물체의 절대 크기를 암기하지 �
 
 > **Status: Formulation in progress**
 
-Complexity stream은 target identity와 무관한 scene-level prior입니다. 물체가 많이 존재하는 것뿐 아니라, 서로 얼마나 겹치고 depth 구조가 얼마나 불규칙한지를 표현합니다.
+Complexity stream은 object density, overlap, depth irregularity를 표현하는 target-independent scene prior.
 
 | Cue | 의미 |
 |---|---|
@@ -405,7 +598,7 @@ Y_C = lambda_n · ObjectDensity
     + lambda_e · DepthEdgeDensity
 ```
 
-Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 비효율적일 수 있습니다. 따라서 Similarity와 Occlusion의 target-conditioned evidence를 함께 고려하도록 fusion gate에서 상대적 중요도를 조절합니다.
+Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대적 중요도 조절.
 
 ---
 
@@ -417,9 +610,18 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 | DINOv3 ViT-B/16 dense similarity baseline | Complete |
 | DINOv3 + SigLIP Similarity stream | Complete |
 | Unseen banana qualitative test | Complete |
+| Cosine shortcut ablation | Evaluated and excluded |
 | Object/category-held-out benchmark | Planned |
+| Occlusion mesh extraction and camera projection | Validated |
+| Full-resolution mesh-depth pilot | CPU `180` + GPU/simplified `225` cases evaluated |
+| nvdiffrast GPU depth rasterizer | Validated |
+| `toy_3` 10k mesh simplification | Pilot validated; 1,000-pose validation pending |
+| Corrected 70% occlusion decision | Validated on standard and drawer-edge poses |
+| Reproducible clutter capture | Implemented and validated |
+| Stratified 1,000-pose validation | Script ready; result pending |
+| Probability-map GT accumulator | Planned |
 | Occlusion stream training | Planned |
-| Complexity stream training | Planned |./
+| Complexity stream training | Planned |
 | Three-stream fusion | Planned |
 | Exploration policy integration | Planned |
 | Sim-to-real drawer experiment | Planned |
@@ -436,8 +638,16 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 | `gt_similarity.py` | Category-based similarity-map generation |
 | `precompute_gt.py` | Precomputed similarity GT cache |
 | `paths_config.py` | Model, asset, dataset path configuration |
-| `target_capture.py` | Isaac Sim target RGB/depth/segmentation capture |
-| `requirements.txt` | Similarity training and inference dependencies |
+| `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
+| `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
+| `depth_rasterizer_gpu.py` | nvdiffrast-based full-resolution GPU depth renderer |
+| `experiments/occlusion_gt_pilot/validate_rasterizer.py` | Multi-asset, pose and camera mesh-depth validation |
+| `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py` | GPU rasterizer and simplified-mesh validation |
+| `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py` | Legacy/corrected ratio and 70% decision comparison |
+| `experiments/occlusion_gt_pilot/check_clutter_roi_vertices.py` | Drawer-interior mesh-vertex QC |
+| `experiments/occlusion_gt_pilot/stratified_1000_pose_validation.py` | Deterministic stratified original–simplified validation |
+| `scene_generator/occlusion_gt_pilot_capture.py` | Isaac Sim reference capture for occlusion GT validation |
+| `scene_generator/vectorized_scene_v2.py` | Physics-based clutter generation and reproducible RGB-D capture |
 
 ---
 
@@ -448,9 +658,21 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 - [x] SigLIP image/text semantic fusion
 - [x] Pixel-wise Similarity map training
 - [x] Unseen target qualitative evaluation
-- [x] Cosine shortcut analysis and removal from the final baseline
+- [x] Cosine shortcut evaluation and removal
+- [x] Reproducible scene-level split seed
+- [x] USD mesh extraction and unit conversion validation
+- [x] `640 × 480` mesh-depth validation across 180 conditions
+- [x] Empty-drawer mesh-depth valid-pixel integration
+- [x] nvdiffrast hardware GPU rasterizer validation
+- [x] `toy_3` 10k simplification pilot
+- [x] Legacy/corrected denominator comparison
+- [x] Reproducible render-only clutter capture and metadata
+- [ ] Stratified 1,000-pose original–simplified validation
+- [ ] Automatic simplification cache for arbitrary new assets
+- [ ] Pose/camera batched probability accumulator
+- [ ] Legacy and probability occlusion GT generator
 - [ ] Held-out object and category benchmark
-- [ ] Occlusion stream
+- [ ] Zero-shot Occlusion stream training and held-out evaluation
 - [ ] Complexity stream
 - [ ] Learned three-stream fusion
 - [ ] DRL-based exploration policy
@@ -460,9 +682,13 @@ Complexity가 높다는 이유만으로 탐색 우선순위를 항상 높이면 
 
 ## Development Log
 
+Similarity와 Occlusion stream의 가설, 실험 결과, 한계, 수정 사항을 단계별로 기록.
+
 ### 2026-07-21 · Phase 1 — DINOv3 Appearance Matching
 
-첫 번째 접근은 frozen DINOv3만으로 scene과 target을 표현하는 것이었습니다. DINOv3가 대규모 self-supervised pretraining을 거친 foundation model이므로, 학습하지 않은 target도 feature space에서 비교하면 zero-shot similarity map을 만들 수 있다고 가정했습니다.
+**Reference:** `code_260721/train_similarity.py`
+
+**가설:** Frozen DINOv3 feature 비교만으로 unseen target의 zero-shot similarity map 생성 가능.
 
 ```text
 Scene RGB  → DINOv3 patch features X_s^l
@@ -473,19 +699,19 @@ Z^l     = Concat[X_s^l, a_t^l, c_hat^l]
 P_S     = CNN_Head(Z^l)
 ```
 
-이 방식은 색상, 재질, 국소 형상과 같은 visual appearance가 유사한 영역을 찾는 데에는 유효했습니다. 그러나 연구에서 필요한 유사도는 단순한 외형 일치가 아니라 “바나나와 사과는 모두 과일이다”와 같은 category-level semantic relation입니다.
+**결과:** 색상·재질·형상 등 appearance가 유사한 영역은 탐지했으나, category-level semantic relation은 표현하지 못함.
 
-DINOv3 feature에도 일정 수준의 의미 정보가 포함되지만, 본 데이터와 학습 구조에서는 appearance cue가 더 지배적으로 나타났고 새로운 물체의 category relation을 안정적으로 전달하지 못했습니다. 결과적으로 원하는 형태의 zero-shot semantic activation을 얻지 못했습니다.
-
-**Conclusion:** Dense appearance matching만으로는 target–category–scene object 관계를 충분히 표현할 수 없었습니다.
+**결론:** Dense appearance matching만으로 target–category–scene 관계 표현 불가.
 
 ---
 
-### 2026-07-23 · Phase 2 — CLS Prototype Category Conditioning
+### 2026-07-27 · Phase 2 — CLS Prototype Category Conditioning
 
-두 번째 접근에서는 DINOv3의 CLS token을 활용했습니다. Patch token이 위치별 appearance를 표현한다면 CLS token은 이미지 전체를 요약하므로 더 추상적인 category information을 제공할 수 있다고 보았습니다.
+**Reference:** `code_260727/train_similarity.py`, `code_260727/train_common.py`
 
-각 category에 속한 target들의 CLS vector를 평균하여 네 개의 prototype을 구성하고, 새로운 target의 CLS vector와 cosine similarity를 계산했습니다.
+**가설:** Image-level CLS token을 category prototype으로 사용하면 patch feature보다 추상적인 category 정보 제공 가능.
+
+Category별 CLS vector 평균으로 네 개의 prototype을 구성하고 unseen target CLS와 cosine similarity 계산.
 
 ```text
 prototype_k = L2Norm(Mean[CLS(target_i) | category_i = k])
@@ -495,7 +721,7 @@ category_prob = Softmax(
 )
 ```
 
-학습 중 자기 자신이 prototype에 포함되어 정답을 누설하지 않도록 leave-one-out prototype을 사용했습니다. 계산된 `book / toy / fruit / packaged_food` 확률은 모든 spatial location에 broadcast한 뒤 scene–target interaction에 concat했습니다.
+정답 누설 방지를 위해 leave-one-out prototype 사용. Category 확률을 spatial location에 broadcast한 뒤 interaction feature에 concat.
 
 ```text
 Z^l = Concat[
@@ -506,15 +732,17 @@ Z^l = Concat[
 ]
 ```
 
-이 방식은 category prior를 명시적으로 제공했지만, prototype 자체가 동일한 DINOv3 visual history의 평균이라는 한계가 있었습니다. 즉, category label을 부여하는 구조는 생겼지만 semantic grounding이 외부 언어 공간과 연결된 것은 아니었습니다. 새로운 물체의 geometry와 appearance가 기존 prototype에서 벗어나면 category 추론도 불안정해졌습니다.
+**결과:** Category prior는 제공했으나 prototype도 DINOv3 appearance history의 평균이므로 외부 semantic grounding이 없음. 기존 prototype과 외형 차이가 큰 unseen object에서 category 추론 불안정.
 
-**Conclusion:** CLS prototype은 유용한 visual category prior이지만, 원하는 open-vocabulary semantics의 근본적인 해결책은 아니었습니다.
+**결론:** CLS prototype만으로 open-vocabulary semantics 확보 불가.
 
 ---
 
-### 2026-07-25 · Phase 3 — DINOv3 + SigLIP Semantic Fusion
+### 2026-07-28 · Phase 3 — DINOv3 + SigLIP Semantic Fusion
 
-세 번째 접근에서는 vision-language model인 SigLIP을 도입했습니다. 비교적 compact한 VLM을 사용하여 DINOv3의 dense spatial representation은 유지하면서, target 측에 language-aligned semantics를 추가했습니다.
+**Reference:** `code_260728_ver2/train_similarity_v2.py`
+
+**수정:** DINOv3의 dense spatial representation을 유지하고, SigLIP의 language-aligned semantics를 target query에 추가.
 
 ```text
 DINO appearance : a_t^l ∈ R^768
@@ -523,28 +751,85 @@ Projection      : s_t^l = W_l · s + b_l
 Target query    : q_t^l = a_t^l + s_t^l
 ```
 
-SigLIP vision embedding과 category text embedding을 같은 semantic space에서 평균하고, layer별 projection으로 DINOv3 차원에 정렬했습니다. DINOv3와 SigLIP encoder는 frozen으로 유지하고 projection과 matching head만 학습했습니다.
+SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차원에 정렬. 두 backbone은 frozen으로 유지하고 projection과 matching head만 학습.
 
-이 구성에서 학습에 사용하지 않은 target을 넣었을 때 target과 같은 카테고리 영역이 활성화되는 결과를 확인했습니다. Appearance-only 또는 CLS-prototype 접근에서 부족했던 category-level semantic generalization이 vision-language representation을 통해 보완된 것입니다.
+**결과:** 학습에 포함되지 않은 packaged-food target에서 same-category 영역 활성화 확인.
 
-![image_4](img/packaged_food_5_zeroshot_nolabel_2.png)
-![image_5](img/packaged_food_5_zeroshot_v2.png)
+![Unseen packaged-food target: image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
+![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_v2.png)
 
-**Conclusion:** SigLIP 결합으로 unseen target에 대한 의미 기반 zero-shot activation이 가능해졌습니다.
+**결론:** SigLIP 결합으로 category-level zero-shot activation 확보.
 
 ---
 
-### 2026-07-28 · Phase 4 — Shortcut Investigation and Removal
+### 2026-07-28–29 · Phase 4 — Exact-Instance Shortcut Evaluation
 
-**문제:** SigLIP 결합으로 unseen target의 category-level activation은 확보했지만, visible exact target이 same-category object보다 높게 출력되지 않는 사례를 확인했습니다.
+**문제:** SigLIP 결합으로 unseen target의 category-level activation은 확보했으나, visible exact target이 same-category object보다 높게 출력되지 않는 사례 확인.
 
-**검토한 방식:**
+**실험:** DINOv3 cosine을 output logit에 직접 더하는 residual shortcut과 layer `2 + 5` 선택 방식을 평가. Global pooling, raw appearance cosine, visibility, patch matching도 함께 분석.
 
-- 네 DINOv3 layer cosine의 residual shortcut
-- layer 2·5만 사용하는 selective shortcut
-- pure-appearance cosine과 fused-query cosine 분리
-- target global pooling 및 patch-to-patch matching 진단
+**결과:** 공통 held-out scene에서 no-shortcut과 shortcut의 exact-target positive ranking은 각각 `29.0%`, `29.7%`로 거의 동일. Median gap은 소폭 개선됐지만 두 모델 모두 instance-level ranking에 실패. 공간 구조를 사용하지 않는 patch matching도 competitor score를 함께 높여 문제를 해결하지 못함.
 
-Raw feature에서 일부 exact-instance 신호가 관찰됐지만 장면과 가시성에 따라 일관되지 않았고, shortcut을 추가한 checkpoint에서도 최종 순위 역전이 남았습니다. Shortcut은 구조와 해석 복잡도를 늘리는 반면 실질적 개선이 제한적이므로 최종 Similarity stream에서 제거했습니다.
+**결론:** Shortcut은 계산 비용보다 구조와 해석의 복잡성을 늘리는 반면 실질적인 개선이 제한적이므로 최종 Similarity stream에서 제거. 현재 모델은 DINOv3–SigLIP interaction과 learned matching head만 사용함.
 
-**Current baseline:** DINOv3–SigLIP interaction과 learned matching head만 사용하며, exact-instance recovery는 별도 검증 과제로 유지합니다.
+추가로 target별로 서로 다른 무작위 split seed가 생성되던 문제를 수정. 실행마다 seed를 한 번만 확정하여 모든 target의 scene-level train/validation split을 재현할 수 있도록 정리.
+
+---
+
+### 2026-08-04 · Phase 5 — Zero-Shot Occlusion Pipeline Design
+
+**문제:** 기존 방식은 target당 `44,100`개 pose와 5개 camera를 촬영하여 중간 RGB·depth·mask를 대량 저장함. 최종 GT도 유효 pose의 depth-weighted occupancy를 scene별 min–max로 정규화하므로 서로 다른 scene에서 흰색의 절대적 의미가 일정하지 않음.
+
+**GT 설계:** Target을 물리적으로 반복 촬영하는 과정을 USD/OBJ mesh depth 계산으로 대체. 기존 pose grid와 `70%` occlusion 판정은 legacy 재현에 유지하고, 실제 학습용 GT는 다음 확률로 별도 생성함.
+
+```text
+P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
+```
+
+Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여부와 새 정규화 효과를 분리해 평가. Visible-target 강조는 Similarity stream과 역할이 겹치므로 Occlusion GT에서 제외함.
+
+**Scale conditioning:** Mesh scale과 target RGB·mask scale을 반드시 동일하게 구성. 동일한 target 입력에 서로 다른 scale GT를 주면 모델이 scale별 정답의 평균으로 수렴하므로 size-effect를 학습할 수 없음. Pilot은 `0.7`, `1.0`, `1.3`으로 시작함.
+
+**모델 설계:** Scene RGB는 frozen DINOv3, scene depth와 valid mask는 ResNet-18로 처리. Target mask에서 추출한 size·silhouette condition으로 depth feature에만 FiLM을 적용하고, target appearance는 MatchingBlock에서 별도로 결합함. 검증되지 않은 cosine shortcut은 baseline에서 제외함.
+
+**배포 조건:** 매 추론 입력은 scene RGB, scene depth, target RGB. Target mask는 고정 촬영 환경의 empty-background reference로 자동 생성하며, USD/OBJ와 scale 정보는 GT 생성에만 사용함.
+
+**Zero-shot 검증:** Frozen encoder 사용만으로 zero-shot을 가정하지 않고, 학습에서 제외한 target instance와 unseen intermediate scale을 별도 test split으로 평가함.
+
+**다음 단계:** `packaged_food_2`, center camera, scale `1.0`의 mesh-depth 재현 pilot을 수행한 뒤 multi-asset·pose·camera 조건으로 확장함.
+
+---
+
+### 2026-08-04–06 · Phase 6 — Mesh-Depth Validation and GT Refinement
+
+**Reference:** `mesh_utils.py`, `depth_rasterizer.py`, `scene_generator/occlusion_gt_pilot_capture.py`, `experiments/occlusion_gt_pilot/validate_rasterizer.py`
+
+**검증:** `packaged_food_2`, `book_1`, `fruit_1`, `toy_3`을 대상으로 9개 pose와 5개 camera를 조합한 180개 조건에서 USD mesh depth와 Isaac Sim reference를 `640 × 480`으로 비교함.
+
+**수정:** Segmentation reference를 `depth > 0`으로 계산하면 drawer와 background가 포함되는 오류를 확인하고 target segmentation color 기반 mask로 교체. `metersPerUnit=0.01` asset의 자동 unit-compensation scale이 transform 초기화 과정에서 제거되는 문제도 수정함.
+
+**결과:** 176개 조건에서 silhouette IoU `0.9993–1.0000`, 전체 중앙값 `1.0000`, depth MAE 중앙값 `0.75 μm` 확인. 나머지 4개는 서랍 경계에서 drawer wall이 target 일부를 가린 조건으로, mesh projection 오류가 아니라 empty-drawer visibility 처리 차이로 확인함.
+
+**기존 GT 문제:** 기존 `distribution_map_GPU.py`는 occluded pixel에 `valid_pos`를 적용하지만 ratio 분모에는 target 전체 pixel을 사용함. 기존 결과 재현용 `legacy_ratio`는 보존하고, 새 학습 GT는 valid pixel을 분모로 사용하는 `corrected_ratio`와 `70%` threshold를 적용하기로 결정함.
+
+**성능 병목:** 검증용 rasterizer가 triangle별 Python loop를 사용하여 `toy_3`의 2,029,960 triangles에서 평균 `577.72 s/image` 소요. 새 asset에도 적용 가능한 자동 mesh 단순화, full-resolution 정확도 검사, hardware GPU rasterization, pose/camera batch 누적 구조가 필요함.
+
+**결정:** 해상도는 기존과 동일한 `640 × 480`으로 유지. 기존 `distribution_map_GPU.py`는 legacy reference로 수정하지 않으며, corrected ratio와 probability normalization은 새 GT generator에 구현함. 실제 배포에서는 mesh 단순화를 수행하지 않고 scene RGB, scene depth, target RGB만 입력함.
+
+**다음 단계:** Empty-drawer valid-pixel 처리를 검증에 반영하고, `toy_3`의 단순화 후보를 원본 mesh와 비교하여 자동 선택 기준을 확정한 뒤 batched GPU GT generator를 구현함.
+
+---
+
+### 2026-08-06 · Phase 7 — GPU Rasterization, Corrected Ratio, and Capture Reliability
+
+**Reference:** `depth_rasterizer_gpu.py`, `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py`, `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py`, `scene_generator/vectorized_scene_v2.py`
+
+**GPU rasterization:** nvdiffrast 기반 `640 × 480` depth renderer를 구현함. 원본 4개 asset과 `toy_3` 10k simplified mesh를 포함한 225개 조건에서 silhouette과 depth를 검증함. `toy_3` 10k mesh는 원본 대비 worst IoU `0.9938`, median depth MAE `0.3781 mm`를 기록함.
+
+**70% decision:** 20개 clutter scene과 9개 pose, 5개 camera에서 원본·GPU·단순화 mesh를 비교함. `toy_3` 원본–10k 판정 일치율은 전체 `99.67%`, `0.65–0.75` 경계 구간 `96.59%`임.
+
+**Corrected denominator:** Drawer wall이 target 일부를 가리는 `book_1` 경계 조건에서 valid pixel이 `10.01–12.77%` 감소함. Corrected ratio 적용 시 `6/80`개 조건의 `0.7` 판정이 변경되어 기존 분모 불일치가 실제 결과에 영향을 주는 것을 확인함.
+
+**Clutter capture:** 물리 안정화 이후 카메라 촬영을 `world.step()`에서 render-only `world.render()`로 변경함. 캡처 전후 위치·회전 불변성을 직접 확인하고, run/scene/object pose, camera metadata, seed와 완료 상태를 저장하도록 구성함. 실제 transformed mesh vertex 기준 drawer 내부 QC도 추가함.
+
+**현재 단계:** Stratified 1,000-pose 검증 코드는 준비됐으나 결과는 아직 확정되지 않음. 검증 통과 후 10k mesh를 확정하고 축소 grid probability map과 전체 GT accumulator를 구현함.
