@@ -360,13 +360,13 @@ a photo of a {category}
 
 ## Occlusion Stream
 
-> **Status: Geometry, GPU rasterization, mesh simplification, and 70% decision pilot validated / probability-map generator in progress**
+> **Status: Geometry, GPU rasterization, mesh simplification, 70% decision, and mesh-based GT generation pilot validated**
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
 ### Occlusion GT Generation
 
-학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 해상도는 기존 데이터와 동일한 `640 × 480`을 유지하고, 기존 pose grid와 `70%` occlusion 판정 기준을 적용함. 렌더링된 개별 RGB·depth·mask는 저장하지 않고 scene depth와 즉시 비교하여 누적값만 저장할 예정.
+학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 해상도는 기존 데이터와 동일한 `640 × 480`을 유지하고, 기존 pose grid와 `70%` occlusion 판정 기준을 적용함. 렌더링된 개별 RGB·depth·mask는 저장하지 않고 scene depth와 즉시 비교하여 누적값만 저장함.
 
 ```text
 Target mesh + scale + candidate pose
@@ -396,6 +396,32 @@ is_occluded = corrected_ratio >= 0.7
 ```text
 P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
 ```
+
+#### Mesh-Based GT Reproduction Pilot
+
+`packaged_food_2`, scale `1.0`, clutter scene 1개, 5개 camera에서 전체 `44,100`개 candidate pose를 GPU로 처리함. Mesh 기반 target depth로 Legacy GT를 재현하고, 동일한 실행에서 corrected probability GT를 함께 생성함.
+
+기존 GT의 visible-target 후처리도 코드 기준으로 복원함. Scene에서 보이는 target pixel이 camera별 reference의 `30%` 이상이면 Legacy map 전체에 `0.7`을 곱하고 visible target 영역을 `255`로 설정함. 이 규칙은 기존 결과 재현용 Legacy GT에만 적용하며, 새 probability GT에는 적용하지 않음.
+
+```text
+visibility_ratio >= 0.3
+    → legacy_map = legacy_map × 0.7
+    → legacy_map[target_mask] = 255
+```
+
+| Camera | Visibility ratio | Visible-target rule | Old GT vs Legacy correlation | SSIM |
+|---|---:|---:|---:|---:|
+| center | `0.3510` | ON | `1.0000` | `0.9999` |
+| left | `0.1765` | OFF | `1.0000` | `0.9999` |
+| right | `0.4518` | ON | `1.0000` | `0.9999` |
+| top | `0.2536` | OFF | `1.0000` | `0.9999` |
+| bottom | `0.4880` | ON | `1.0000` | `0.9999` |
+
+Visible-target 규칙이 적용된 center camera와 적용되지 않은 left camera의 비교 결과임. 각 이미지는 Scene RGB, Target RGB, 기존 GT, mesh 기반 Legacy GT, Corrected Probability GT, 차이 map으로 구성함.
+
+![Mesh-based occlusion GT — visible-target rule ON](img/occlusion_gt/legacy_probability_center.png)
+
+![Mesh-based occlusion GT — visible-target rule OFF](img/occlusion_gt/legacy_probability_left.png)
 
 Mesh와 target 입력은 같은 scale로 구성해야 함. Multi-scale 학습은 `0.7`, `1.0`, `1.3`을 초기 후보로 두고 있으며, target RGB와 mask도 mesh scale에 맞춰 구성할 예정.
 
@@ -619,7 +645,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Corrected 70% occlusion decision | Validated on standard and drawer-edge poses |
 | Reproducible clutter capture | Implemented and validated |
 | Stratified 1,000-pose validation | Script ready; result pending |
-| Probability-map GT accumulator | Planned |
+| Probability-map GT accumulator | Implemented and validated in full-grid pilot |
 | Occlusion stream training | Planned |
 | Complexity stream training | Planned |
 | Three-stream fusion | Planned |
@@ -671,8 +697,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Reproducible render-only clutter capture and metadata
 - [ ] Stratified 1,000-pose original–simplified validation
 - [ ] Automatic simplification cache for arbitrary new assets
-- [ ] Pose/camera batched probability accumulator
-- [ ] Legacy and probability occlusion GT generator
+- [x] Pose/camera batched probability accumulator pilot
+- [x] Full-grid Legacy and probability GT pilot (`44,100` poses × 5 cameras)
+- [ ] Multi-target and multi-scene production GT generation
 - [ ] Held-out object and category benchmark
 - [ ] Zero-shot Occlusion stream training and held-out evaluation
 - [ ] Complexity stream
@@ -835,3 +862,17 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 **Clutter capture:** 물리 안정화 이후 카메라 촬영을 `world.step()`에서 render-only `world.render()`로 변경함. 캡처 전후 위치·회전 불변성을 직접 확인하고, run/scene/object pose, camera metadata, seed와 완료 상태를 저장하도록 구성함. 실제 transformed mesh vertex 기준 drawer 내부 QC도 추가함.
 
 **현재 단계:** Stratified 1,000-pose 검증 코드는 준비됐으나 결과는 아직 확정되지 않음. 검증 통과 후 10k mesh를 확정하고 축소 grid probability map과 전체 GT accumulator를 구현함.
+
+---
+
+### 2026-08-07 · Phase 8 — Mesh-Based Legacy and Probability GT Generation
+
+**구현:** `packaged_food_2`, scale `1.0`, clutter scene 1개와 5개 camera에서 `44,100`개 pose 전체를 nvdiffrast로 처리함. Target depth를 파일로 저장하지 않고 scene depth와 즉시 비교하여 Legacy GT와 corrected probability GT를 동시에 누적함.
+
+**Legacy 재현:** 기존 코드를 확인하여 visible ratio가 `0.3` 이상일 때 map 전체를 `0.7`배로 낮추고 visible target mask를 `255`로 설정하는 후처리를 복원함. 후처리 전에는 center/right/bottom에서 차이가 발생했으나, 적용 후 5개 camera 모두 기존 GT 대비 correlation `1.0000`, SSIM `0.9999`, IoU@128 `0.9974–0.9986`을 기록함.
+
+**분리 원칙:** Visible-target 강조는 기존 GT 재현용 Legacy map에만 적용함. 학습용 Corrected Probability GT는 `N_occluded / N_candidate`의 절대적 의미를 유지하기 위해 scene별 min–max 정규화와 visible-target 강조를 적용하지 않음.
+
+**결과물:** Scene RGB, Target RGB, 기존 GT, mesh 기반 Legacy GT, Corrected Probability GT와 차이 map을 6-panel 이미지로 저장함. Raw/final Legacy map, Corrected Probability map, camera별 metric과 실행 설정도 로컬 실험 결과로 보존함.
+
+**다음 단계:** 서로 다른 visibility와 clutter 조건을 포함한 다중 scene 검증 후 `book_1`, `toy_3`으로 확장함.
