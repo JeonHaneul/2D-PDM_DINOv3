@@ -638,6 +638,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `gt_similarity.py` | Category-based similarity-map generation |
 | `precompute_gt.py` | Precomputed similarity GT cache |
 | `paths_config.py` | Model, asset, dataset path configuration |
+| `target_capture.py` | Five-camera target RGB/depth/segmentation capture for zero-shot inference |
 | `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
 | `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
 | `depth_rasterizer_gpu.py` | nvdiffrast-based full-resolution GPU depth renderer |
@@ -648,6 +649,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `experiments/occlusion_gt_pilot/stratified_1000_pose_validation.py` | Deterministic stratified original–simplified validation |
 | `scene_generator/occlusion_gt_pilot_capture.py` | Isaac Sim reference capture for occlusion GT validation |
 | `scene_generator/vectorized_scene_v2.py` | Physics-based clutter generation and reproducible RGB-D capture |
+| `scene_generator/object_spawner.py` | USD asset discovery and object placement used by the scene generator |
 
 ---
 
