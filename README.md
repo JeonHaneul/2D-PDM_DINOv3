@@ -399,7 +399,7 @@ P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
 
 #### Mesh-Based GT Reproduction Pilot
 
-`packaged_food_2`, scale `1.0`, clutter scene 1개, 5개 camera에서 전체 `44,100`개 candidate pose를 GPU로 처리함. Mesh 기반 target depth로 Legacy GT를 재현하고, 동일한 실행에서 corrected probability GT를 함께 생성함.
+`packaged_food_2`, scale `1.0`에서 전체 `44,100`개 candidate pose를 GPU로 처리함. Mesh 기반 target depth로 Legacy GT를 재현하고, 동일한 실행에서 corrected probability GT를 함께 생성함.
 
 기존 GT의 visible-target 후처리도 코드 기준으로 복원함. Scene에서 보이는 target pixel이 camera별 reference의 `30%` 이상이면 Legacy map 전체에 `0.7`을 곱하고 visible target 영역을 `255`로 설정함. 이 규칙은 기존 결과 재현용 Legacy GT에만 적용하며, 새 probability GT에는 적용하지 않음.
 
@@ -409,13 +409,24 @@ visibility_ratio >= 0.3
     → legacy_map[target_mask] = 255
 ```
 
-| Camera | Visibility ratio | Visible-target rule | Old GT vs Legacy correlation | SSIM |
-|---|---:|---:|---:|---:|
-| center | `0.3510` | ON | `1.0000` | `0.9999` |
-| left | `0.1765` | OFF | `1.0000` | `0.9999` |
-| right | `0.4518` | ON | `1.0000` | `0.9999` |
-| top | `0.2536` | OFF | `1.0000` | `0.9999` |
-| bottom | `0.4880` | ON | `1.0000` | `0.9999` |
+기존 GT 3,000 scene × 5 camera의 visible-target ON/OFF 경계를 분석하고, mesh 전체 pose grid에서 camera별 최대 footprint를 직접 계산하여 정수 reference pixel 수를 확정함.
+
+| Camera | Mesh reference pixels | Inferred legacy range | Decision agreement |
+|---|---:|---:|---:|
+| center | `2324` | `2324–2330` | `100%` |
+| left | `2335` | `2334–2340` | `100%` |
+| right | `2336` | `2327–2336` | `100%` |
+| top | `2336` | `2324–2336` | `100%` |
+| bottom | `2335` | `2334–2336` | `100%` |
+
+최종 정수 reference를 사용해 20 scene × 5 camera의 100개 사례를 재검증함.
+
+| Metric | Mean | Worst |
+|---|---:|---:|
+| Old GT vs Legacy MAE | `0.0000379` | `0.0000959` |
+| Old GT vs Legacy correlation | `0.9999956` | `0.9999919` |
+
+이는 완전한 byte-identical 결과는 아니지만, mesh 기반 Legacy GT가 기존 Isaac Sim GT를 사실상 동일하게 재현함을 보여줌. Corrected probability GT는 valid footprint를 분모로 사용하며 Legacy visibility 후처리를 적용하지 않음.
 
 Mesh와 target 입력은 같은 scale로 구성해야 함. Multi-scale 학습은 `0.7`, `1.0`, `1.3`을 초기 후보로 두고 있으며, target RGB와 mask도 mesh scale에 맞춰 구성할 예정.
 
@@ -637,6 +648,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | nvdiffrast GPU depth rasterizer | Validated |
 | `toy_3` 10k mesh simplification | Pilot validated; 1,000-pose validation pending |
 | Corrected 70% occlusion decision | Validated on standard and drawer-edge poses |
+| Legacy visible-target reference recovery | `15,000` cases, `100%` decision agreement |
+| Mesh-based Legacy GT reproduction | `100` cases, worst correlation `0.9999919` |
 | Reproducible clutter capture | Implemented and validated |
 | Stratified 1,000-pose validation | Script ready; result pending |
 | Probability-map GT accumulator | Implemented and validated in full-grid pilot |
@@ -688,12 +701,16 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] nvdiffrast hardware GPU rasterizer validation
 - [x] `toy_3` 10k simplification pilot
 - [x] Legacy/corrected denominator comparison
+- [x] Camera-specific integer visibility reference recovery
+- [x] `packaged_food_2` multi-scene Legacy GT reproduction
 - [x] Reproducible render-only clutter capture and metadata
 - [ ] Stratified 1,000-pose original–simplified validation
 - [ ] Automatic simplification cache for arbitrary new assets
 - [x] Pose/camera batched probability accumulator pilot
 - [x] Full-grid Legacy and probability GT pilot (`44,100` poses × 5 cameras)
 - [ ] Multi-target and multi-scene production GT generation
+- [ ] `book_1` and `toy_3` small-scale Legacy validation
+- [ ] Scale `1.0` Occlusion Dataset and training baseline
 - [ ] Held-out object and category benchmark
 - [ ] Zero-shot Occlusion stream training and held-out evaluation
 - [ ] Complexity stream
@@ -861,20 +878,24 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 ### 2026-08-07 · Phase 8 — Mesh-Based Legacy and Probability GT Generation
 
-**구현:** `packaged_food_2`, scale `1.0`, clutter scene 1개와 5개 camera에서 `44,100`개 pose 전체를 nvdiffrast로 처리함. Target depth를 파일로 저장하지 않고 scene depth와 즉시 비교하여 Legacy GT와 corrected probability GT를 동시에 누적함.
+**구현:** `packaged_food_2`, scale `1.0`에서 `44,100`개 pose 전체를 nvdiffrast로 처리함. Target depth를 파일로 저장하지 않고 scene depth와 즉시 비교하여 Legacy GT와 corrected probability GT를 동시에 누적함.
 
-**Legacy 재현:** 기존 코드를 확인하여 visible ratio가 `0.3` 이상일 때 map 전체를 `0.7`배로 낮추고 visible target mask를 `255`로 설정하는 후처리를 복원함. 후처리 전에는 center/right/bottom에서 차이가 발생했으나, 적용 후 5개 camera 모두 기존 GT 대비 correlation `1.0000`, SSIM `0.9999`, IoU@128 `0.9974–0.9986`을 기록함.
+**Legacy 재현:** 기존 코드를 확인하여 visible ratio가 `0.3` 이상일 때 map 전체를 `0.7`배로 낮추고 visible target mask를 `255`로 설정하는 후처리를 복원함. 대표 target frame 한 장의 pixel 수를 reference로 사용하면 threshold 경계 사례가 잘못 분류되는 문제를 확인함.
+
+**Reference 복원:** 기존 GT 3,000 scene × 5 camera의 후처리 ON/OFF 경계를 분석하고, `44,100`개 mesh pose에서 camera별 최대 footprint를 직접 계산함. 최종 정수 reference는 center `2324`, left `2335`, right `2336`, top `2336`, bottom `2335`이며, 15,000개 기존 사례의 ON/OFF 판정을 모두 재현함.
+
+**다중 scene 검증:** 최종 reference로 20 scene × 5 camera의 100개 사례를 재검증함. Old GT 대비 Legacy GT의 MAE는 평균 `0.0000379`, 최댓값 `0.0000959`이며, correlation은 평균 `0.9999956`, 최저 `0.9999919`임.
 
 **분리 원칙:** Visible-target 강조는 기존 GT 재현용 Legacy map에만 적용함. 학습용 Corrected Probability GT는 `N_occluded / N_candidate`의 절대적 의미를 유지하기 위해 scene별 min–max 정규화와 visible-target 강조를 적용하지 않음.
 
 **결과물:** Scene RGB, Target RGB, 기존 GT, mesh 기반 Legacy GT, Corrected Probability GT와 차이 map을 6-panel 이미지로 저장함. Raw/final Legacy map, Corrected Probability map, camera별 metric과 실행 설정도 로컬 실험 결과로 보존함.
 
-Visible-target 규칙이 적용된 center camera 결과:
+Visible-target 규칙이 적용된 사례:
 
-![Mesh-based occlusion GT — visible-target rule ON](img/occlusion_gt/legacy_probability_center.png)
+![Mesh-based occlusion GT — visible-target rule ON](img/occlusion_gt/legacy_probability_visible_on.png)
 
-Visible-target 규칙이 적용되지 않은 left camera 결과:
+Visibility threshold 바로 아래에서 후처리가 적용되지 않은 사례:
 
-![Mesh-based occlusion GT — visible-target rule OFF](img/occlusion_gt/legacy_probability_left.png)
+![Mesh-based occlusion GT — boundary below 0.3](img/occlusion_gt/legacy_probability_boundary_below.png)
 
-**다음 단계:** 서로 다른 visibility와 clutter 조건을 포함한 다중 scene 검증 후 `book_1`, `toy_3`으로 확장함.
+**다음 단계:** 검증 스크립트를 target-independent하게 정리한 뒤 `book_1`과 `toy_3`을 각각 5–10 scene에서 확인함. 두 target이 통과하면 GT 검증을 종료하고, corrected probability GT를 사용하는 scale `1.0` Occlusion Dataset과 학습 baseline을 구현함.
