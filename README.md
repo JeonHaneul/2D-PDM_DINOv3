@@ -417,12 +417,6 @@ visibility_ratio >= 0.3
 | top | `0.2536` | OFF | `1.0000` | `0.9999` |
 | bottom | `0.4880` | ON | `1.0000` | `0.9999` |
 
-Visible-target 규칙이 적용된 center camera와 적용되지 않은 left camera의 비교 결과임. 각 이미지는 Scene RGB, Target RGB, 기존 GT, mesh 기반 Legacy GT, Corrected Probability GT, 차이 map으로 구성함.
-
-![Mesh-based occlusion GT — visible-target rule ON](img/occlusion_gt/legacy_probability_center.png)
-
-![Mesh-based occlusion GT — visible-target rule OFF](img/occlusion_gt/legacy_probability_left.png)
-
 Mesh와 target 입력은 같은 scale로 구성해야 함. Multi-scale 학습은 `0.7`, `1.0`, `1.3`을 초기 후보로 두고 있으며, target RGB와 mask도 mesh scale에 맞춰 구성할 예정.
 
 #### Mesh-Depth Validation
@@ -874,5 +868,13 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 **분리 원칙:** Visible-target 강조는 기존 GT 재현용 Legacy map에만 적용함. 학습용 Corrected Probability GT는 `N_occluded / N_candidate`의 절대적 의미를 유지하기 위해 scene별 min–max 정규화와 visible-target 강조를 적용하지 않음.
 
 **결과물:** Scene RGB, Target RGB, 기존 GT, mesh 기반 Legacy GT, Corrected Probability GT와 차이 map을 6-panel 이미지로 저장함. Raw/final Legacy map, Corrected Probability map, camera별 metric과 실행 설정도 로컬 실험 결과로 보존함.
+
+Visible-target 규칙이 적용된 center camera 결과:
+
+![Mesh-based occlusion GT — visible-target rule ON](img/occlusion_gt/legacy_probability_center.png)
+
+Visible-target 규칙이 적용되지 않은 left camera 결과:
+
+![Mesh-based occlusion GT — visible-target rule OFF](img/occlusion_gt/legacy_probability_left.png)
 
 **다음 단계:** 서로 다른 visibility와 clutter 조건을 포함한 다중 scene 검증 후 `book_1`, `toy_3`으로 확장함.
