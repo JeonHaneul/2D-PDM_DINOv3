@@ -72,7 +72,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))
 
 ## Similarity Stream
 
-> **Status: Implemented**
+> **Status: Implemented · qualitative zero-shot activation confirmed · quantitative held-out benchmark pending**
 
 Similarity stream은 target 및 의미적으로 관련된 물체 영역을 활성화함. DINOv3의 dense appearance와 SigLIP의 image/text semantics를 결합하여 instance-level 외형과 category-level 의미를 함께 표현함.
 
@@ -83,7 +83,7 @@ Similarity stream은 target 및 의미적으로 관련된 물체 영역을 활�
 | **DINOv3 Scene Encoder** | 위치가 보존된 dense visual feature | Scene의 어느 patch에 어떤 형상·질감·appearance가 있는지 표현 |
 | **DINOv3 Target Encoder** | Target-specific appearance | “이 물체가 어떻게 생겼는가?”를 layer별 query로 표현 |
 | **SigLIP Vision Encoder** | Target image semantics | 외형을 넘어선 open-vocabulary 개념 표현 |
-| **SigLIP Text Encoder** | Target category semantics | 이미지가 모호해도 이름과 category 정보로 의미를 보완 |
+| **SigLIP Text Encoder** | Instance name + category semantics | 이미지가 모호해도 구체적인 물체 이름과 category 정보로 의미를 보완 |
 | **Matching Head** | Scene–target spatial relation | Appearance, semantics, cosine cue를 함께 해석해 probability map 생성 |
 
 ### Architecture
@@ -108,7 +108,7 @@ flowchart TB
 
     subgraph SEMANTIC["Target Semantic Branch"]
         SIGIMG["SigLIP Vision<br/>Frozen"]
-        PROMPT["a photo of a category"]
+        PROMPT["Instance-specific prompt<br/>a photo of {object}, a type of {category}"]
         SIGTXT["SigLIP Text<br/>Frozen"]
         SEMFUSE["Image–Text Fusion<br/>1152-D"]
         PROJ["Layer-wise Projection<br/>1152 → 768<br/>Trainable"]
@@ -162,11 +162,13 @@ a_t^l = L2Norm(
 )
 ```
 
-SigLIP image/text embedding을 동일한 semantic space에서 결합.
+SigLIP image/text embedding을 동일한 semantic space에서 결합. 현재 최종 경로는 과거의 DINOv3 CLS category prototype을 사용하지 않으며, SigLIP의 language-aligned embedding을 semantic condition으로 사용함.
 
 ```text
 s_img  = L2Norm(SigLIP_Vision(target_crop))
-s_text = L2Norm(SigLIP_Text("a photo of a {category}"))
+s_text = L2Norm(SigLIP_Text(
+    "a photo of {instance_name}, a type of {category}"
+))
 s      = L2Norm((s_img + s_text) / 2)
 s_t^l  = W_l · s + b_l
 ```
@@ -332,10 +334,10 @@ Target image를 query로 직접 인코딩하므로 unseen object 입력 가능.
 | **Image-only** | Target RGB | 별도의 category label 없이 visual/semantic image embedding 사용 가능 |
 | **Image + text** | Target RGB + prompt | 물체 이름이나 category semantics로 모호한 외형을 보완 |
 
-현재 category prompt 사용:
+현재 instance-specific prompt 사용:
 
 ```text
-a photo of a {category}
+a photo of {instance_name}, a type of {category}
 ```
 
 ### Qualitative Similarity Maps
@@ -354,13 +356,13 @@ a photo of a {category}
 - DINOv3: target–scene dense appearance
 - SigLIP: banana–fruit open-vocabulary semantics
 
-> **Planned evaluation:** object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation.
+> Banana 및 `packaged_food_5` 결과는 qualitative evidence임. 최종 zero-shot 주장은 object-held-out, category-held-out, DINOv3-only, SigLIP-only, image-only, image+text ablation으로 별도 검증할 예정.
 
 ---
 
 ## Occlusion Stream
 
-> **Status: Geometry, GPU rasterization, mesh simplification, 70% decision, and mesh-based GT generation pilot validated**
+> **Status: 14-target production GT complete · 150 shared scenes × 5 cameras · unseen-instance training next**
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
@@ -551,6 +553,39 @@ P_O          = N_occluded / (N_candidate + epsilon)
 
 기존 `distribution_map_GPU.py`는 legacy 결과 재현용으로 보존함. 분모가 다른 corrected ratio, scene 간 비교 가능한 probability normalization, mesh simplification과 batch accumulation은 새 GT generator에만 구현함.
 
+### Production GT Dataset
+
+Scale `1.0` 기준으로 14개 target 전체에 대해 동일한 150개 clutter scene과 5개 camera의 corrected probability GT 생성을 완료함.
+
+| Item | Value |
+|---|---:|
+| Targets | `14` |
+| Shared clutter scenes | `150` |
+| Cameras per scene | `5` |
+| Scene-camera maps per target | `750` |
+| Candidate poses per target | `44,100` |
+| Output resolution | `640 × 480` |
+| Occlusion threshold | `70%` of valid target pixels |
+
+모든 target이 동일한 scene-key 집합을 사용함. 따라서 모델이 target별로 서로 다른 scene 분포를 외우는 target/scene confound를 제거하고, 같은 scene에서 target condition만 바뀔 때 GT가 어떻게 달라지는지 학습할 수 있음.
+
+```text
+Same scene S + target T_book  -> occlusion GT G_book
+Same scene S + target T_fruit -> occlusion GT G_fruit
+Same scene S + target T_toy   -> occlusion GT G_toy
+```
+
+Train/held-out target은 결과 확인 전에 고정함.
+
+| Split | Targets |
+|---|---|
+| Train | `book_1/2/3`, `fruit_1/2/3`, `toy_2/3`, `packaged_food_2/3` |
+| Held-out | `book_4`, `fruit_4`, `toy_4`, `packaged_food_4` |
+
+신규 10개 target은 center camera에서 pose를 한 번만 결정하고 나머지 camera에서는 재탐색하지 않는 single-pose Gate-1 검증을 수행함. 다섯 camera 전체에서 silhouette IoU `0.982–1.000`, depth MAE `≤ 0.08 mm`를 기록함. `book_3` center의 IoU `0.9824`는 누락 geometry 없이 1-pixel boundary rasterization 차이로 확인함.
+
+Generator는 실행 manifest에 없는 `scene*` 디렉터리가 남아 있으면 자동 삭제하거나 무시하지 않고 중단함. Pilot과 production run의 scene 집합이 섞이는 문제를 방지하기 위한 invariant임.
+
 ### New Asset Protocol
 
 새 학습 asset의 USD/OBJ가 추가되면 다음 과정을 자동 실행함.
@@ -653,7 +688,11 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Reproducible clutter capture | Implemented and validated |
 | Stratified 1,000-pose validation | Script ready; result pending |
 | Probability-map GT accumulator | Implemented and validated in full-grid pilot |
-| Occlusion stream training | Planned |
+| 14-target production Occlusion GT | Complete: `150 scenes × 5 cameras` per target |
+| Occlusion model ablation | Complete: target-agnostic / appearance-only / geometry-only / full, 3 seeds |
+| Unseen-instance / seen-category training | Next |
+| Unseen-scale evaluation | Planned after scale `1.0` held-out test |
+| Occlusion stream training | In progress |
 | Complexity stream training | Planned |
 | Three-stream fusion | Planned |
 | Exploration policy integration | Planned |
@@ -672,9 +711,16 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `precompute_gt.py` | Precomputed similarity GT cache |
 | `paths_config.py` | Model, asset, dataset path configuration |
 | `target_capture.py` | Five-camera target RGB/depth/segmentation capture for zero-shot inference |
+| `occlusion_model.py` | RGB-D target conditioning, geometry-FiLM and Occlusion map head |
+| `occlusion_dataset.py` | Corrected probability GT and coverage-aware RGB-D dataset |
+| `train_occlusion.py` | Occlusion ablation, scene split, checkpoint and camera/target evaluation |
+| `generate_occlusion_gt_batched_v2.py` | Pose/scene-vectorized production probability GT generator |
 | `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
+| `mesh_cache.py` | Asset complexity check and validated simplified-mesh cache |
 | `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
 | `depth_rasterizer_gpu.py` | nvdiffrast-based full-resolution GPU depth renderer |
+| `experiments/occlusion_gt_pilot/target_catalog_manifest.py` | Pre-registered train/held-out target catalog |
+| `experiments/occlusion_gt_pilot/verify_new_target_mesh_accuracy.py` | Single-pose five-camera mesh/depth Gate-1 verification |
 | `experiments/occlusion_gt_pilot/validate_rasterizer.py` | Multi-asset, pose and camera mesh-depth validation |
 | `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py` | GPU rasterizer and simplified-mesh validation |
 | `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py` | Legacy/corrected ratio and 70% decision comparison |
@@ -708,11 +754,15 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [ ] Automatic simplification cache for arbitrary new assets
 - [x] Pose/camera batched probability accumulator pilot
 - [x] Full-grid Legacy and probability GT pilot (`44,100` poses × 5 cameras)
-- [ ] Multi-target and multi-scene production GT generation
-- [ ] `book_1` and `toy_3` small-scale Legacy validation
-- [ ] Scale `1.0` Occlusion Dataset and training baseline
-- [ ] Held-out object and category benchmark
-- [ ] Zero-shot Occlusion stream training and held-out evaluation
+- [x] Multi-target and multi-scene production GT generation
+- [x] 14-target shared-scene GT (`150` scenes × `5` cameras)
+- [x] Five-camera single-pose mesh/depth Gate-1 validation
+- [x] Scale `1.0` Occlusion Dataset and 4-model ablation baseline
+- [x] Train 10 / held-out 4 target catalog fixed before evaluation
+- [ ] Unseen-instance / seen-category 1-seed smoke test
+- [ ] Camera-wise held-out benchmark and wrong-target evaluation
+- [ ] Three-seed unseen-instance benchmark
+- [ ] Unseen-scale GT and evaluation
 - [ ] Complexity stream
 - [ ] Learned three-stream fusion
 - [ ] DRL-based exploration policy
@@ -899,3 +949,44 @@ Visibility threshold 바로 아래에서 후처리가 적용되지 않은 사례
 ![Mesh-based occlusion GT — boundary below 0.3](img/occlusion_gt/legacy_probability_boundary_below.png)
 
 **다음 단계:** 검증 스크립트를 target-independent하게 정리한 뒤 `book_1`과 `toy_3`을 각각 5–10 scene에서 확인함. 두 target이 통과하면 GT 검증을 종료하고, corrected probability GT를 사용하는 scale `1.0` Occlusion Dataset과 학습 baseline을 구현함.
+
+---
+
+### 2026-08-10 · Phase 9 — Occlusion Conditioning Ablation
+
+**문제:** 초기 학습은 target별 scene pool이 달라 모델이 target condition 대신 scene 분포를 외울 수 있었음. Shuffled-target 평가도 target별로 연속된 validation batch 내부에서만 이름을 섞어 사실상 같은 target끼리 교환되는 no-op이었음.
+
+**수정:** 4개 target이 동일한 150개 scene을 사용하도록 구성하고, scene을 train/validation/test `100/20/30`으로 분리함. Coverage-aware patch pooling, 실제 최소 validation loss checkpoint, early stopping, 100% 다른 target을 넣는 confusion matrix와 `shift=0 == main test` invariant를 추가함.
+
+```text
+GT_patch = AvgPool(GT × Coverage) / (AvgPool(Coverage) + epsilon)
+```
+
+Target appearance와 geometry-FiLM의 기여를 분리하기 위해 네 모델을 3개 seed로 평가함.
+
+| Variant | Test IoU mean ± std |
+|---|---:|
+| Appearance-only | `0.4065 ± 0.0554` |
+| Geometry-only | `0.3732 ± 0.0552` |
+| Full | `0.4147 ± 0.0331` |
+
+Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Appearance-only 대비 차이는 작음. Geometry-only는 세 seed 모두 Appearance-only보다 낮음. 따라서 Full을 잠정 기본 모델로 유지하되, FiLM의 추가 이득은 unseen-scale 평가에서 최종 판단함.
+
+---
+
+### 2026-08-11–12 · Phase 10 — Shared-Scene Production GT and Five-Camera Validation
+
+**목표:** Unseen-instance/seen-category 조건을 분리하기 위해 category마다 여러 instance를 확보하고, 모든 target에 동일한 clutter scene의 GT를 생성함.
+
+**구성:** Train 10개와 held-out 4개 target을 결과 확인 전에 고정하고, 14개 target 각각에 `150 shared scenes × 5 cameras`의 scale `1.0` corrected probability GT를 생성함. 전체 target의 scene-key 집합이 동일함을 확인함.
+
+**검증:** 신규 target은 center에서 찾은 단일 pose를 다섯 camera에 고정하여 실측 Isaac Sim depth/segmentation과 비교함. Camera별 pose 재탐색으로 calibration 오차를 가릴 수 없도록 구성했으며, 다섯 camera 모두 silhouette과 depth 기준을 통과함.
+
+**발견 및 수정:**
+
+- `toy_1`은 실제 캡처에서는 정상 크기지만 standalone mesh extraction에서 composed-stage scale을 재현하지 못해 catalog에서 제외함.
+- `book_3` center의 낮은 raw IoU는 geometry 누락이 아니라 1-pixel boundary 차이로 확인함.
+- 15-scene pilot 잔여 파일이 150-scene production 폴더에 섞이는 문제를 발견하고 비파괴적으로 분리함.
+- 이후 generator는 manifest 밖의 scene 디렉터리를 감지하면 즉시 중단하도록 변경함.
+
+**현재 단계:** GT 생성과 검증을 종료하고, category-balanced sampling과 camera별 평가를 포함한 unseen-instance/seen-category 1-seed smoke test를 준비 중임. 고정된 5개 camera 전체에서 conditioned model이 target-agnostic baseline을 앞서는지, correct target이 wrong target보다 높은지 확인한 뒤 3-seed와 unseen-scale 단계로 확장함.
