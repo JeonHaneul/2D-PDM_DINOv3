@@ -411,11 +411,27 @@ SigLIP semantics s     : 1152-D → Wˡ → 768-D ─┘
 
 Projection `Wˡ`은 차원만 줄이는 고정 변환이 아니라, similarity-map loss가 작아지도록 학습되는 adapter임. 결합 후 `qˡ`은 순수한 DINOv3 appearance가 아니라 **외형과 category 의미가 함께 반영된 검색 query**가 됨.
 
-> **한계:** 768-D로 변환했다고 두 feature space가 올바르게 정렬됐다고 자동 보장되지는 않음. Semantic이 appearance를 과도하게 변형하지 않는지 DINOv3-only, additive fusion, gated/separated fusion ablation으로 검증할 필요가 있음.
+쉽게 말하면, feature vector는 latent space 안의 **하나의 위치**로 볼 수 있음. DINOv3 appearance `aˡ`가 “노란색·곡선·표면 질감”에 가까운 위치를 표현한다면, projection된 semantic `Wˡs`를 더하는 것은 그 위치를 “banana·fruit” 개념 방향으로 이동시키는 것과 같음.
+
+```text
+개념적인 latent space (실제는 768-D)
+
+                     orange •
+                            \
+             fruit 방향 ↗  • qˡ = appearance + semantics
+                          /
+       appearance aˡ •
+                    \
+                     • yellow toy
+```
+
+즉 semantic은 DINOv3 출력을 삭제하는 것이 아니라, target query가 scene에서 외형적으로 비슷한 물체뿐 아니라 의미적으로 관련된 물체에도 가까워지도록 위치를 보정하는 역할을 함.
 
 ### Q2. Cosine map이 이미 있는데 scene·target feature를 다시 concat하는 이유는?
 
 Cosine은 scene 전체를 숫자 하나로 만드는 것이 아님. Scene이 `30 × 40` patch라면 **1,200개 위치 각각에 cosine scalar 하나**가 계산되어 `1 × 30 × 40` map이 됨.
+
+Target은 patch 하나를 사용하는 것이 아니라, target 영역의 여러 DINOv3 patch를 pooling한 768-D 대표 vector `qˡ`로 요약됨. 이 하나의 target query를 scene의 모든 patch와 각각 비교함.
 
 ```text
 Scene patches                         Cosine map
@@ -425,7 +441,15 @@ F(2,1) F(2,2) F(2,3) F(2,4)   →      0.09  0.21  0.86  0.79
 F(3,1) F(3,2) F(3,3) F(3,4)          0.05  0.13  0.32  0.20
 ```
 
-공간 위치는 보존되지만, 각 위치의 768-D scene–target 관계는 cosine 숫자 하나로 압축됨. 예를 들어 바나나 patch와 노란 장난감 patch가 모두 `0.85`라면 cosine만으로는 **왜** 같은 점수가 나왔는지 구분하기 어려움.
+공간 위치는 보존되지만, 각 위치의 768-D scene–target 관계는 cosine 숫자 하나로 압축됨.
+
+| Scene의 한 patch | Target: banana와의 cosine | Cosine만으로 알 수 있는 것 |
+|---|---:|---|
+| Banana 영역 | `0.88` | Target과 매우 비슷함 |
+| Orange 영역 | `0.63` | Banana보다 외형은 다르지만 일부 특징이 비슷함 |
+| Yellow toy 영역 | `0.85` | 노란색·질감 때문에 높은지, 의미까지 맞는지는 알 수 없음 |
+
+이처럼 banana patch와 yellow toy patch가 모두 높은 scalar를 가지거나, 같은 fruit인 orange가 더 낮은 scalar를 가질 수 있음. Cosine scalar만으로는 **어떤 feature로 인해 그 점수가 나왔는지** 구분하기 어려움.
 
 그래서 다음 정보를 함께 유지함.
 
