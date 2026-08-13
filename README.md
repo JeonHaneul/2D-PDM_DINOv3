@@ -383,6 +383,105 @@ a photo of {instance_name}, a type of {category}
 
 ---
 
+## Similarity Stream: Four Questions
+
+Similarity stream의 핵심은 **DINOv3 appearance로 외형을 찾고, SigLIP semantics로 category 의미를 보완한 뒤, 위치별 유사도를 학습적으로 보정**하는 것임.
+
+```mermaid
+flowchart LR
+    SCENE["Scene patches<br/>DINOv3"] --> COS["Patch-wise cosine<br/>위치별 유사도 map"]
+    APP["Target appearance<br/>DINOv3"] --> QUERY["Target query"]
+    SEM["Target semantics<br/>SigLIP"] --> PROJ["Learned projection<br/>1152 → 768"] --> QUERY
+    QUERY --> COS
+    SCENE --> MATCH["MatchingBlock<br/>유사도 해석·보정"]
+    QUERY --> MATCH
+    COS --> MATCH
+    MATCH --> MAP["Similarity map"]
+```
+
+### Q1. 서로 다른 DINOv3와 SigLIP vector를 그냥 더해도 되는가?
+
+**원본 vector끼리 바로 더하는 것은 아님.** DINOv3 appearance는 768-D, SigLIP semantic vector는 1152-D이며, 두 모델의 feature 축은 서로 다른 의미를 가짐. 현재 코드는 SigLIP vector를 layer별 학습 가능한 projection으로 변환한 뒤 DINOv3 appearance와 더함.
+
+```text
+DINOv3 appearance aˡ : 768-D  ───────┐
+                                      ├─→ qˡ = aˡ + Wˡs
+SigLIP semantics s     : 1152-D → Wˡ → 768-D ─┘
+```
+
+Projection `Wˡ`은 차원만 줄이는 고정 변환이 아니라, similarity-map loss가 작아지도록 학습되는 adapter임. 결합 후 `qˡ`은 순수한 DINOv3 appearance가 아니라 **외형과 category 의미가 함께 반영된 검색 query**가 됨.
+
+> **한계:** 768-D로 변환했다고 두 feature space가 올바르게 정렬됐다고 자동 보장되지는 않음. Semantic이 appearance를 과도하게 변형하지 않는지 DINOv3-only, additive fusion, gated/separated fusion ablation으로 검증할 필요가 있음.
+
+### Q2. Cosine map이 이미 있는데 scene·target feature를 다시 concat하는 이유는?
+
+Cosine은 scene 전체를 숫자 하나로 만드는 것이 아님. Scene이 `30 × 40` patch라면 **1,200개 위치 각각에 cosine scalar 하나**가 계산되어 `1 × 30 × 40` map이 됨.
+
+```text
+Scene patches                         Cosine map
+
+F(1,1) F(1,2) F(1,3) F(1,4)          0.10  0.18  0.74  0.81
+F(2,1) F(2,2) F(2,3) F(2,4)   →      0.09  0.21  0.86  0.79
+F(3,1) F(3,2) F(3,3) F(3,4)          0.05  0.13  0.32  0.20
+```
+
+공간 위치는 보존되지만, 각 위치의 768-D scene–target 관계는 cosine 숫자 하나로 압축됨. 예를 들어 바나나 patch와 노란 장난감 patch가 모두 `0.85`라면 cosine만으로는 **왜** 같은 점수가 나왔는지 구분하기 어려움.
+
+그래서 다음 정보를 함께 유지함.
+
+```text
+Zˡ(u,v) = Concat[
+    scene feature 768-D,   # 이 위치가 실제로 무엇인지
+    target query  768-D,   # 무엇을 찾고 있는지
+    cosine          1-D    # 두 vector의 직접적인 유사도
+]
+```
+
+중복 정보를 의도적으로 제공하는 구조이며, cosine은 명시적 matching cue, raw feature는 cosine에서 손실된 세부 관계를 담당함. 다만 실제 이득은 `cosine-only` 대비 ablation으로 입증해야 함.
+
+### Q3. SigLIP과 DINOv3 latent vector의 의미를 어떻게 알 수 있는가?
+
+Latent vector의 각 차원에 `17번=과일`, `325번=노란색`과 같은 고정 의미가 붙어 있는 것은 아님. 개념은 여러 차원에 **분산 표현**되므로, 논문에서는 각 좌표를 억지로 해석하지 않고 벡터가 보존하는 관계를 실험으로 검증함.
+
+| 확인 방법 | 알 수 있는 것 |
+|---|---|
+| Text retrieval | Banana image가 `fruit`, `toy`, `book` 중 어느 text와 가까운지 |
+| Nearest neighbor | Banana vector 주변에 apple/orange가 있는지, 노란 장난감이 있는지 |
+| Prompt swap | 같은 target에 `fruit` 대신 `toy` prompt를 줄 때 map이 변하는지 |
+| Linear probe | Frozen vector에 category 정보가 선형적으로 추출 가능한지 |
+| Layer-wise map | DINOv3 각 layer가 질감·형태·물체 구분에 어떻게 반응하는지 |
+
+SigLIP semantic vector는 target crop의 image embedding과 instance/category prompt의 text embedding을 결합한 **전역 multimodal concept representation**임. DINOv3 patch token은 해당 위치뿐 아니라 self-attention을 통해 주변과 전체 scene 문맥이 반영된 **위치별 contextual visual representation**임.
+
+### Q4. Patch-wise cosine과 MatchingBlock은 같은 matching을 두 번 하는 것 아닌가?
+
+둘 다 scene patch 위치를 유지하지만 역할은 다름.
+
+| 구분 | Patch-wise cosine | MatchingBlock |
+|---|---|---|
+| 비유 | 유사도를 재는 **측정기** | 측정값을 판단하는 **학습된 보정기** |
+| 방법 | 고정된 cosine 수식 | 학습되는 `3×3 Conv → 1×1 Conv` |
+| 출력 | 위치별 숫자 1개 | 위치별 64-D feature |
+| 주변 patch | 보지 않음 | `3×3 Conv`로 함께 봄 |
+
+예를 들어 중앙 patch의 cosine이 모두 `0.91`이어도 주변 모양은 다를 수 있음.
+
+```text
+고립된 고유사도                 물체 영역으로 이어진 고유사도
+
+0.10  0.12  0.09                 0.71  0.78  0.74
+0.11  0.91  0.13                 0.80  0.91  0.82
+0.08  0.10  0.12                 0.72  0.79  0.75
+
+Cosine: 중앙은 둘 다 0.91          MatchingBlock: 주변 문맥으로 두 경우를 다르게 해석 가능
+```
+
+MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene patch cross-attention이나 correspondence 탐색도 수행하지 않음. 이미 계산된 cosine, 원본 feature, 주변 문맥을 이용해 최종 활성화를 보정함.
+
+> **핵심 구분:** Patch-wise cosine이 “얼마나 비슷한가”를 계산하고, MatchingBlock이 “그 비슷함을 믿을 것인가”를 학습함. MatchingBlock의 실제 필요성은 cosine-only 대비 held-out ablation으로 검증해야 함.
+
+---
+
 ## Occlusion Stream
 
 > **Status: 14-target production GT complete · 150 shared scenes × 5 cameras · unseen-instance training next**
