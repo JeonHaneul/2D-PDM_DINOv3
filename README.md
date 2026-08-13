@@ -185,14 +185,37 @@ q_t^l = a_t^l + s_t^l
 | `s_t^l` | Target이 의미적으로 어떤 category에 속하는가 |
 | `q_t^l` | Appearance와 semantics가 결합된 layer-wise target condition |
 
+> **Semantic fusion을 더하는 이유**
+>
+> DINOv3와 SigLIP은 서로 다른 feature space를 사용하므로 SigLIP 1152-D vector를 바로 더하지 않음. 학습 가능한 layer-wise projection `Linear(1152, 768)`이 SigLIP semantics를 DINOv3 target feature에 활용할 수 있는 형태로 변환함. 결합된 `q_t^l`는 순수 appearance vector가 아니라, **target의 외형과 의미를 함께 담은 검색 query**임. 단, 이 정렬은 차원을 맞춘 것만으로 보장되지 않으며 similarity-map loss를 통해 간접적으로 학습됨.
+
 ### Scene–Target Interaction
 
-Scene patch와 target query의 cosine similarity를 계산한 뒤 `[0, 1]`로 변환.
+Scene의 **각 patch**와 target query의 cosine similarity를 계산한 뒤 `[0, 1]`로 변환. Scene 전체를 하나의 숫자로 압축하는 것이 아니라, 위치별 scalar가 모여 `H_p × W_p` cosine map을 형성함.
 
 ```text
 c^l(u,v)     = CosineSimilarity(X_s^l(:,u,v), q_t^l)
 c_hat^l(u,v) = (c^l(u,v) + 1) / 2
 ```
+
+#### Cosine Similarity vs. MatchingBlock
+
+| 구분 | Patch-wise cosine | MatchingBlock |
+|---|---|---|
+| 핵심 질문 | “이 위치가 target과 얼마나 비슷한가?” | “이 유사도를 최종 map에서 어떻게 해석할 것인가?” |
+| 계산 | 각 scene patch와 target query의 고정된 cosine 수식 | 학습되는 `3×3/1×1` CNN |
+| 입력 | Scene patch, target query | Scene feature, target query, cosine map |
+| 출력 | 위치별 1개 유사도, `1 × H_p × W_p` | 위치별 64-D feature, `64 × H_p × W_p` |
+| 주변 문맥 | 사용하지 않음 | `3×3 Conv`로 주변 patch까지 함께 해석 |
+
+Cosine map만으로도 기본적인 zero-shot similarity map을 만들 수 있음. 다만 768-D scene–target 관계가 위치별 숫자 하나로 압축되므로, 같은 cosine 값이 외형·의미·배경 중 어떤 이유로 나왔는지는 알 수 없음. MatchingBlock은 원본 scene/target feature와 cosine cue, 주변 공간 문맥을 함께 보고 우연한 고유사도를 억제하거나 일관된 물체 영역을 강화하는 역할을 학습함.
+
+```text
+Patch-wise cosine = 위치별 유사도를 측정하는 “측정기”
+MatchingBlock       = 측정값과 원본 feature를 해석하는 “학습된 보정기”
+```
+
+MatchingBlock은 target patch와 scene patch 사이의 cross-attention이나 patch correspondence를 다시 계산하지 않음. 현재 구조에서 직접적인 벡터 유사도 비교는 patch-wise cosine이 담당하고, MatchingBlock은 그 결과를 학습적으로 보정함.
 
 Scalar cosine score의 정보 손실을 보완하기 위해 scene feature와 target query를 함께 concat.
 
