@@ -508,9 +508,9 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark complete · paired reproducibility gate passed · relation-aware conditioning next · final untouched-target benchmark pending**
+> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark complete · paired reproducibility gate passed · target-interaction seed-0 ablations complete · next representation diagnostic · final untouched-target benchmark pending**
 >
-> Phase 14–16의 analytic/size-only/no-broadcast 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
+> Phase 14–17의 analytic/size-only/target-interaction 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
@@ -793,7 +793,9 @@ gamma, beta = MLP(area, bbox_h, bbox_w)
 F_depth'    = gamma * F_depth + beta
 ```
 
-Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. Fresh current-code broadcast-on 재학습이 과거 baseline의 전체 학습 trajectory와 최종 가중치를 정확히 재현하여, 이 저하는 code/data drift가 아니라 broadcast 제거에 따른 결과임을 확인함. 이 조건에서 cosine과 size-FiLM만 남기는 대체는 target conditioning을 유지하지 못했으므로 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
+Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. Fresh current-code broadcast-on 재학습이 과거 baseline의 전체 학습 trajectory와 최종 가중치를 정확히 재현하여, 이 저하는 code/data drift가 아니라 broadcast 제거에 따른 결과임을 확인함.
+
+Raw target 대신 scene–target의 normalized channelwise product를 넣은 후속 실험은 scale-response를 `7/8`, camera cell을 `37/40`까지 회복했지만, raw 기준 대비 coverage MAE가 seen `+25.0%`, training-heldout `+12.3%` 증가하여 기각함. 따라서 현재는 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
 
 DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
 
@@ -866,6 +868,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Five-camera development evaluation | `119/120` positive scale-response cells; one failure remains |
 | Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
 | Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
+| Relation-aware target interaction | Seed-0 complete; scale response mostly recovered but coverage/PF4 gates failed, rejected |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -939,7 +942,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Multi-scale development evaluation
 - [x] Controlled no-target-broadcast seed-0 comparison — rejected
 - [x] Fresh current-code broadcast-on seed-0 reproducibility gate
-- [ ] Evaluate a relation-only target interaction without removing conditioning
+- [x] Evaluate a relation-only target interaction without removing conditioning — rejected at seed 0
+- [ ] Diagnose relation magnitude normalization before selecting the next causal candidate
 - [ ] Confirm selected conditioning with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1286,3 +1290,37 @@ CSV 1,680행의 composite key가 모두 고유하고, 두 checkpoint는 seed 0, 
 Checkpoint 파일 해시는 provenance metadata 추가로 서로 다르지만, 실제 추론에 쓰이는 모든 model tensor는 동일함.
 
 **판단:** Fresh broadcast-on 재현 gate가 통과했으므로 no-broadcast의 MAE 증가와 scale-response 붕괴는 code/data drift가 아니라 raw target broadcast 제거에 따른 결과로 판단함. 단순 제거 실험은 종료하고, 다음 단계에서는 scene과 target의 채널별 관계를 보존하는 interaction을 동일 조건으로 비교함.
+
+---
+
+### 2026-08-21 · Phase 17 — Relation-Aware Target Interaction
+
+**문제:** Scalar cosine과 size-FiLM만 남긴 no-broadcast 모델은 target 정보를 충분히 전달하지 못했음. Raw target vector를 다시 넣지 않으면서 cosine 합산 전의 채널별 관계를 보존할 방법이 필요했음.
+
+**수정:** 기존 target 768채널 자리를 normalized channelwise product로 교체함. Scene RGB, depth FiLM, shifted cosine, MatchingBlock, parameter 수와 초기화는 그대로 유지함.
+
+```text
+q(x) = Normalize(scene_patch(x)) × Normalize(target)
+r(x) = sqrt(C) × Normalize(q(x))
+
+MatchingBlock input = [scene patch, FiLM depth, r(x), shifted cosine]
+```
+
+초기 state SHA와 sample-order SHA는 fresh raw 기준과 일치했고, parameter `15,706,689`개와 `5,408` update를 동일하게 유지함.
+
+![Target interaction ablation](img/occlusion_model/target_interaction_ablation.png)
+
+| Seed-0 fixed-update metric | Raw broadcast | No broadcast | Channel relation |
+|---|---:|---:|---:|
+| Final validation loss | `0.30448` | `0.34033` | `0.32434` |
+| Final validation IoU | `0.393` | `0.250` | `0.308` |
+| Seen coverage MAE | `0.05155` | `0.08100` | `0.06443` |
+| Training-heldout coverage MAE | `0.07725` | `0.11494` | `0.08674` |
+| Heldout pooled `S > 0` | `8 / 8` | `0 / 8` | `7 / 8` |
+| Heldout camera `S > 0` | `40 / 40` | `2 / 40` | `37 / 40` |
+| `packaged_food_4` native MAE | `0.09802` | `0.22229` | `0.11708` |
+| `packaged_food_4` native bias | `−0.08694` | `−0.22058` | `−0.10623` |
+
+Workspace 전체 MAE는 relation 모델에서 감소했지만, coverage 내부 MAE와 underprediction은 증가함. Workspace에는 GT가 0인 픽셀이 많아 출력을 전반적으로 낮추는 것만으로도 오차가 줄 수 있으므로 채택 근거로 사용하지 않음.
+
+**판단:** Channel relation은 no-broadcast보다 target 조건을 많이 회복했지만 사전 safety gate와 `packaged_food_4` 개선 gate를 모두 통과하지 못함. Seeds 1–2는 실행하지 않고 raw broadcast baseline을 유지함. 이번 결과는 추가 L2 normalization까지 포함한 relation 표현 전체의 결과이므로, 다음 단계에서는 낮은 유사도의 patch도 동일한 relation energy를 갖게 되는 정규화 효과부터 분리 진단함.
