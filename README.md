@@ -508,7 +508,7 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark in progress · final zero-shot claim pending**
+> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark complete · conditioning refinement in progress · final untouched-target benchmark pending**
 >
 > Phase 14–15의 analytic/size-only/no-broadcast 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
 
@@ -793,7 +793,7 @@ gamma, beta = MLP(area, bbox_h, bbox_w)
 F_depth'    = gamma * F_depth + beta
 ```
 
-Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠져, broadcast가 문제의 원인이라고 단정할 수는 없음. 현재는 parameter 수·초기화·cosine 경로를 그대로 두고 broadcast만 0으로 만드는 controlled retrain으로 인과관계를 확인 중임.
+Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. 이 조건에서 cosine과 size-FiLM만 남기는 대체는 target conditioning을 유지하지 못했으므로 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
 
 DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
 
@@ -864,7 +864,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | 3D workspace and physical-corrected GT | Complete for `book_1/2/3 × 1.3`; original GT preserved |
 | Size-only conditioning | 3-seed development benchmark complete; current working baseline |
 | Five-camera development evaluation | `119/120` positive scale-response cells; one failure remains |
-| Target-broadcast causal ablation | Seed-0 run incomplete; final comparison pending |
+| Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
+| Fresh paired broadcast-on reference | Seed-0 reproduction running with audited init/sample hashes |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -936,7 +937,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Five-camera development diagnostics
 - [x] Three-seed analytic-full vs size-only development benchmark
 - [x] Multi-scale development evaluation
-- [ ] Complete controlled no-target-broadcast seed-0 comparison
+- [x] Controlled no-target-broadcast seed-0 comparison — rejected
+- [ ] Fresh current-code broadcast-on seed-0 reproducibility gate
+- [ ] Evaluate a relation-only target interaction without removing conditioning
 - [ ] Confirm selected conditioning with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1249,4 +1252,17 @@ flowchart LR
 
 **수정:** Parameter shape와 cosine/FiLM 경로를 유지하고 raw target broadcast만 0으로 고정하는 controlled model을 구현함. 현재 코드에서 같은 seed로 생성한 raw-broadcast와 zero-broadcast 모델의 parameter shape와 초기 state가 동일함을 확인했으며 SHA-256은 `d8c3122c…f8c0`임. 과거 accepted baseline checkpoint에는 최초 초기화 SHA가 저장되지 않아 역사적 trajectory의 bit-exact 동일성까지 증명한 것은 아님.
 
-**현재 상태:** 동일한 고정 protocol의 seed-0 controlled 학습을 진행 중이며 최종 비교 결과는 아직 없음. Broad gate를 통과할 때만 seeds 1–2로 확장함.
+**Controlled retrain 결과:** 16 epoch와 5,408 update를 모두 완료한 final checkpoint를 동일 seed의 broadcast-on reference와 비교함.
+
+| Seed-0 fixed-update metric | Broadcast ON | No broadcast | Change |
+|---|---:|---:|---:|
+| Seen coverage MAE | `0.05155` | `0.08100` | `+57.1%` |
+| Training-heldout coverage MAE | `0.07725` | `0.11494` | `+48.8%` |
+| Heldout pooled `S > 0` | `8 / 8` | `0 / 8` | Fail |
+| Heldout camera `S > 0` | `40 / 40` | `2 / 40` | Fail |
+| `packaged_food_4` native MAE | `0.09802` | `0.22229` | `+126.8%` |
+| `packaged_food_4` native bias | `−0.08694` | `−0.22058` | Underprediction 증가 |
+
+CSV 1,680행의 composite key가 모두 고유하고, 두 checkpoint는 seed 0, epoch 15, 5,400 samples/epoch, 5,408 cumulative batches 조건을 만족함. 다만 과거 reference에는 최초 initialization/sample-order SHA가 저장되지 않아 역사적 trajectory의 bit-exact 동일성까지 증명한 것은 아님.
+
+**판단:** No-broadcast 제거안은 broad gate를 통과하지 못해 기각하고 seeds 1–2는 실행하지 않음. 현 architecture에서 scalar cosine과 size-FiLM만 남기는 방식은 target conditioning을 유지하지 못했음. 과거 reference에는 완전한 초기화/sample-order 기록이 없으므로, 현재 코드에서 broadcast-on seed 0을 같은 hash와 update 수로 재학습해 paired reference를 먼저 확정함. 이 gate가 통과한 뒤에만 target 정보를 유지하면서 absolute target code 의존을 줄이는 relation-aware interaction을 평가함.
