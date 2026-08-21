@@ -945,7 +945,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Evaluate a relation-only target interaction without removing conditioning — rejected at seed 0
 - [x] Diagnose relation magnitude normalization before selecting the next causal candidate
 - [x] Evaluate train-median calibrated relation with one controlled seed-0 run — rejected
-- [ ] Diagnose compact physical target descriptors before another full retraining
+- [x] Diagnose compact physical target descriptors before another full retraining — rejected
+- [ ] Test a deployable 3D target-extent signal with a train-only oracle gate
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1383,3 +1384,34 @@ r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
 Magnitude-calibrated relation은 raw baseline 대비 seen coverage MAE `+37.20%`, heldout coverage MAE `+20.35%`로 악화됨. `packaged_food_4`도 5개 camera 모두에서 MAE와 bias가 개선되지 않음. Workspace MAE는 낮아졌지만, target coverage에서 underprediction이 커졌으므로 예측값 전체가 낮아진 효과로 판단함.
 
 **판단:** Train-only 진단은 실험 후보를 거르는 용도였지만, 전체 모델의 성능 개선을 보장하지 않았음. Magnitude-calibrated seeds 1–2는 실행하지 않고 appearance interaction 변형은 종료함. Fresh raw size-only를 현재 기준 모델로 유지하며, 다음 후보는 target mask에서 계산할 수 있는 소수의 물리적 크기·형상 descriptor로 제한함.
+
+---
+
+### 2026-08-22 · Phase 20 — Compact Physical Shape Descriptor Gate
+
+**문제:** Size-only의 `area·bbox_h·bbox_w`는 target의 전체 크기는 나타내지만, 같은 크기에서 모양과 질량 분포가 다른 물체를 구분하지 못함.
+
+**수정:** Target mask에서 길쭉함 `eta`와 moment compactness `kappa` 두 값만 추가하는 후보를 설계함. 초기 구현에서 bbox를 `8 × 8` 정사각형으로 변환하며 물체의 길쭉함이 사라지는 문제를 발견함. 원래 mask 좌표계의 bbox 크기를 복원해 moment를 계산하도록 수정한 후 재검증함.
+
+```text
+eta   = (lambda_max - lambda_min) / (lambda_max + lambda_min)
+kappa = mask_area / (2*pi*(lambda_max + lambda_min))
+```
+
+학습 10 target·36 scene·3 scale·5 camera만 사용하고, target 하나를 donor에서 완전히 제외한 leave-one-target-out 비교를 수행함. Held-out 4 target과 validation scene은 사용하지 않았으며, shape를 같은 category의 다른 target과 바꾸는 64개 대조 조건도 같이 계산함.
+
+![Compact physical shape2 gate](img/occlusion_model/compact_physical_shape2_probe.png)
+
+| Train-only gate | Result | Required |
+|---|---:|---:|
+| Pooled coverage MAE | `0.09114 → 0.07748` (`14.99%` 개선) | `≥ 2%` 개선 |
+| Improved targets | `5 / 10` | `≥ 8 / 10` |
+| Improved categories | `2 / 4` | `4 / 4` |
+| Improved cameras | `5 / 5` | `5 / 5` |
+| Improved target-camera cells | `27 / 50` | `≥ 40 / 50` |
+| Improved target-camera-scale cells | `78 / 150` | `≥ 120 / 150` |
+| Worst scale-cell regression | `+320.67%` | `≤ +5%` |
+
+Fruit은 category MAE `17.20%`, toy는 `43.84%` 개선됐지만 book은 `7.78%`, packaged food는 `13.22%` 악화됨. 전체 평균 개선은 특정 category의 큰 이득이 만든 결과이며, 새 target에 공통으로 적용되는 물리 규칙으로 보기 어려움.
+
+**판단:** `eta·kappa` 후보는 full model 재학습 전 gate에서 기각함. Seed 0–2는 실행하지 않고 fresh raw size-only를 기준 모델로 유지함. 다음에는 2D mask descriptor를 더 늘리지 않고, 3D target extent가 잔여 target effect를 설명할 수 있는지 oracle 진단으로 먼저 확인함.
