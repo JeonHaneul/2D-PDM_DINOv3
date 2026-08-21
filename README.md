@@ -508,7 +508,7 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: 14-target production GT complete · 150 shared scenes × 5 cameras · unseen-instance training next**
+> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark in progress · final zero-shot claim pending**
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
@@ -576,7 +576,7 @@ visibility_ratio >= 0.3
 
 이는 완전한 byte-identical 결과는 아니지만, mesh 기반 Legacy GT가 기존 Isaac Sim GT를 사실상 동일하게 재현함을 보여줌. Corrected probability GT는 valid footprint를 분모로 사용하며 Legacy visibility 후처리를 적용하지 않음.
 
-Mesh와 target 입력은 같은 scale로 구성해야 함. Multi-scale 학습은 `0.7`, `1.0`, `1.3`을 초기 후보로 두고 있으며, target RGB와 mask도 mesh scale에 맞춰 구성할 예정.
+Multi-scale GT는 mesh를 실제 크기에 맞게 scale함. 현재 analytic-conditioning 실험은 target appearance를 고정하고, 실제 target mask에서 얻은 `area`, `bbox_h`, `bbox_w`만 `area × s²`, `h × s`, `w × s`로 변환하여 size effect를 분리 평가함. 실제 추론에서는 관측된 target mask에서 같은 크기 정보를 계산함.
 
 #### Mesh-Depth Validation
 
@@ -613,16 +613,15 @@ CPU reference 이후 nvdiffrast 기반 GPU rasterizer로 동일한 검증을 확
 | `packaged_food_2` | `16,384` | `5.22 s` |
 | `toy_3` | `2,029,960` | `577.72 s` |
 
-`toy_3`은 2,029,960 triangles에서 10k mesh로 단순화함. GPU 원본–단순화 직접 비교 결과 45개 조건에서 median IoU `0.9970`, worst IoU `0.9938`, median depth MAE `0.3781 mm`를 기록함. 새 USD/OBJ asset은 triangle 수를 확인하고, 기준을 초과하면 동일한 검증을 거쳐 가장 작은 유효 mesh를 선택하도록 구성할 예정.
+`toy_3`은 2,029,960 triangles에서 10k mesh로 단순화함. GPU 원본–단순화 직접 비교 결과 45개 조건에서 median IoU `0.9970`, worst IoU `0.9938`, median depth MAE `0.3781 mm`를 기록함. 현재 generator는 50k faces를 초과한 asset을 10k faces로 단순화하고 cache함. 새 asset의 원본–단순화 full-resolution 검증과 최종 mesh 승인은 별도 단계로 남겨둠.
 
 ```text
 New USD/OBJ
     → world-scale mesh extraction
     → complexity check
-    → simplification candidates
-    → full-resolution geometry validation
-    → smallest valid mesh selection
-    → cache for GT generation
+    → 10k simplification and cache when required
+    → original/simplified validation
+    → approved mesh for GT generation
 ```
 
 단순화 검증에는 silhouette와 depth뿐 아니라 실제 GT 판정의 안정성을 포함함.
@@ -634,7 +633,7 @@ New USD/OBJ
 | Area error | `≤ 2%` |
 | 70% occlusion decision agreement | `≥ 99%` |
 
-새 GT 생성기에서는 단순화를 asset별 한 번만 수행하고 결과를 캐시할 예정. 실제 zero-shot 배포에서는 mesh가 필요하지 않음. nvdiffrast 기반 GPU rasterizer는 구현·검증됐으며, 다음 단계에서는 pose/camera batch와 probability accumulator를 결합함.
+단순화는 asset별 한 번만 수행하고 cache함. nvdiffrast 기반 V2 generator는 pose·camera·scene을 GPU에서 vectorize하고 확률 accumulator에 바로 누적함. V1/V2는 1,024 pose 회귀검사에서 출력을 교차검증함. 실제 zero-shot 배포에서는 mesh가 필요하지 않음.
 
 #### Corrected Occlusion Decision Pilot
 
@@ -661,7 +660,7 @@ Clutter capture는 물리 낙하가 끝난 뒤 `world.render()`만 사용하여 
 - Existing scene 자동 이어쓰기와 atomic JSON 저장
 - Drawer 내부 actual mesh-vertex QC
 
-현재 1,000-pose stratified validation 스크립트는 준비됐으며 결과 검증 전 단계임. 완료 전까지 10k mesh를 전체 pose grid의 최종 mesh로 확정하지 않음.
+10k mesh의 full-grid 최종 승인은 V1/V2 동등성 검사와 별개로 관리함. 새 고복잡도 asset은 원본–단순화 geometry와 `70%` 판정 안정성을 확인한 뒤 production GT에 사용함.
 
 ### Occlusion GT Generation Protocol
 
@@ -679,8 +678,8 @@ Clutter capture는 물리 낙하가 끝난 뒤 `world.render()`만 사용하여 
 
 ```text
 1. USD/OBJ를 meter 단위 world mesh로 변환
-2. 복잡한 mesh는 자동 단순화 후 full-resolution 검증
-3. Mesh scale과 target reference scale을 동일하게 설정
+2. 50k faces 초과 mesh는 10k로 단순화·cache하고 별도 full-resolution 승인
+3. Mesh scale과 학습에 제공할 size condition의 scale label을 일치
 4. Candidate pose와 camera를 batch로 target depth 렌더링
 5. Empty-drawer depth로 drawer structure에 가려지는 pixel 제외
 6. Cluttered scene depth가 target depth보다 가까운 pixel 계산
@@ -732,21 +731,35 @@ Train/held-out target은 결과 확인 전에 고정함.
 
 Generator는 실행 manifest에 없는 `scene*` 디렉터리가 남아 있으면 자동 삭제하거나 무시하지 않고 중단함. Pilot과 production run의 scene 집합이 섞이는 문제를 방지하기 위한 invariant임.
 
+### Multi-Scale Controlled Study
+
+후속 size-effect 실험은 clean scene 52개를 train 36 / validation 16으로 고정함. Train target은 scale `0.7`, `1.0`, `1.3`, training-heldout target은 개발용 scale `0.85`, `1.0`, `1.15`로 평가함. 두 모델의 학습량은 16 epoch, epoch당 5,400 sample, 총 5,408 optimizer update로 동일하게 맞춤.
+
+| Split | Targets | Scales | Maps |
+|---|---:|---|---:|
+| Train | `10` | `0.7 / 1.0 / 1.3` | `7,800` |
+| Training-heldout, development-seen | `4` | `0.85 / 1.0 / 1.15` | `960` |
+
+`book_1/2/3 × 1.3`은 서랍 밖이나 벽을 관통하는 candidate pose를 1 mm containment filter로 제외한 `physical_corrected` GT를 사용함. 나머지 조합은 corrected GT를 사용함. Camera별 workspace mask v4는 현재 고정된 5-camera rig에서 서랍 외부 예측을 제거하는 데 사용하며, 임의 camera 일반화를 의미하지 않음.
+
+![Physical-corrected GT comparison](img/occlusion_gt/physical_corrected_comparison.png)
+
+위 예시는 기존 corrected GT의 공간 패턴을 유지하면서, 실제로 서랍 안에 들어갈 수 없는 pose를 제외했을 때 확률이 어떻게 보정되는지 보여줌.
+
 ### New Asset Protocol
 
-새 학습 asset의 USD/OBJ가 추가되면 다음 과정을 자동 실행함.
+새 학습 asset의 USD/OBJ가 추가되면 다음 과정을 수행함.
 
 ```text
 Asset discovery
     → unit and transform validation
     → triangle-count check
-    → simplification only when required
-    → original/simplified full-resolution comparison
-    → smallest valid mesh cache
+    → 50k faces 초과 시 10k simplification + cache
+    → original/simplified full-resolution approval
     → multi-scale GT generation
 ```
 
-단순화 결과가 기준을 만족하지 못한 asset만 수동 검토 대상으로 분리함. Zero-shot test 및 실제 배포 target은 RGB reference만 사용하므로 이 과정이 필요하지 않음.
+단순화와 cache는 자동이지만, 새 asset의 원본–단순화 검증과 최종 승인은 아직 별도 절차임. Zero-shot test 및 실제 배포 target은 RGB reference와 mask를 사용하므로 GT용 mesh 전처리는 필요하지 않음.
 
 ### Zero-Shot Occlusion Model
 
@@ -756,38 +769,47 @@ flowchart LR
     SDEPTH["Scene Depth + Valid Mask"] --> DENC["Depth Encoder<br/>ResNet-18"] --> FDEPTH["Depth Features"]
 
     TRGB["Target RGB"] --> DINO_T["DINOv3<br/>Frozen"] --> TAPP["Appearance"]
-    TMASK["Target Mask"] --> SHAPE["Silhouette Encoder"] --> TGEO["Size + Shape Condition"]
-    TMASK --> SIZE["BBox / Area / Aspect Ratio"] --> TGEO
+    TMASK["Target Mask"] --> SIZE["Deterministic size<br/>area, bbox h, bbox w"] --> TGEO["Size Condition"]
 
     TGEO --> FILM["Depth-only FiLM"]
     FDEPTH --> FILM
-    FRGB --> MATCH["MatchingBlocks × 4"]
+    FRGB --> COS["Patch-wise cosine"]
+    TAPP --> COS
+    TAPP --> BCAST["Raw spatial broadcast<br/>baseline; ablation zeros it"]
+    BCAST --> MATCH["MatchingBlocks × 4"]
+    FRGB --> MATCH
     FILM --> MATCH
-    TAPP --> MATCH
-    TGEO --> MATCH
+    COS --> MATCH
     MATCH --> HEAD["Fusion + Occlusion Head"] --> PO["Occlusion Map P_O"]
+    PO --> WMASK["5-camera workspace mask"] --> PFINAL["Final P_O"]
 ```
 
-FiLM은 size·silhouette condition으로 depth feature만 조절함.
+현재 working baseline은 실제 target mask에서 얻은 세 크기값만 사용함. 68-D 입력 shape는 유지하지만 나머지 65개 값은 0으로 고정하여 모델 크기와 초기화를 통제함. FiLM은 이 size condition으로 depth feature만 조절함.
 
 ```text
-gamma, beta = MLP(E_size, E_shape)
+gamma, beta = MLP(area, bbox_h, bbox_w)
 F_depth'    = gamma * F_depth + beta
 ```
 
-Target appearance는 depth를 조절하지 않고 MatchingBlock에서 scene RGB-D feature와 결합. DINOv3는 frozen으로 유지하며 depth encoder, silhouette/size encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함.
+Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠져, broadcast가 문제의 원인이라고 단정할 수는 없음. 현재는 parameter 수·초기화·cosine 경로를 그대로 두고 broadcast만 0으로 만드는 controlled retrain으로 인과관계를 확인 중임.
+
+DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
+
+![Occlusion conditioning benchmark](img/occlusion_model/conditioning_progress.png)
+
+`size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled scale-response `S`를 `0.1477 → 0.2224`로 개선함. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
 
 ### Deployment Inputs
 
-매 추론 시 입력은 scene RGB, scene depth, target RGB 세 가지. Target mask는 고정된 target 촬영 환경의 empty-background reference를 이용해 내부 전처리에서 자동 생성함.
+현재 prototype 추론 입력은 scene RGB, scene depth, target RGB와 target mask 또는 segmentation임. Empty-background reference를 이용한 자동 target mask 생성은 아직 구현되지 않은 deployment 전처리 과제임.
 
 | 구분 | 필요 정보 |
 |---|---|
-| 매 추론 입력 | Scene RGB, scene depth, target RGB |
-| 고정 시스템 자산 | Empty-background RGB, camera calibration |
+| 매 추론 입력 | Scene RGB, scene depth, target RGB, target mask/segmentation |
+| 고정 시스템 자산 | Camera calibration, camera별 workspace mask |
 | GT 생성에만 사용 | Target USD/OBJ, mesh scale, occlusion GT |
 
-Zero-shot 성능은 frozen encoder만으로 가정하지 않고, 학습에 포함되지 않은 target instance와 scale을 분리하여 평가함.
+Zero-shot 성능은 frozen encoder만으로 가정하지 않음. 최종 평가는 개발 중 사용하지 않은 새 target instance와 scale을 별도로 고정하여 수행해야 함. Camera pose가 바뀌면 workspace mask도 calibration에서 다시 생성해야 하므로 camera-free 일반화는 후속 과제임.
 
 ---
 
@@ -827,18 +849,23 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Occlusion mesh extraction and camera projection | Validated |
 | Full-resolution mesh-depth pilot | CPU `180` + GPU/simplified `225` cases evaluated |
 | nvdiffrast GPU depth rasterizer | Validated |
-| `toy_3` 10k mesh simplification | Pilot validated; 1,000-pose validation pending |
+| `toy_3` 10k mesh simplification | Geometry/decision pilot validated; new-asset approval remains separate |
 | Corrected 70% occlusion decision | Validated on standard and drawer-edge poses |
 | Legacy visible-target reference recovery | `15,000` cases, `100%` decision agreement |
 | Mesh-based Legacy GT reproduction | `100` cases, worst correlation `0.9999919` |
 | Reproducible clutter capture | Implemented and validated |
-| Stratified 1,000-pose validation | Script ready; result pending |
-| Probability-map GT accumulator | Implemented and validated in full-grid pilot |
+| V1/V2 vectorized GT regression | `1,024` effective poses, output equivalence checked |
+| Probability-map GT accumulator | Pose/camera/scene-vectorized V2 implemented and validated |
 | 14-target production Occlusion GT | Complete: `150 scenes × 5 cameras` per target |
 | Occlusion model ablation | Complete: target-agnostic / appearance-only / geometry-only / full, 3 seeds |
-| Unseen-instance / seen-category training | Next |
-| Unseen-scale evaluation | Planned after scale `1.0` held-out test |
-| Occlusion stream training | In progress |
+| Clean52 multi-scale GT | Complete: train 10 / development-heldout 4 targets, 5 cameras |
+| 3D workspace and physical-corrected GT | Complete for `book_1/2/3 × 1.3`; original GT preserved |
+| Size-only conditioning | 3-seed development benchmark complete; current working baseline |
+| Five-camera development evaluation | `119/120` positive scale-response cells; one failure remains |
+| Target-broadcast causal ablation | Seed-0 run incomplete; final comparison pending |
+| Final zero-shot benchmark | Pending with untouched target instances/scales |
+| Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
+| Occlusion stream training | Refinement in progress |
 | Complexity stream training | Planned |
 | Three-stream fusion | Planned |
 | Exploration policy integration | Planned |
@@ -862,7 +889,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `train_occlusion.py` | Occlusion ablation, scene split, checkpoint and camera/target evaluation |
 | `generate_occlusion_gt_batched_v2.py` | Pose/scene-vectorized production probability GT generator |
 | `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
-| `mesh_cache.py` | Asset complexity check and validated simplified-mesh cache |
+| `mesh_cache.py` | Asset complexity check and automatic 10k simplified-mesh cache |
 | `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
 | `depth_rasterizer_gpu.py` | nvdiffrast-based full-resolution GPU depth renderer |
 | `experiments/occlusion_gt_pilot/target_catalog_manifest.py` | Pre-registered train/held-out target catalog |
@@ -871,7 +898,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py` | GPU rasterizer and simplified-mesh validation |
 | `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py` | Legacy/corrected ratio and 70% decision comparison |
 | `experiments/occlusion_gt_pilot/check_clutter_roi_vertices.py` | Drawer-interior mesh-vertex QC |
-| `experiments/occlusion_gt_pilot/stratified_1000_pose_validation.py` | Deterministic stratified original–simplified validation |
+| `tests/occlusion_gt/test_v1_v2_equivalence.py` | V1/V2 vectorized GT regression on 1,024 effective poses |
 | `scene_generator/occlusion_gt_pilot_capture.py` | Isaac Sim reference capture for occlusion GT validation |
 | `scene_generator/vectorized_scene_v2.py` | Physics-based clutter generation and reproducible RGB-D capture |
 | `scene_generator/object_spawner.py` | USD asset discovery and object placement used by the scene generator |
@@ -896,8 +923,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Camera-specific integer visibility reference recovery
 - [x] `packaged_food_2` multi-scene Legacy GT reproduction
 - [x] Reproducible render-only clutter capture and metadata
-- [ ] Stratified 1,000-pose original–simplified validation
-- [ ] Automatic simplification cache for arbitrary new assets
+- [x] V1/V2 vectorized GT regression on 1,024 effective poses
+- [x] Automatic 10k simplification cache for high-complexity assets
+- [ ] Original–simplified approval protocol for each new asset
 - [x] Pose/camera batched probability accumulator pilot
 - [x] Full-grid Legacy and probability GT pilot (`44,100` poses × 5 cameras)
 - [x] Multi-target and multi-scene production GT generation
@@ -905,10 +933,16 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Five-camera single-pose mesh/depth Gate-1 validation
 - [x] Scale `1.0` Occlusion Dataset and 4-model ablation baseline
 - [x] Train 10 / held-out 4 target catalog fixed before evaluation
-- [ ] Unseen-instance / seen-category 1-seed smoke test
-- [ ] Camera-wise held-out benchmark and wrong-target evaluation
-- [ ] Three-seed unseen-instance benchmark
-- [ ] Unseen-scale GT and evaluation
+- [x] Clean52 multi-scale development GT (`36` train / `16` validation scenes)
+- [x] Workspace-mask v4 and physical-corrected `book_1/2/3 × 1.3` GT
+- [x] Training-heldout instance seed-0 smoke test and wrong-target diagnostics
+- [x] Five-camera development diagnostics
+- [x] Three-seed analytic-full vs size-only development benchmark
+- [x] Multi-scale development evaluation
+- [ ] Complete controlled no-target-broadcast seed-0 comparison
+- [ ] Confirm selected conditioning with seeds 1–2
+- [ ] Final evaluation on untouched target instances and scales
+- [ ] Camera-pose augmentation and calibration-derived workspace masks
 - [ ] Complexity stream
 - [ ] Learned three-stream fusion
 - [ ] DRL-based exploration policy
@@ -1028,7 +1062,7 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 **모델 설계:** Scene RGB는 frozen DINOv3, scene depth와 valid mask는 ResNet-18로 처리. Target mask에서 추출한 size·silhouette condition으로 depth feature에만 FiLM을 적용하고, target appearance는 MatchingBlock에서 별도로 결합함. 검증되지 않은 cosine shortcut은 baseline에서 제외함.
 
-**배포 조건:** 매 추론 입력은 scene RGB, scene depth, target RGB. Target mask는 고정 촬영 환경의 empty-background reference로 자동 생성하며, USD/OBJ와 scale 정보는 GT 생성에만 사용함.
+**배포 조건:** 현재 prototype은 scene RGB, scene depth, target RGB와 target mask/segmentation을 입력으로 사용함. 고정 촬영 환경의 empty-background reference로 mask를 자동 생성하는 전처리는 후속 구현 항목이며, USD/OBJ와 scale 정보는 GT 생성에만 사용함.
 
 **Zero-shot 검증:** Frozen encoder 사용만으로 zero-shot을 가정하지 않고, 학습에서 제외한 target instance와 unseen intermediate scale을 별도 test split으로 평가함.
 
@@ -1050,7 +1084,7 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 **성능 병목:** 검증용 rasterizer가 triangle별 Python loop를 사용하여 `toy_3`의 2,029,960 triangles에서 평균 `577.72 s/image` 소요. 새 asset에도 적용 가능한 자동 mesh 단순화, full-resolution 정확도 검사, hardware GPU rasterization, pose/camera batch 누적 구조가 필요함.
 
-**결정:** 해상도는 기존과 동일한 `640 × 480`으로 유지. 기존 `distribution_map_GPU.py`는 legacy reference로 수정하지 않으며, corrected ratio와 probability normalization은 새 GT generator에 구현함. 실제 배포에서는 mesh 단순화를 수행하지 않고 scene RGB, scene depth, target RGB만 입력함.
+**결정:** 해상도는 기존과 동일한 `640 × 480`으로 유지. 기존 `distribution_map_GPU.py`는 legacy reference로 수정하지 않으며, corrected ratio와 probability normalization은 새 GT generator에 구현함. 실제 배포에서는 mesh 단순화를 수행하지 않고 scene RGB, scene depth, target RGB와 target mask/segmentation을 입력함.
 
 **다음 단계:** Empty-drawer valid-pixel 처리를 검증에 반영하고, `toy_3`의 단순화 후보를 원본 mesh와 비교하여 자동 선택 기준을 확정한 뒤 batched GPU GT generator를 구현함.
 
@@ -1068,7 +1102,7 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 **Clutter capture:** 물리 안정화 이후 카메라 촬영을 `world.step()`에서 render-only `world.render()`로 변경함. 캡처 전후 위치·회전 불변성을 직접 확인하고, run/scene/object pose, camera metadata, seed와 완료 상태를 저장하도록 구성함. 실제 transformed mesh vertex 기준 drawer 내부 QC도 추가함.
 
-**현재 단계:** Stratified 1,000-pose 검증 코드는 준비됐으나 결과는 아직 확정되지 않음. 검증 통과 후 10k mesh를 확정하고 축소 grid probability map과 전체 GT accumulator를 구현함.
+**후속 결과:** nvdiffrast V2 generator에 pose·camera·scene vectorization과 probability accumulator를 결합했고, V1/V2를 1,024 effective poses에서 교차검증함. 새 asset의 원본–단순화 최종 승인은 별도 절차로 유지함.
 
 ---
 
@@ -1135,4 +1169,86 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 - 15-scene pilot 잔여 파일이 150-scene production 폴더에 섞이는 문제를 발견하고 비파괴적으로 분리함.
 - 이후 generator는 manifest 밖의 scene 디렉터리를 감지하면 즉시 중단하도록 변경함.
 
-**현재 단계:** GT 생성과 검증을 종료하고, category-balanced sampling과 camera별 평가를 포함한 unseen-instance/seen-category 1-seed smoke test를 준비 중임. 고정된 5개 camera 전체에서 conditioned model이 target-agnostic baseline을 앞서는지, correct target이 wrong target보다 높은지 확인한 뒤 3-seed와 unseen-scale 단계로 확장함.
+**당시 다음 단계:** Category-balanced sampling과 camera별 평가를 포함한 held-out 1-seed smoke test로 이동함. 이후 결과는 아래 Phase 11–15에 기록함.
+
+---
+
+### 2026-08-13 · Phase 11 — Multi-Scale GT and Controlled Protocol
+
+**문제:** 초기 비교는 target 수, scene pool, optimizer update 수가 달라 어떤 변경이 성능 차이를 만들었는지 분리하기 어려웠음.
+
+**수정:** Clean scene 52개를 train 36 / validation 16으로 고정하고 category-balanced sampling을 적용함. 모든 모델을 16 epoch, epoch당 5,400 sample, 총 5,408 update로 통일함.
+
+**결과:** Train 10 target은 scale `0.7/1.0/1.3`, training-heldout 4 target은 scale `0.85/1.0/1.15`로 구성하여 총 8,760개의 5-camera GT map을 생성함.
+
+**판단:** 이후 size-effect 실험의 공통 비교 조건을 확립함. Held-out 4개 target은 이후 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development set으로 취급함.
+
+---
+
+### 2026-08-14–18 · Phase 12 — 3D Workspace and Physical-Corrected GT
+
+**문제:** 큰 book target의 일부 candidate pose가 서랍 밖에 있거나 벽을 관통하여, 실제로는 놓을 수 없는 위치가 GT 분모에 포함됨.
+
+**수정:** Camera ray와 drawer AABB를 이용한 3D workspace mask, 1 mm containment filter를 추가함. 기존 legacy/corrected GT는 보존하고 `physical_corrected`를 별도 생성함.
+
+| Target | Valid poses | MAE vs corrected | Correlation | Mean probability change |
+|---|---:|---:|---:|---:|
+| `book_1 × 1.3` | `28,764 / 44,100` | `0.01438` | `0.9490` | `+6.8%` |
+| `book_2 × 1.3` | `38,124 / 44,100` | `0.00846` | `0.9805` | `+4.0%` |
+| `book_3 × 1.3` | `38,124 / 44,100` | `0.00856` | `0.9811` | `+4.0%` |
+
+전체 `3 targets × 52 scenes × 5 cameras = 780` map에서 파일 존재, finite 범위, `N_occ ≤ N_all`, workspace containment를 확인함.
+
+**판단:** 공간 패턴은 대체로 유지하면서 invalid pose로 낮아졌던 확률을 보정함. 두 GT 정책은 실험 중 혼용하지 않음.
+
+---
+
+### 2026-08-19–20 · Phase 13 — Workspace Leakage and Ring-Loss Check
+
+**문제:** 예측 확률 질량의 `57–78%`가 서랍 외부에 남는 leakage를 확인함. 이는 target size 학습 문제와 별개로 고정 camera에서 drawer support를 구분하지 못한 결과임.
+
+**수정:** 현재 5-camera calibration에서 만든 workspace mask v4를 출력에 적용함. Coverage 밖 safe-ring을 억제하는 loss도 `λ = 0.01/0.02/0.05`로 비교하고 sampler와 loader RNG를 분리함.
+
+**결과:** Hard mask 적용 후 full-image MAE가 `75–85%` 감소했으나 이는 현재 rig의 기하 후처리 효과임. Ring loss는 held-out scale-response를 일관되게 보존하지 못했고, `λ=0.05`는 `toy_4`의 5개 camera를 모두 악화시킴.
+
+**판단:** `ring_weight=0 + hard workspace mask`를 유지함. Camera 위치가 바뀌면 calibration으로 mask를 다시 생성해야 하며, camera-free 일반화로 해석하지 않음.
+
+---
+
+### 2026-08-20–21 · Phase 14 — Analytic Geometry and Size-Only Conditioning
+
+**문제:** Native scale은 실제 target mask, non-native scale은 mesh render에서 geometry를 추출하여 scale 변화와 입력 source 변화가 섞였음. 68-D silhouette descriptor는 target별 세부 형상을 외우는 경로가 될 가능성도 있었음.
+
+**수정:** 실제 target mask의 `area`, `bbox_h`, `bbox_w`를 scale에 따라 수학적으로 변환함. 이어 모델 shape와 초기화는 유지하고 이 세 값만 활성화한 `size_only_padded`를 3 seed로 비교함.
+
+| 3-seed development metric | Analytic full 68-D | Size-only 3-D |
+|---|---:|---:|
+| Training-heldout MAE | `0.11082` | `0.08535` |
+| Pooled scale-response `S` | `0.1477` | `0.2224` |
+| Positive camera cells | `89 / 120` | `119 / 120` |
+
+Log+z-score geometry는 seed 0에서 pooled `S 0.2407 → 0.2069`, positive camera `40/40 → 36/40`로 악화되어 보류함.
+
+**판단:** Raw size-only를 현재 working baseline으로 채택함. 다만 seed 1에서는 pooled `S`가 소폭 하락했고 `packaged_food_4` underprediction이 남아 있어 최종 구조나 zero-shot 증거로 확정하지 않음.
+
+---
+
+### 2026-08-21 · Phase 15 — Target-Conditioning Path Diagnosis
+
+**문제:** `packaged_food_4` 오차가 DINOv3, ResNet-18, FiLM, target appearance 중 어느 경로에서 발생하는지 분리되지 않았음.
+
+**진단:** Frozen size-only 모델에서 same-category donor를 넣어 경로를 나눠 확인함. Output sensitivity는 cosine-only에서 약 `10⁻⁶`, raw target broadcast에서 `0.014–0.081`로 나타남. Broadcast 변화는 주로 vector norm보다 direction을 통해 전달됨. 하지만 donor에 따라 MAE가 `+0.0114` 또는 `−0.0412`로 반대 방향을 보여, frozen swap만으로 broadcast 제거가 개선된다고 결론 내릴 수 없음.
+
+```mermaid
+flowchart LR
+    T["Target DINO feature"] --> C["Patch cosine<br/>kept"]
+    T --> B["Raw spatial broadcast<br/>zero only in ablation"]
+    G["Size condition"] --> F["Depth FiLM<br/>kept"]
+    C --> M["MatchingBlocks"]
+    B --> M
+    F --> M
+```
+
+**수정:** Parameter shape와 cosine/FiLM 경로를 유지하고 raw target broadcast만 0으로 고정하는 controlled model을 구현함. Baseline과 초기 state가 동일함을 확인했으며 SHA-256은 `d8c3122c…f8c0`임.
+
+**현재 상태:** 동일한 고정 protocol의 seed-0 controlled 학습을 진행 중이며 최종 비교 결과는 아직 없음. Broad gate를 통과할 때만 seeds 1–2로 확장함.
