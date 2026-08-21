@@ -509,6 +509,8 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 ## Occlusion Stream
 
 > **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark in progress · final zero-shot claim pending**
+>
+> Phase 14–15의 analytic/size-only/no-broadcast 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
@@ -761,7 +763,7 @@ Asset discovery
 
 단순화와 cache는 자동이지만, 새 asset의 원본–단순화 검증과 최종 승인은 아직 별도 절차임. Zero-shot test 및 실제 배포 target은 RGB reference와 mask를 사용하므로 GT용 mesh 전처리는 필요하지 않음.
 
-### Zero-Shot Occlusion Model
+### Target-Conditioned Occlusion Model — Zero-Shot Goal
 
 ```mermaid
 flowchart LR
@@ -784,7 +786,7 @@ flowchart LR
     PO --> WMASK["5-camera workspace mask"] --> PFINAL["Final P_O"]
 ```
 
-현재 working baseline은 실제 target mask에서 얻은 세 크기값만 사용함. 68-D 입력 shape는 유지하지만 나머지 65개 값은 0으로 고정하여 모델 크기와 초기화를 통제함. FiLM은 이 size condition으로 depth feature만 조절함.
+현재 로컬 working baseline은 실제 target mask에서 얻은 세 크기값만 사용함. 68-D 입력 shape는 유지하지만 나머지 65개 값은 0으로 고정하여 모델 크기와 초기화를 통제함. FiLM은 이 size condition으로 depth feature만 조절함.
 
 ```text
 gamma, beta = MLP(area, bbox_h, bbox_w)
@@ -797,7 +799,7 @@ DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlock
 
 ![Occlusion conditioning benchmark](img/occlusion_model/conditioning_progress.png)
 
-`size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled scale-response `S`를 `0.1477 → 0.2224`로 개선함. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
+`size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled scale-response `S`를 `0.1477 → 0.2224`로 개선함. 여기서 positive camera cell은 `target × scale transition × camera × seed` 조합을 뜻함. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
 
 ### Deployment Inputs
 
@@ -894,11 +896,6 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `depth_rasterizer_gpu.py` | nvdiffrast-based full-resolution GPU depth renderer |
 | `experiments/occlusion_gt_pilot/target_catalog_manifest.py` | Pre-registered train/held-out target catalog |
 | `experiments/occlusion_gt_pilot/verify_new_target_mesh_accuracy.py` | Single-pose five-camera mesh/depth Gate-1 verification |
-| `experiments/occlusion_gt_pilot/validate_rasterizer.py` | Multi-asset, pose and camera mesh-depth validation |
-| `experiments/occlusion_gt_pilot/validate_rasterizer_gpu.py` | GPU rasterizer and simplified-mesh validation |
-| `experiments/occlusion_gt_pilot/occlusion_ratio_pilot.py` | Legacy/corrected ratio and 70% decision comparison |
-| `experiments/occlusion_gt_pilot/check_clutter_roi_vertices.py` | Drawer-interior mesh-vertex QC |
-| `tests/occlusion_gt/test_v1_v2_equivalence.py` | V1/V2 vectorized GT regression on 1,024 effective poses |
 | `scene_generator/occlusion_gt_pilot_capture.py` | Isaac Sim reference capture for occlusion GT validation |
 | `scene_generator/vectorized_scene_v2.py` | Physics-based clutter generation and reproducible RGB-D capture |
 | `scene_generator/object_spawner.py` | USD asset discovery and object placement used by the scene generator |
@@ -1191,7 +1188,7 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 
 **수정:** Camera ray와 drawer AABB를 이용한 3D workspace mask, 1 mm containment filter를 추가함. 기존 legacy/corrected GT는 보존하고 `physical_corrected`를 별도 생성함.
 
-| Target | Valid poses | MAE vs corrected | Correlation | Mean probability change |
+| Target | Valid poses | MAE vs corrected | Correlation | Relative mean-probability change |
 |---|---:|---:|---:|---:|
 | `book_1 × 1.3` | `28,764 / 44,100` | `0.01438` | `0.9490` | `+6.8%` |
 | `book_2 × 1.3` | `38,124 / 44,100` | `0.00846` | `0.9805` | `+4.0%` |
@@ -1199,7 +1196,7 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 
 전체 `3 targets × 52 scenes × 5 cameras = 780` map에서 파일 존재, finite 범위, `N_occ ≤ N_all`, workspace containment를 확인함.
 
-**판단:** 공간 패턴은 대체로 유지하면서 invalid pose로 낮아졌던 확률을 보정함. 두 GT 정책은 실험 중 혼용하지 않음.
+**판단:** 공간 패턴은 대체로 유지하면서 invalid pose로 낮아졌던 확률을 보정함. 각 target-scale 조합에는 하나의 GT만 사용하며, `book_1/2/3 × 1.3`은 physical-corrected, 나머지는 corrected로 routing함.
 
 ---
 
@@ -1221,7 +1218,7 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 
 **수정:** 실제 target mask의 `area`, `bbox_h`, `bbox_w`를 scale에 따라 수학적으로 변환함. 이어 모델 shape와 초기화는 유지하고 이 세 값만 활성화한 `size_only_padded`를 3 seed로 비교함.
 
-| 3-seed development metric | Analytic full 68-D | Size-only 3-D |
+| 3-seed development metric | Analytic full 68-D | Size-only: 3 active values in 68-D |
 |---|---:|---:|
 | Training-heldout MAE | `0.11082` | `0.08535` |
 | Pooled scale-response `S` | `0.1477` | `0.2224` |
@@ -1237,10 +1234,11 @@ Log+z-score geometry는 seed 0에서 pooled `S 0.2407 → 0.2069`, positive came
 
 **문제:** `packaged_food_4` 오차가 DINOv3, ResNet-18, FiLM, target appearance 중 어느 경로에서 발생하는지 분리되지 않았음.
 
-**진단:** Frozen size-only 모델에서 same-category donor를 넣어 경로를 나눠 확인함. Output sensitivity는 cosine-only에서 약 `10⁻⁶`, raw target broadcast에서 `0.014–0.081`로 나타남. Broadcast 변화는 주로 vector norm보다 direction을 통해 전달됨. 하지만 donor에 따라 MAE가 `+0.0114` 또는 `−0.0412`로 반대 방향을 보여, frozen swap만으로 broadcast 제거가 개선된다고 결론 내릴 수 없음.
+**진단:** Frozen size-only 모델에서 same-category donor를 넣어 경로를 나눠 확인함. 예측 확률의 평균 절대 변화인 output sensitivity는 cosine-only에서 약 `10⁻⁶`, raw target broadcast에서 `0.014–0.081`로 나타남. Broadcast 변화는 주로 vector norm보다 direction을 통해 전달됨. 하지만 donor에 따라 MAE가 `+0.0114` 또는 `−0.0412`로 반대 방향을 보여, frozen swap만으로 broadcast 제거가 개선된다고 결론 내릴 수 없음.
 
 ```mermaid
 flowchart LR
+    S["Scene DINO patches"] --> C
     T["Target DINO feature"] --> C["Patch cosine<br/>kept"]
     T --> B["Raw spatial broadcast<br/>zero only in ablation"]
     G["Size condition"] --> F["Depth FiLM<br/>kept"]
@@ -1249,6 +1247,6 @@ flowchart LR
     F --> M
 ```
 
-**수정:** Parameter shape와 cosine/FiLM 경로를 유지하고 raw target broadcast만 0으로 고정하는 controlled model을 구현함. Baseline과 초기 state가 동일함을 확인했으며 SHA-256은 `d8c3122c…f8c0`임.
+**수정:** Parameter shape와 cosine/FiLM 경로를 유지하고 raw target broadcast만 0으로 고정하는 controlled model을 구현함. 현재 코드에서 같은 seed로 생성한 raw-broadcast와 zero-broadcast 모델의 parameter shape와 초기 state가 동일함을 확인했으며 SHA-256은 `d8c3122c…f8c0`임. 과거 accepted baseline checkpoint에는 최초 초기화 SHA가 저장되지 않아 역사적 trajectory의 bit-exact 동일성까지 증명한 것은 아님.
 
 **현재 상태:** 동일한 고정 protocol의 seed-0 controlled 학습을 진행 중이며 최종 비교 결과는 아직 없음. Broad gate를 통과할 때만 seeds 1–2로 확장함.
