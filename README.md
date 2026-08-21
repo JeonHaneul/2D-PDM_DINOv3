@@ -508,9 +508,9 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark complete · conditioning refinement in progress · final untouched-target benchmark pending**
+> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark complete · paired reproducibility gate passed · relation-aware conditioning next · final untouched-target benchmark pending**
 >
-> Phase 14–15의 analytic/size-only/no-broadcast 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
+> Phase 14–16의 analytic/size-only/no-broadcast 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
 
 Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
 
@@ -793,7 +793,7 @@ gamma, beta = MLP(area, bbox_h, bbox_w)
 F_depth'    = gamma * F_depth + beta
 ```
 
-Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. 이 조건에서 cosine과 size-FiLM만 남기는 대체는 target conditioning을 유지하지 못했으므로 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
+Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. Fresh current-code broadcast-on 재학습이 과거 baseline의 전체 학습 trajectory와 최종 가중치를 정확히 재현하여, 이 저하는 code/data drift가 아니라 broadcast 제거에 따른 결과임을 확인함. 이 조건에서 cosine과 size-FiLM만 남기는 대체는 target conditioning을 유지하지 못했으므로 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
 
 DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
 
@@ -865,7 +865,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Size-only conditioning | 3-seed development benchmark complete; current working baseline |
 | Five-camera development evaluation | `119/120` positive scale-response cells; one failure remains |
 | Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
-| Fresh paired broadcast-on reference | Seed-0 reproduction running with audited init/sample hashes |
+| Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -938,7 +938,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Three-seed analytic-full vs size-only development benchmark
 - [x] Multi-scale development evaluation
 - [x] Controlled no-target-broadcast seed-0 comparison — rejected
-- [ ] Fresh current-code broadcast-on seed-0 reproducibility gate
+- [x] Fresh current-code broadcast-on seed-0 reproducibility gate
 - [ ] Evaluate a relation-only target interaction without removing conditioning
 - [ ] Confirm selected conditioning with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
@@ -1250,7 +1250,7 @@ flowchart LR
     F --> M
 ```
 
-**수정:** Parameter shape와 cosine/FiLM 경로를 유지하고 raw target broadcast만 0으로 고정하는 controlled model을 구현함. 현재 코드에서 같은 seed로 생성한 raw-broadcast와 zero-broadcast 모델의 parameter shape와 초기 state가 동일함을 확인했으며 SHA-256은 `d8c3122c…f8c0`임. 과거 accepted baseline checkpoint에는 최초 초기화 SHA가 저장되지 않아 역사적 trajectory의 bit-exact 동일성까지 증명한 것은 아님.
+**수정:** Parameter shape와 cosine/FiLM 경로를 유지하고 raw target broadcast만 0으로 고정하는 controlled model을 구현함. 현재 코드에서 같은 seed로 생성한 raw-broadcast와 zero-broadcast 모델의 parameter shape와 초기 state가 동일함을 확인했으며 SHA-256은 `d8c3122c…f8c0`임.
 
 **Controlled retrain 결과:** 16 epoch와 5,408 update를 모두 완료한 final checkpoint를 동일 seed의 broadcast-on reference와 비교함.
 
@@ -1263,6 +1263,26 @@ flowchart LR
 | `packaged_food_4` native MAE | `0.09802` | `0.22229` | `+126.8%` |
 | `packaged_food_4` native bias | `−0.08694` | `−0.22058` | Underprediction 증가 |
 
-CSV 1,680행의 composite key가 모두 고유하고, 두 checkpoint는 seed 0, epoch 15, 5,400 samples/epoch, 5,408 cumulative batches 조건을 만족함. 다만 과거 reference에는 최초 initialization/sample-order SHA가 저장되지 않아 역사적 trajectory의 bit-exact 동일성까지 증명한 것은 아님.
+CSV 1,680행의 composite key가 모두 고유하고, 두 checkpoint는 seed 0, epoch 15, 5,400 samples/epoch, 5,408 cumulative batches 조건을 만족함.
 
-**판단:** No-broadcast 제거안은 broad gate를 통과하지 못해 기각하고 seeds 1–2는 실행하지 않음. 현 architecture에서 scalar cosine과 size-FiLM만 남기는 방식은 target conditioning을 유지하지 못했음. 과거 reference에는 완전한 초기화/sample-order 기록이 없으므로, 현재 코드에서 broadcast-on seed 0을 같은 hash와 update 수로 재학습해 paired reference를 먼저 확정함. 이 gate가 통과한 뒤에만 target 정보를 유지하면서 absolute target code 의존을 줄이는 relation-aware interaction을 평가함.
+**판단:** No-broadcast 제거안은 broad gate를 통과하지 못해 기각하고 seeds 1–2는 실행하지 않음. 현 architecture에서 scalar cosine과 size-FiLM만 남기는 방식은 target conditioning을 유지하지 못했음. 다음 실험은 target 정보를 없애지 않으면서 absolute target code 의존을 줄이는 relation-aware interaction으로 제한함.
+
+---
+
+### 2026-08-21 · Phase 16 — Fresh Paired Reproducibility Gate
+
+**문제:** 기존 broadcast-on checkpoint에는 최초 initialization과 sample-order hash가 없어, no-broadcast 성능 저하가 target 경로 제거 때문인지 과거 실행과의 차이 때문인지 완전히 분리되지 않았음.
+
+**검증:** 현재 코드에서 broadcast-on seed 0을 `16 epoch`, `5,408 update`로 다시 학습함. 초기 state SHA-256은 `d8c3122c…f8c0`, 첫 epoch sample-order SHA-256은 `26e6843b…303b`로 기록함.
+
+| Reproducibility check | Result |
+|---|---|
+| Epoch 0–15 train/validation metrics | 기존 accepted run과 전부 일치 |
+| Final model-state SHA-256 | 두 모델 모두 `6354241b…55d7a` |
+| State tensors | `168 / 168` bitwise identical |
+| Compared parameters | `15,716,309`개 원소, mismatch `0` |
+| Maximum absolute difference | `0.0` |
+
+Checkpoint 파일 해시는 provenance metadata 추가로 서로 다르지만, 실제 추론에 쓰이는 모든 model tensor는 동일함.
+
+**판단:** Fresh broadcast-on 재현 gate가 통과했으므로 no-broadcast의 MAE 증가와 scale-response 붕괴는 code/data drift가 아니라 raw target broadcast 제거에 따른 결과로 판단함. 단순 제거 실험은 종료하고, 다음 단계에서는 scene과 target의 채널별 관계를 보존하는 interaction을 동일 조건으로 비교함.
