@@ -869,6 +869,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
 | Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
 | Relation-aware target interaction | Seed-0 complete; scale response mostly recovered but coverage/PF4 gates failed, rejected |
+| Target physical descriptor gate | 2D shape rejected; exact 3D extent shows train-only signal, controlled seed-0 model test pending |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -946,7 +947,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Diagnose relation magnitude normalization before selecting the next causal candidate
 - [x] Evaluate train-median calibrated relation with one controlled seed-0 run — rejected
 - [x] Diagnose compact physical target descriptors before another full retraining — rejected
-- [ ] Test a deployable 3D target-extent signal with a train-only oracle gate
+- [x] Test whether exact 3D target extent contains useful train-only signal
+- [ ] Run one controlled seed-0 model ablation with exact 3D extent as a diagnostic input
+- [ ] If the model gate passes, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1415,3 +1418,36 @@ kappa = mask_area / (2*pi*(lambda_max + lambda_min))
 Fruit은 category MAE `17.20%`, toy는 `43.84%` 개선됐지만 book은 `7.78%`, packaged food는 `13.22%` 악화됨. 전체 평균 개선은 특정 category의 큰 이득이 만든 결과이며, 새 target에 공통으로 적용되는 물리 규칙으로 보기 어려움.
 
 **판단:** `eta·kappa` 후보는 full model 재학습 전 gate에서 기각함. Seed 0–2는 실행하지 않고 fresh raw size-only를 기준 모델로 유지함. 다음에는 2D mask descriptor를 더 늘리지 않고, 3D target extent가 잔여 target effect를 설명할 수 있는지 oracle 진단으로 먼저 확인함.
+
+---
+
+### 2026-08-22 · Phase 21 — Exact 3D Extent Diagnostic
+
+**문제:** 2D mask의 면적과 bbox는 camera에 보이는 크기만 나타냄. 같은 투영 크기라도 실제 높이와 바닥 면적이 다르면 서랍 속에 들어갈 수 있는 위치가 달라지므로, 이 3D 차이가 남은 target 오차의 원인인지 확인할 필요가 있었음.
+
+**검증:** GT 생성에 실제 사용한 mesh에서 `가로 최소 길이·가로 최대 길이·높이`를 추출함. 이 값은 최종 배포 입력이 아니라 정보 유효성만 확인하는 진단용 oracle임. 학습 10 target·36 scene·3 scale·5 camera만 사용했으며, query target을 donor와 정규화 통계에서 완전히 제외함.
+
+```text
+extent3(s) = s × [min(dx, dy), max(dx, dy), dz]
+```
+
+같은 category의 다른 target extent를 넣는 64개 wrong-extent 대조 조건도 함께 계산함.
+
+![Target physical descriptor gates](img/occlusion_model/target_physical_descriptor_gates.png)
+
+| Train-only diagnostic | 2D shape | Exact 3D extent |
+|---|---:|---:|
+| Pooled coverage MAE | `0.09114 → 0.07748` | `0.09114 → 0.06927` |
+| Relative improvement | `14.99%` | `23.99%` |
+| Improved targets | `5 / 10` | `9 / 10` |
+| Improved categories | `2 / 4` | `4 / 4` |
+| Improved cameras | `5 / 5` | `5 / 5` |
+| Improved target-camera cells | `27 / 50` | `36 / 50` |
+| Improved target-camera-scale cells | `78 / 150` | `100 / 150` |
+| Meaningful worst regression | `+320.67%` | `없음` |
+
+3D extent의 scene-bootstrap 95% interval은 `+23.12% – +24.80%`였고, wrong-extent 대조 조건의 최대 개선은 `1.17%`에 그침. 따라서 실제 3D 크기에 target별 GT를 설명하는 정보가 있음을 확인함.
+
+다만 사전에 고정한 cell 개선 수 기준 `40/50`, `120/150`에는 각각 `36/50`, `100/150`으로 미달함. 남은 cell은 악화가 아니라 hard 3-NN에서 donor 구성이 바뀌지 않아 생긴 동률이지만, 결과를 본 뒤 기준을 바꾸지 않고 formal gate는 실패로 기록함.
+
+**판단:** 이 결과를 zero-shot 성능이나 최종 구조의 통과로 해석하지 않음. 다음 단계는 raw size-only와 구조·초기값·sample order·update 수를 같게 유지한 seed-0 모델에서 exact extent 3개만 추가하는 controlled oracle ablation임. 이 모델이 기존 5-camera coverage·scale-response gate를 통과할 때만 RGB/multi-view 기반 3D 크기 추정 방법을 개발함.
