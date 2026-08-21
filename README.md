@@ -869,7 +869,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
 | Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
 | Relation-aware target interaction | Seed-0 complete; scale response mostly recovered but coverage/PF4 gates failed, rejected |
-| Target physical descriptor gate | 2D shape rejected; exact 3D extent shows train-only signal, controlled seed-0 model test pending |
+| Exact 3D extent conditioning | Seed-0 oracle test complete; useful coverage/scale signal confirmed, global FiLM rejected due noncoverage error |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -948,8 +948,10 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Evaluate train-median calibrated relation with one controlled seed-0 run — rejected
 - [x] Diagnose compact physical target descriptors before another full retraining — rejected
 - [x] Test whether exact 3D target extent contains useful train-only signal
-- [ ] Run one controlled seed-0 model ablation with exact 3D extent as a diagnostic input
-- [ ] If the model gate passes, estimate 3D extent from deployable target images/masks
+- [x] Run one controlled seed-0 model ablation with exact 3D extent as a diagnostic input — global FiLM rejected
+- [x] Verify frozen correct-vs-wrong extent causality across 16 scenes and 5 cameras
+- [ ] Replace global FiLM with a zero-initialized local bounded extent interaction and repeat the seed-0 gate
+- [ ] If the local interaction gate passes, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1451,3 +1453,44 @@ extent3(s) = s × [min(dx, dy), max(dx, dy), dz]
 다만 사전에 고정한 cell 개선 수 기준 `40/50`, `120/150`에는 각각 `36/50`, `100/150`으로 미달함. 남은 cell은 악화가 아니라 hard 3-NN에서 donor 구성이 바뀌지 않아 생긴 동률이지만, 결과를 본 뒤 기준을 바꾸지 않고 formal gate는 실패로 기록함.
 
 **판단:** 이 결과를 zero-shot 성능이나 최종 구조의 통과로 해석하지 않음. 다음 단계는 raw size-only와 구조·초기값·sample order·update 수를 같게 유지한 seed-0 모델에서 exact extent 3개만 추가하는 controlled oracle ablation임. 이 모델이 기존 5-camera coverage·scale-response gate를 통과할 때만 RGB/multi-view 기반 3D 크기 추정 방법을 개발함.
+
+---
+
+### 2026-08-22 · Phase 22 — Exact 3D Extent Controlled Model
+
+**문제:** Phase 21은 3D 크기 정보가 GT 차이를 설명할 수 있다는 진단이었으며, 실제 모델이 그 정보를 올바르게 사용하는지는 확인하지 못함.
+
+**통제 실험:** Target mesh의 exact extent를 geometry conditioning에 추가함.
+
+```text
+extent3(s) = s × [min(dx, dy), max(dx, dy), dz]
+F_depth'   = gamma(extent3) × F_depth + beta(extent3)
+```
+
+Raw size-only 기준 모델과 seed·초기 가중치·sample 순서·학습 횟수(`5,408` update)를 동일하게 유지함. Train 10 target의 통계만 이용해 정규화하고, fixed epoch 15에서 14 target·16 validation scene·5 camera를 비교함. Exact extent는 정보 유효성을 확인하기 위한 simulation oracle이며 실제 배포 입력은 아님.
+
+| 평가 영역 | Raw size-only | Exact extent + global FiLM | 변화 |
+|---|---:|---:|---:|
+| 전체 target coverage MAE | `0.05838` | `0.05803` | `0.60%` 개선 |
+| 전체 workspace MAE | `0.13745` | `0.15581` | `13.36%` 악화 |
+| Train target coverage MAE | `0.05155` | `0.05587` | `8.38%` 악화 |
+| Held-out target coverage MAE | `0.07725` | `0.06399` | `17.16%` 개선 |
+| Held-out target workspace MAE | `0.16094` | `0.17477` | `8.59%` 악화 |
+
+Held-out target의 scale-response 방향은 `8/8` target-scale과 `40/40` camera에서 양수였지만, coverage와 workspace를 함께 보는 전체 gate는 실패함.
+
+**원인 분리:** 같은 checkpoint에서 scene RGB-D·target RGB·2D 크기·camera·scale·GT를 고정하고, exact extent 세 값만 같은 category의 다른 target 값으로 교체함. 모델 재학습은 수행하지 않음.
+
+![Exact 3D extent controlled diagnostic](img/occlusion_model/exact_extent_controlled_diagnostic.png)
+
+| Frozen intervention, held-out target | Correct extent − wrong extent | 결과 |
+|---|---:|---|
+| Target coverage MAE | `-0.03468` | Target-camera 평균 `20/20`에서 correct extent 우세 |
+| Scale-response `S` | `+0.09249` | Target-camera 평균 `20/20`에서 correct extent 우세 |
+| Workspace 안·coverage 밖 MAE | `+0.04232` | Target-camera 평균 개선 `10/20` |
+
+Correct extent는 held-out target에서도 coverage 예측과 크기 변화 반응을 일관되게 개선함. 따라서 모델이 3D 크기 정보를 실제로 사용한다는 점은 확인됨. 반면 `book_4·fruit_4`는 coverage 밖 오차도 감소했지만, `toy_4·packaged_food_4`는 5개 camera 모두 증가함. 가장 가까운 wrong extent만 사용한 비교에서도 같은 경향이 남아 극단적인 교체값 때문으로 보기 어려움.
+
+**판단:** 현재 병목은 DINOv3의 정보 부족이 아니라, 하나의 extent vector로 전체 depth feature에 `gamma·beta`를 적용하는 global FiLM의 공간 제어 부족임. Target이 숨을 수 있는 영역은 개선하지만, workspace 안에서도 해당 target이 존재할 수 없어 GT가 0인 위치까지 함께 활성화함.
+
+현재 global-FiLM 모델은 기각하며 seed 1–2 반복과 RGB 기반 3D 크기 추정기 개발은 보류함. 다음 실험에서는 exact extent를 계속 oracle로 사용하되, `local depth feature × extent`로 patch별 bounded residual을 만들고 residual을 0으로 초기화해 raw baseline에서 시작함. 동일한 seed-0 조건에서 coverage·coverage 밖 오차·scale-response·5-camera 결과가 함께 개선될 때만 다음 단계로 진행함.
