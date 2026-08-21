@@ -944,8 +944,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Fresh current-code broadcast-on seed-0 reproducibility gate
 - [x] Evaluate a relation-only target interaction without removing conditioning — rejected at seed 0
 - [x] Diagnose relation magnitude normalization before selecting the next causal candidate
-- [ ] Evaluate train-median calibrated relation with one controlled seed-0 run
-- [ ] Confirm selected conditioning with seeds 1–2
+- [x] Evaluate train-median calibrated relation with one controlled seed-0 run — rejected
+- [ ] Diagnose compact physical target descriptors before another full retraining
+- [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
 - [ ] Complexity stream
@@ -1355,3 +1356,30 @@ r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
 | Train-median calibrated scale gate | `40 / 40` — pass |
 
 **판단:** `‖q‖`에는 cubic cosine만으로 설명되지 않는 target-dependent GT 신호가 남아 있음. 단순 `C·q`는 feature 크기가 지나치게 커서 기각하고, train-only 중앙값으로 크기만 고정한 relation을 동일 초기화·동일 sample order의 seed 0 한 번으로 평가함. 이 진단은 다음 실험을 수행할 근거이며 zero-shot 성능 증명은 아님. Seed 0이 사전 held-out 5-camera gate를 통과하기 전에는 seeds 1–2를 실행하지 않음.
+
+---
+
+### 2026-08-22 · Phase 19 — Magnitude-Calibrated Relation Evaluation
+
+**문제:** Phase 18의 train-only 진단에서 relation 크기 `‖q‖`가 GT와 관련된 신호를 보였지만, 이 신호가 전체 비선형 모델의 학습·일반화까지 개선하는지는 확인되지 않았음.
+
+**실험:** 학습 target에서 미리 계산한 layer별 중앙값 `m_l`을 고정하고, 추론 시 held-out target으로 재보정하지 않음. Raw baseline과 초기 state, sample order, `16 epoch`, `5,408 update`, dataset을 동일하게 맞춰 seed 0을 학습함.
+
+```text
+r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
+```
+
+![Four-way target conditioning ablation](img/occlusion_model/target_interaction_ablation_v2.png)
+
+| Seed-0 fixed-update metric | Raw broadcast | No broadcast | Normalized relation | Magnitude-calibrated relation |
+|---|---:|---:|---:|---:|
+| Seen coverage MAE | `0.05155` | `0.08100` | `0.06443` | `0.07073` |
+| Training-heldout coverage MAE | `0.07725` | `0.11494` | `0.08674` | `0.09298` |
+| Heldout pooled `S > 0` | `8 / 8` | `0 / 8` | `7 / 8` | `7 / 8` |
+| Heldout camera `S > 0` | `40 / 40` | `2 / 40` | `37 / 40` | `34 / 40` |
+| `packaged_food_4` native MAE | `0.09802` | `0.22229` | `0.11708` | `0.12220` |
+| `packaged_food_4` native bias | `−0.08694` | `−0.22058` | `−0.10623` | `−0.10706` |
+
+Magnitude-calibrated relation은 raw baseline 대비 seen coverage MAE `+37.20%`, heldout coverage MAE `+20.35%`로 악화됨. `packaged_food_4`도 5개 camera 모두에서 MAE와 bias가 개선되지 않음. Workspace MAE는 낮아졌지만, target coverage에서 underprediction이 커졌으므로 예측값 전체가 낮아진 효과로 판단함.
+
+**판단:** Train-only 진단은 실험 후보를 거르는 용도였지만, 전체 모델의 성능 개선을 보장하지 않았음. Magnitude-calibrated seeds 1–2는 실행하지 않고 appearance interaction 변형은 종료함. Fresh raw size-only를 현재 기준 모델로 유지하며, 다음 후보는 target mask에서 계산할 수 있는 소수의 물리적 크기·형상 descriptor로 제한함.
