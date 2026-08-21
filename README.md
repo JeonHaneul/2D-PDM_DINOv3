@@ -943,7 +943,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Controlled no-target-broadcast seed-0 comparison — rejected
 - [x] Fresh current-code broadcast-on seed-0 reproducibility gate
 - [x] Evaluate a relation-only target interaction without removing conditioning — rejected at seed 0
-- [ ] Diagnose relation magnitude normalization before selecting the next causal candidate
+- [x] Diagnose relation magnitude normalization before selecting the next causal candidate
+- [ ] Evaluate train-median calibrated relation with one controlled seed-0 run
 - [ ] Confirm selected conditioning with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1324,3 +1325,33 @@ MatchingBlock input = [scene patch, FiLM depth, r(x), shifted cosine]
 Workspace 전체 MAE는 relation 모델에서 감소했지만, coverage 내부 MAE와 underprediction은 증가함. Workspace에는 GT가 0인 픽셀이 많아 출력을 전반적으로 낮추는 것만으로도 오차가 줄 수 있으므로 채택 근거로 사용하지 않음.
 
 **판단:** Channel relation은 no-broadcast보다 target 조건을 많이 회복했지만 사전 safety gate와 `packaged_food_4` 개선 gate를 모두 통과하지 못함. Seeds 1–2는 실행하지 않고 raw broadcast baseline을 유지함. 이번 결과는 추가 L2 normalization까지 포함한 relation 표현 전체의 결과이므로, 다음 단계에서는 낮은 유사도의 patch도 동일한 relation energy를 갖게 되는 정규화 효과부터 분리 진단함.
+
+---
+
+### 2026-08-21 · Phase 18 — Relation Magnitude Diagnostic
+
+**문제:** Phase 17의 L2 normalization은 채널별 관계 방향은 남기지만 `‖q‖`를 제거함. 이 때문에 target과 약하게 대응하는 patch도 강하게 대응하는 patch와 같은 크기의 relation feature를 받음.
+
+**검증:** Held-out target과 validation scene은 사용하지 않고, 학습용 10 target·36 scene·5 camera만 분석함. 같은 scene·camera·patch에서 target 평균을 제거한 뒤, cubic cosine 12개만 사용한 기준과 cosine으로 설명되지 않는 `log‖q‖` 4개를 추가한 경우를 scene 단위 6-fold로 비교함. Target 가중치는 실제 학습 sampler와 동일하게 category-balanced로 설정함.
+
+```text
+q_l(x) = Normalize(scene_l(x)) × Normalize(target_l)
+r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
+```
+
+`m_l`은 학습 target의 실제 coverage 영역에서 계산한 layer별 `‖q_l‖` 중앙값이며, 추론 시 다시 계산하지 않는 고정값임.
+
+![Train-only relation magnitude diagnostic](img/occlusion_model/relation_magnitude_probe_train_only.png)
+
+| Train-only diagnostic | Result |
+|---|---:|
+| Coverage MAE: cubic cosine only | `0.08829` |
+| Coverage MAE: + residual `log‖q‖` | `0.08583` |
+| Relative improvement | `2.78%` |
+| Improved scene folds | `6 / 6` |
+| Scene-bootstrap 95% interval | `+2.01% – +3.46%` |
+| Cosine-independent DINO layers | `4 / 4` |
+| Uncalibrated `C·q` scale gate | `0 / 40` — reject |
+| Train-median calibrated scale gate | `40 / 40` — pass |
+
+**판단:** `‖q‖`에는 cubic cosine만으로 설명되지 않는 target-dependent GT 신호가 남아 있음. 단순 `C·q`는 feature 크기가 지나치게 커서 기각하고, train-only 중앙값으로 크기만 고정한 relation을 동일 초기화·동일 sample order의 seed 0 한 번으로 평가함. 이 진단은 다음 실험을 수행할 근거이며 zero-shot 성능 증명은 아님. Seed 0이 사전 held-out 5-camera gate를 통과하기 전에는 seeds 1–2를 실행하지 않음.
