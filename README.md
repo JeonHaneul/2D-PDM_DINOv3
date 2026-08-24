@@ -891,6 +891,29 @@ DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlock
 
 다만 paired loss의 추가 이득은 작고 trade-off가 있음. Anchor-only 대비 최종 후보의 workspace·noncoverage MAE는 각각 `2.90%`, `6.81%` 낮고 `S`는 `+0.0044`, `+0.0053` 높았지만, 전체 coverage MAE는 `0.24%` 증가함. 세부 target–camera–scale 60개 coverage 조건 중 36개도 `0–1.62%` 범위에서 증가함. 사전에 정한 전체 허용선 `2%` 안에는 들었지만, 모든 위치가 일괄 개선됐다는 뜻은 아님.
 
+#### 실제 scene과 예측 map으로 확인한 변화
+
+막대그래프는 960개 map의 평균을 보여주지만, 어떤 위치의 오류가 줄었는지는 보여주지 못함. 아래 사례는 모델 출력을 보고 잘 나온 frame을 고른 것이 아님. 학습에 사용하지 않은 4개 development target과 16개 scene의 `64개 target–scene` 조합을 GT만으로 정렬하고, scale `1.0`의 coverage 내부 평균 확률이 정확히 중간에 가까운 조합을 선택함. 그 결과 `book_4 / scene00009_env0171`이 선택됨.
+
+그림은 각 camera마다 `실제 scene → 실제 target 입력 → GT → Phase 26 → common anchor → common + paired` 순서로 읽으면 됨.
+
+- Heatmap이 밝을수록 해당 위치에서 target이 물체 더미에 의해 가려질 확률을 높게 예측한 것임.
+- Target RGB의 노란 선은 target mask임. DINOv3 appearance branch는 선 안쪽만 자르지 않고 전체 RGB frame을 보며, mask는 화면에서 차지하는 크기와 형태를 계산하는 geometry branch에 사용함.
+- 모든 GT와 예측은 동일한 `0–1` 범위를 사용함. 그림마다 대비를 다시 늘리는 min–max 정규화는 사용하지 않음.
+- 빨간 선은 모델이 확률을 출력할 수 있는 drawer workspace, 청록색 선은 scale `1.0` target의 coverage, 주황색 선은 세 scale의 coverage 합집합임.
+- 빨간 workspace 안이면서 주황색 선 밖인 곳은 세 scale 모두 target footprint가 닿지 않는 영역임. 이곳의 GT는 `0`이므로 밝게 예측할수록 잘못된 탐색 prior가 됨.
+- 각 예측 아래 `coverage MAE`와 `outside-candidate MAE`는 낮을수록 GT에 가까움.
+
+![Held-out five-camera occlusion predictions](img/occlusion_model/common_anchor_heldout_five_camera.png)
+
+Phase 26은 특히 top과 bottom camera에서 주황색 선 밖까지 밝기가 넓게 남음. 이 영역은 GT가 모두 `0`이므로 `outside-candidate MAE=0.167`은 잘못 예측한 확률이 위치당 평균 `16.7%`라는 뜻임. Common anchor 이후 top은 `16.7% → 3.5%`, bottom은 `19.5% → 6.4%`로 감소하고, 최종 common + paired 모델은 각각 `3.5%`, `6.2%`를 보임. 즉 표의 noncoverage 개선은 단순한 숫자 변화가 아니라, **target이 가려질 후보가 아닌 위치를 먼저 탐색하게 만드는 잘못된 밝기가 줄었다는 뜻**임. 반면 bottom coverage MAE는 Phase 26의 `0.061`에서 최종 `0.063`으로 소폭 증가하여, 앞서 기록한 작은 coverage trade-off도 실제 map에서 확인됨.
+
+아래 그림은 같은 target·scene·center camera에서 target scale만 `0.85 / 1.0 / 1.15`로 바꾼 결과임. 행이 바뀔 때 청록색 coverage와 GT가 달라지므로, 모델도 단순히 전체 map을 함께 밝히는 것이 아니라 target 크기에 맞춰 공간 분포를 바꿔야 함.
+
+![Held-out target-scale response predictions](img/occlusion_model/common_anchor_heldout_scale_response.png)
+
+그림 상단의 `S`는 scale을 바꿨을 때 생긴 **예측 map의 변화량**이 GT 변화량과 얼마나 같은지를 나타냄. 높을수록 좋고 `1`이면 변화량을 완전히 재현한 것임. 이 GT-only 대표 scene에서는 final이 anchor-only보다 `0.85→1.0` 구간은 높지만 `1.0→1.15` 구간은 낮음. 따라서 한 장의 그림을 모든 frame의 성공 증거로 사용하지 않으며, 전체 판단은 위의 5-camera 집계와 함께 수행함. 이 비교의 목적은 common anchor가 제거한 오류와 scale-paired loss가 학습하려는 변화를 실제 scene 좌표에서 이해하기 쉽게 보여주는 것임.
+
 ### Deployment Inputs
 
 현재 release prototype 추론 입력은 scene RGB, scene depth, target RGB와 target mask 또는 segmentation임. Empty-background reference를 이용한 자동 target mask 생성은 아직 구현되지 않은 deployment 전처리 과제임. 최신 oracle 후보는 여기에 USD mesh에서 얻은 exact 3D extent 세 값을 추가로 사용하므로, 그대로는 RGB-only 배포 모델이 아님.
@@ -1912,6 +1935,8 @@ Learning rate `1e-3`에서는 leakage와 `S`가 개선됐지만 Phase 26 대비 
 최종 후보는 Phase 26보다 coverage `5.37%`, workspace `36.17%`, noncoverage `55.53%`, all-scale noncoverage `61.09%` 낮았음. Anchor-only와 비교해도 두 scale 구간의 `S`가 5개 camera 모두에서 높았고, target × camera × 구간의 `40/40` 조건에서도 같은 방향을 보임. 사전 기준인 `10/10 camera scale-response 개선`과 `coverage MAE 증가 2% 이내`를 모두 만족함.
 
 냉정하게 보면 paired loss의 추가 이득은 작음. Anchor-only보다 전체 coverage MAE가 `0.24%` 높고, 세부 coverage 60개 조건 중 36개에서 최대 `1.62%` 증가함. 반면 workspace·noncoverage·all-scale noncoverage는 각각 `2.90%`, `6.81%`, `7.01%` 낮고, scale-response 40개 조건은 모두 개선됨. 따라서 작은 coverage trade-off 안에서 크기 반응과 leakage를 함께 개선한 seed-0 oracle 후보로 해석함.
+
+**실제 map 확인:** Occlusion Stream의 5-camera 정성 그림은 모델 결과와 무관한 GT-only 중간 사례를 사용함. Phase 26에서 drawer 내부의 비후보 영역까지 퍼진 밝기가 common anchor 이후 줄어드는 모습을 확인함. Scale별 그림에서는 paired loss의 효과가 개별 scene마다 동일하지 않다는 점도 함께 기록하여 평균 수치만으로 결과를 과장하지 않음.
 
 이 결과는 아직 최종 zero-shot 증명이 아님.
 
