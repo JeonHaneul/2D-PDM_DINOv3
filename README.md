@@ -508,9 +508,9 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based probability GT validated · clean52 multi-scale benchmark complete · footprint/height 분리와 train-only scale-paired loss까지 평가 · BatchNorm batch 구성의 영향 확인 · scale 반응은 일부 개선됐지만 coverage 공간 오차 기준은 미충족 · 최종 untouched-target 평가는 아직 수행하지 않음**
+> **Status: Mesh-based probability GT와 clean52 multi-scale benchmark 완료 · BatchNorm 통계를 고정한 저학습률 common-anchor + scale-paired seed-0 모델이 train-only 기준 통과 · 학습하지 않은 4개 development target과 고정 5-camera 평가에서도 개선 확인 · exact 3D extent는 아직 simulation oracle이며 최종 untouched-target 평가는 미수행**
 >
-> 최신 oracle conditioning은 로컬 research harness에서 원인을 비교하는 용도임. 사전에 정한 평가 기준을 모두 만족한 구성만 release baseline에 반영하며, 현재 공개 `occlusion_model.py`는 broadcast-on size-only 구조를 유지함. Clean52 전체 학습·평가 harness와 대용량 GT 배포는 아직 정리 중이므로, 아래 최신 수치는 로컬 고정 프로토콜의 감사 결과임.
+> 최신 oracle conditioning은 “정확한 target 크기를 알면 unseen instance에도 크기 효과를 전달할 수 있는가”를 확인하는 연구용 상한선임. 현재 공개 `occlusion_model.py`의 배포 baseline은 RGB·mask 기반 size-only 구조를 유지하며, exact extent를 RGB/mask에서 얻는 전처리가 검증되기 전에는 oracle checkpoint를 최종 모델로 부르지 않음.
 
 Occlusion stream이 답하려는 질문은 **“Target이 물체 더미에 의해 어느 위치에서 가려질 수 있는가?”**임. 현재 보이는 target을 찾는 Similarity stream과 달리, RGB-D에서 물체 더미의 구조를 읽고 target의 크기를 고려하여 가려질 수 있는 위치의 확률 `P_O`를 예측함. 이 map은 target의 실제 위치를 확정하는 답이 아니라, DRL이 확률이 높은 영역부터 탐색하도록 제공하는 prior임.
 
@@ -871,9 +871,11 @@ Target appearance를 MatchingBlock에 전달하는 방법도 통제 실험으로
 | Channel-wise scene–target relation | Absolute target code 대신 위치별 관계만 전달하려는 목적 | No-broadcast보다 크기 반응은 회복했지만 coverage 오차 증가 | Raw baseline을 대체할 정도로 안정적이지 않아 후속 seed를 진행하지 않음 |
 | Exact 3D extent + global FiLM | 2D mask에 없는 실제 바닥 크기와 높이 정보가 필요한지 확인 | 가능한 영역은 개선됐지만 모든 위치에 같은 보정이 퍼짐 | 3D 크기 정보는 유효하지만 공간 제어 방식의 수정이 필요함 |
 | Local gate + strict supervision | 위치마다 크기 보정을 열고 닫아 불가능한 영역의 활성화를 줄이려는 목적 | Oracle coverage 기준 gate 차이가 `0.005–0.014 → 0.580–0.695`로 증가 | 평균 leakage는 줄었지만 book scale 기준을 충족하지 못해 아직 연구 후보로만 유지 |
-| Train-only scale-paired loss | 같은 scene에서 target 크기가 달라질 때 map의 변화량까지 직접 학습 | BN 통계 보정 후 scale 반응과 workspace 오차는 개선됐지만 coverage 내부의 공간 오차가 증가 | Held-out target은 열지 않고 학습 batch와 loss의 영향을 다시 분리하는 중 |
+| Train-only scale-paired loss | 같은 scene에서 target 크기가 달라질 때 map의 변화량까지 직접 학습 | BN 통계를 고정하면 5-camera의 두 scale 구간에서 반응이 개선됐지만, scale과 무관하게 함께 밝아지는 오차가 남음 | 변화량만 비교하면 공통 오차가 상쇄되므로 별도 anchor가 필요함 |
+| Strict common-mode anchor | 세 scale 어디에서도 target이 덮지 않는 서랍 내부의 공통 출력을 0에 가깝게 감독 | Scale 경계를 건드리지 않으면서 noncoverage leakage를 크게 줄임 | Paired loss와 함께 사용하되 작은 learning rate로 기존 공간 map을 보존함 |
+| Low-LR common + paired | Phase 26에서 BN running statistics를 고정하고 한 epoch만 `1e-4`로 이어 학습 | Train-only 기준과 4-target·5-camera development 기준을 통과 | Exact extent oracle 상한선으로 동결하고 RGB/mask 기반 extent 교체를 준비함 |
 
-Fresh broadcast-on 재학습은 과거 baseline의 학습 trajectory와 최종 model tensor를 정확히 재현함. 동일 seed·초기화·sample order를 사용한 controlled seed-0 비교 안에서는 위 차이를 code/data drift보다 target-conditioning 방식의 차이로 해석할 수 있음. 현재 공개 baseline이 raw broadcast를 유지하는 것은 최적이라고 확정했기 때문이 아니라, 아직 모든 사전 기준을 만족한 대체 구조가 없기 때문임.
+Fresh broadcast-on 재학습은 과거 baseline의 학습 trajectory와 최종 model tensor를 정확히 재현함. 동일 seed·초기화·sample order를 사용한 controlled seed-0 비교 안에서는 위 차이를 code/data drift보다 target-conditioning 방식의 차이로 해석할 수 있음. 최신 oracle 후보는 고정 기준을 통과했지만 exact mesh extent가 필요하므로, 현재 공개 baseline은 deployable RGB/mask 입력만 사용하는 raw broadcast 구조를 유지함.
 
 DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
 
@@ -881,17 +883,25 @@ DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlock
 
 `S`는 target scale이 바뀔 때 예측 map도 GT가 요구하는 방향으로 반응하는지를 나타내며, 양수이면 최소한 변화 방향이 맞다는 뜻임. `size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled `S`를 `0.1477 → 0.2224`로 개선함. Positive camera cell은 `target × scale transition × camera × seed` 조합 중 `S > 0`인 경우임. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
 
-후속 train-only 실험에서는 같은 scene의 scale별 **변화량**을 직접 맞히는 paired loss를 추가함. 이 loss에는 유효한 scale 신호가 있었지만, 같은 depth frame을 세 번 반복한 batch가 ResNet-18의 BatchNorm 통계도 함께 바꿨음. Train depth 180개로 통계만 다시 맞춘 뒤에는 scale 반응과 workspace leakage가 개선됐으나, target이 물체 더미에 의해 가려질 수 있는 영역의 공간 오차는 기존보다 약 `10.1%` 높았음. 따라서 현재 candidate를 release baseline으로 바꾸거나 untouched target을 평가하지 않고, batch 통계와 paired loss를 분리하는 최소 실험을 먼저 진행함.
+후속 실험에서는 같은 scene의 scale별 **변화량**을 직접 맞히는 paired loss와, 세 scale 모두에서 target footprint가 없는 서랍 내부의 공통 출력을 억제하는 anchor를 분리함. BatchNorm running statistics를 고정하고 Phase 26에서 한 epoch만 이어 학습한 결과, learning rate `1e-3`은 coverage map을 지나치게 바꿨지만 `1e-4`는 기존 공간 map을 보존하면서 scale 반응과 leakage를 함께 개선함.
+
+![Common-anchor and scale-paired result](img/occlusion_model/common_anchor_low_lr_seed0.png)
+
+위 그림에서 MAE는 낮을수록 공간 확률이 GT에 가깝고, `S`는 높을수록 target 크기가 바뀔 때 예측 map도 GT와 비슷하게 변한다는 뜻임. 최종 seed-0 후보는 Phase 26보다 train-only coverage MAE를 `5.74%`, workspace MAE를 `37.78%`, all-scale noncoverage MAE를 `64.75%` 낮추고 두 scale 구간의 `S`를 모두 높임. 학습하지 않은 development target에서도 5개 camera × 2개 scale 구간의 `10/10` 조건과 target × camera × 구간의 `40/40` 조건에서 scale response가 anchor-only보다 높았음.
+
+다만 paired loss의 추가 이득은 작고 trade-off가 있음. Anchor-only 대비 최종 후보의 workspace·noncoverage MAE는 각각 `2.90%`, `6.81%` 낮고 `S`는 `+0.0044`, `+0.0053` 높았지만, 전체 coverage MAE는 `0.24%` 증가함. 세부 target–camera–scale 60개 coverage 조건 중 36개도 `0–1.62%` 범위에서 증가함. 사전에 정한 전체 허용선 `2%` 안에는 들었지만, 모든 위치가 일괄 개선됐다는 뜻은 아님.
 
 ### Deployment Inputs
 
-현재 prototype 추론 입력은 scene RGB, scene depth, target RGB와 target mask 또는 segmentation임. Empty-background reference를 이용한 자동 target mask 생성은 아직 구현되지 않은 deployment 전처리 과제임.
+현재 release prototype 추론 입력은 scene RGB, scene depth, target RGB와 target mask 또는 segmentation임. Empty-background reference를 이용한 자동 target mask 생성은 아직 구현되지 않은 deployment 전처리 과제임. 최신 oracle 후보는 여기에 USD mesh에서 얻은 exact 3D extent 세 값을 추가로 사용하므로, 그대로는 RGB-only 배포 모델이 아님.
 
 | 구분 | 필요 정보 |
 |---|---|
 | 매 추론 입력 | Scene RGB, scene depth, target RGB, target mask/segmentation |
 | 고정 시스템 자산 | Camera calibration, camera별 workspace mask |
 | GT 생성에만 사용 | Target USD/OBJ, mesh scale, occlusion GT |
+
+현재 target reference는 물체마다 촬영 위치가 일정하지 않고, `target_capture.py`도 camera calibration을 target 결과와 함께 저장하지 않음. 따라서 다음 Step에서는 동일 위치·거리의 5-view target 촬영과 calibration 저장을 먼저 고정하고, RGB/mask silhouette로 `[짧은 가로 길이, 긴 가로 길이, 높이]`를 추정함. 같은 checkpoint에서 `mesh oracle / RGB-mask 추정값 / extent 없음` 세 조건을 비교하여, USD 없이도 oracle 개선이 유지되는지 확인함.
 
 Zero-shot 성능은 frozen encoder만으로 가정하지 않음. 최종 평가는 개발 중 사용하지 않은 새 target instance와 scale을 별도로 고정하여 수행해야 함. Camera pose가 바뀌면 workspace mask도 calibration에서 다시 생성해야 하므로 camera-free 일반화는 후속 과제임.
 
@@ -948,8 +958,12 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Five-camera development evaluation | `target × scale transition × camera × seed` 120개 중 119개가 기대한 크기 변화 방향을 보임 |
 | Controlled target-conditioning studies | Broadcast 제거·relation interaction·global/local extent 경로를 동일 seed-0 조건에서 비교; 자세한 원인과 결과는 Development Log에 기록 |
 | Strict local-gate research candidate | Oracle coverage 기준 영역 분리는 크게 개선했으나 book scale 기준을 충족하지 못해 release에는 미반영 |
-| Train-only scale-paired objective | 동일 scene의 `0.7/1.0/1.3` map 변화량을 학습하고 5-camera validation 완료; BN 영향과 coverage trade-off 확인 |
-| BatchNorm recalibration diagnostic | Train depth `36 scenes × 5 cameras`만 사용해 가중치 변경 없이 BN 통계 재계산 완료 |
+| Train-only scale-paired objective | 동일 scene의 `0.7/1.0/1.3` map 변화량을 학습; BN-frozen one-epoch 비교에서 10/10 camera-transition 개선 확인 |
+| Strict common-mode anchor | 세 scale 모두 coverage가 없는 workspace를 직접 감독; scale 경계를 제외한 leakage 제어 구현·검증 |
+| Low-LR oracle candidate | Phase 26에서 `1e-4`, 338 update로 이어 학습; train-only 공간 정확도·scale-response 기준 통과 |
+| Five-camera development-heldout oracle check | 학습에 사용하지 않은 4개 development instances × 3 scales × 16 scenes × 5 cameras의 960 samples/model 평가; anchor-only 대비 camera-transition `10/10`, target-camera-transition `40/40` 개선 |
+| BatchNorm diagnostic | BN 재계산과 BN-frozen 비교로 stored-statistics 영향과 paired objective 영향을 분리 |
+| Deployable 3D extent estimation | Pending; 현재 oracle candidate는 target mask 크기와 USD mesh extent를 함께 사용 |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -1027,8 +1041,11 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Separate horizontal footprint and height conditioning in one controlled seed-0 run
 - [x] Add and evaluate a train-only scale-paired objective without changing the model architecture
 - [x] Separate stored BatchNorm-statistics effects with 180 train-only depth frames
-- [ ] 다음 Step: Phase 26 checkpoint에서 BatchNorm 통계를 고정한 1-epoch paired comparison
-- [ ] If a conditioning method passes all gates, estimate 3D extent from deployable target images/masks
+- [x] Phase 26 checkpoint에서 BatchNorm 통계를 고정한 1-epoch paired comparison
+- [x] Scale 경계를 제외한 strict common-mode anchor 추가 및 train-only gate 확인
+- [x] Low-LR common-anchor + paired candidate의 5-camera development-heldout oracle 평가
+- [ ] 다음 Step: 동일 pose·거리의 5-view target capture와 camera calibration 저장 protocol 고정
+- [ ] RGB/mask 기반 3D extent를 추정하고 `mesh oracle / 추정 extent / extent 없음` 비교
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1052,6 +1069,7 @@ Similarity와 Occlusion stream이 현재 구조에 도달한 이유를 시간순
 | 공정한 학습 조건 확립 | Target마다 다른 scene을 쓰면 모델이 target 대신 scene 분포를 외울 수 있음 | 모든 target이 같은 scene을 공유하고 target·scale·camera·update 수를 고정 | 이후 모델 차이를 target conditioning 차이로 비교할 수 있게 됨 |
 | Target 크기 조건 추가 | 같은 물체 더미에서도 target 크기에 따라 완전히 가려질 수 있는 영역이 달라짐 | Target mask의 크기로 depth feature를 조절하는 FiLM을 사용 | Size-only가 강한 baseline이 되었지만 2D 크기만으로 남는 target 차이가 있음 |
 | 3D 크기의 공간적 사용 | Exact 3D 크기는 유용했지만 모든 위치에 같은 보정을 주면 가려질 후보가 없는 곳도 밝아짐 | Global FiLM → local gate → 포화 방지 → strict gate supervision → footprint/height 역할 분리 순으로 한 요소씩 수정 | Gate 위치 분리는 확인했고 평균 leakage도 감소했지만, book에서는 열린 영역 안의 보정 방향·크기가 아직 부정확함 |
+| Scale 반응과 leakage 분리 | Scale 차이만 학습하면 모든 scale에 공통으로 남는 잘못된 출력은 보이지 않음 | Paired loss는 변화량, strict common anchor는 어떤 scale도 덮지 않는 영역을 담당하도록 분리 | Low-LR seed-0가 train-only와 5-camera development oracle 기준을 통과했으며, 다음은 exact extent를 RGB/mask 추정값으로 교체하는 단계임 |
 
 ### 지표와 범위 읽는 법
 
@@ -1821,3 +1839,87 @@ BN 통계를 맞추자 candidate는 Phase 26보다 두 scale 구간의 `S`가 �
 Validation loss가 가장 낮은 checkpoint도 별도 민감도 분석을 수행했지만, fixed epoch 결과를 사후에 교체하는 근거로 사용하지 않음. 최종 untouched target은 계속 열지 않았으며, seed 1–2 확대와 `λ` sweep도 진행하지 않음.
 
 **판단 및 다음 Step:** Scale-paired loss가 전혀 작동하지 않는 것은 아니지만, 현재 학습 방식은 scale 반응을 얻는 대신 coverage 내부 공간 정확도를 일부 희생함. 다음에는 Phase 26 checkpoint에서 정확히 한 epoch만 이어 학습하고, BatchNorm의 running mean/variance를 고정한 상태에서 `λ=0`과 `λ=0.008902`를 같은 `338` update로 비교함. 이 최소 실험으로 training-time BN 영향과 paired loss 자체의 공간 trade-off를 분리함. 두 scale 구간의 `S`가 모두 개선되고 coverage MAE 증가가 `2%` 이내일 때만 더 긴 재학습으로 확장함.
+
+---
+
+### 2026-08-25 · Phase 28 — BatchNorm-Frozen One-Epoch Comparison
+
+**왜 이 실험을 했는가:** Phase 27의 BN 재계산은 학습이 끝난 모델의 통계까지 다시 바꿨으므로, paired loss 자체의 효과와 training-time BatchNorm 효과가 완전히 분리되지 않았음. Phase 26의 동일 checkpoint에서 fresh Adam으로 한 epoch만 이어 학습하고, 두 모델 모두 BN의 running mean/variance를 고정함. BN의 학습 가능한 scale·bias는 유지하고 sample 순서와 `338` update도 같게 맞춤.
+
+| Phase 26에서 1 epoch 연장 | Coverage MAE ↓ | Workspace MAE ↓ | Noncoverage MAE ↓ | `S` 0.7→1.0 ↑ | `S` 1.0→1.3 ↑ |
+|---|---:|---:|---:|---:|---:|
+| Paired loss 없음 | `0.06077` | `0.07547` | `0.08942` | `0.3431` | `0.4106` |
+| Paired loss 사용 | `0.05727` | `0.07772` | `0.09712` | `0.3626` | `0.4405` |
+
+Paired loss를 사용하면 5개 camera × 2개 scale 구간의 `10/10`에서 `S`가 높아졌지만, paired loss가 없는 control보다 noncoverage MAE가 `8.61%` 증가함. 두 checkpoint의 BN buffer는 동일하므로 이 leakage는 저장된 BN 통계 차이로 설명되지 않음.
+
+원인은 paired loss가 **scale 사이의 차이**만 본다는 점임. 세 출력에 같은 잘못된 값 `c`가 더해져도 `c`는 서로 상쇄됨.
+
+```text
+(P_1.0 + c) - (P_0.7 + c) = P_1.0 - P_0.7
+```
+
+기존 map loss도 target coverage 안에서만 계산하므로, 어떤 scale에서도 target이 덮지 않는 workspace의 공통 출력을 직접 감독하지 않았음.
+
+**다음 Step:** Scale 변화가 생기는 footprint와 경계는 건드리지 않고, 모든 scale에서 coverage가 없는 순수 workspace의 공통 출력만 0에 가깝게 만드는 anchor를 추가함.
+
+---
+
+### 2026-08-25 · Phase 29 — Strict Common-Mode Anchor and Low-LR Continuation
+
+**왜 이 방법을 사용했는가:** Paired loss는 `scale별 차이`를 학습하고, common-mode anchor는 `세 scale에 공통으로 남는 잘못된 밝기`를 제거함. 두 loss가 서로 다른 문제를 담당하도록 영역을 엄격히 분리함.
+
+```mermaid
+flowchart LR
+    P["P_0.7, P_1.0, P_1.3"] --> DL["Paired loss<br/>scale별 차이를 GT와 비교"]
+    P --> AVG["세 출력의 평균"]
+    C["세 scale coverage의 합집합"] --> N["N = 순수 workspace<br/>AND 어떤 scale도 덮지 않음"]
+    AVG --> CL["Common anchor<br/>N 안의 공통 출력을 0으로"]
+    N --> CL
+```
+
+```text
+N = pure_workspace AND no_coverage_at_any_scale
+L_common = mean over N of |(P_0.7 + P_1.0 + P_1.3) / 3|
+```
+
+한 scale이라도 target footprint가 닿는 patch는 `N`에서 제외함. 따라서 크기가 달라지며 이동하는 경계를 억제했던 과거의 per-scale ring 방식과 다름. Loss weight는 validation이나 held-out 결과를 보지 않고 train-only 8개 batch의 gradient 크기로 한 번 고정함.
+
+Learning rate `1e-3`에서는 leakage와 `S`가 개선됐지만 Phase 26 대비 coverage MAE가 `6.38%` 증가해 사전 허용선 `2%`를 충족하지 못함. Loss와 weight는 그대로 두고 learning rate만 `1e-4`로 낮춰, 기존 공간 map을 크게 바꾸지 않는 작은 보정을 수행함.
+
+| Train-only, seed 0 | Coverage MAE ↓ | Workspace MAE ↓ | Noncoverage MAE ↓ | All-scale noncoverage ↓ | `S` 0.7→1.0 ↑ | `S` 1.0→1.3 ↑ |
+|---|---:|---:|---:|---:|---:|---:|
+| Phase 26 | `0.04956` | `0.07058` | `0.09052` | `0.07974` | `0.3517` | `0.4466` |
+| Common anchor only | `0.04675` | `0.04528` | `0.04390` | `0.02962` | `0.3962` | `0.4791` |
+| Common + paired | `0.04671` | `0.04391` | `0.04126` | `0.02811` | `0.4111` | `0.4862` |
+
+최종 후보는 Phase 26보다 coverage `5.74%`, workspace `37.78%`, noncoverage `54.42%`, all-scale noncoverage `64.75%` 낮았음. 세 scale 각각의 coverage MAE와 5-camera의 두 scale 구간 `10/10`도 모두 개선되어 train-only gate를 통과함.
+
+**다음 Step:** 이 시점까지 학습에 사용하지 않은 4개 target을 고정된 5-camera protocol에서 한 번 평가함. Common anchor만 사용한 모델도 함께 비교하여 paired loss의 추가 효과를 분리함.
+
+---
+
+### 2026-08-25 · Phase 30 — Five-Camera Development-Heldout Oracle Check
+
+**평가 범위:** `book_4`, `fruit_4`, `toy_4`, `packaged_food_4`와 scale `0.85/1.0/1.15`, validation scene 16개, center/top/left/right/bottom 5개 camera를 고정함. 모델당 `4 × 3 × 16 × 5 = 960`개 map을 평가함. Target RGB는 해당 held-out instance의 실제 reference를 사용했지만, 3D extent는 USD mesh의 정확한 값을 사용함.
+
+| Development-heldout, seed 0 | Coverage MAE ↓ | Workspace MAE ↓ | Noncoverage MAE ↓ | All-scale noncoverage ↓ | `S` 0.85→1.0 ↑ | `S` 1.0→1.15 ↑ |
+|---|---:|---:|---:|---:|---:|---:|
+| Phase 26 | `0.06857` | `0.07818` | `0.08573` | `0.07931` | `0.2150` | `0.2432` |
+| Common anchor only | `0.06473` | `0.05139` | `0.04091` | `0.03318` | `0.2427` | `0.2860` |
+| Common + paired | `0.06489` | `0.04990` | `0.03813` | `0.03086` | `0.2471` | `0.2913` |
+
+최종 후보는 Phase 26보다 coverage `5.37%`, workspace `36.17%`, noncoverage `55.53%`, all-scale noncoverage `61.09%` 낮았음. Anchor-only와 비교해도 두 scale 구간의 `S`가 5개 camera 모두에서 높았고, target × camera × 구간의 `40/40` 조건에서도 같은 방향을 보임. 사전 기준인 `10/10 camera scale-response 개선`과 `coverage MAE 증가 2% 이내`를 모두 만족함.
+
+냉정하게 보면 paired loss의 추가 이득은 작음. Anchor-only보다 전체 coverage MAE가 `0.24%` 높고, 세부 coverage 60개 조건 중 36개에서 최대 `1.62%` 증가함. 반면 workspace·noncoverage·all-scale noncoverage는 각각 `2.90%`, `6.81%`, `7.01%` 낮고, scale-response 40개 조건은 모두 개선됨. 따라서 작은 coverage trade-off 안에서 크기 반응과 leakage를 함께 개선한 seed-0 oracle 후보로 해석함.
+
+이 결과는 아직 최종 zero-shot 증명이 아님.
+
+- 네 target은 학습에는 사용하지 않았지만 이전 개발 진단에서 이미 관찰한 instance임.
+- Scene은 학습에 쓰지 않았지만 모델 선택에 사용한 동일 validation scene임.
+- Target mask에서 얻은 2D 크기와 USD mesh의 exact 3D extent를 함께 사용함.
+- Scale `0.85/1.0/1.15`는 학습 범위 `0.7–1.3` 안의 interpolation이며 seed 0만 평가함.
+- 현재 5개 camera는 calibration이 고정된 rig이며 임의 camera pose 일반화를 뜻하지 않음.
+- `S=0.247/0.291`은 Phase 26보다 높지만 `S=1`의 완전한 scale 변화 재현과는 거리가 있음.
+
+**다음 Step:** 이 checkpoint를 exact-size oracle 상한선으로 동결함. 동일 pose·거리의 5-view target reference와 camera calibration 저장 protocol을 먼저 고정한 뒤, RGB/mask silhouette에서 3D extent를 추정함. 같은 960개 조건에서 `mesh oracle / RGB-mask 추정 extent / extent 없음`만 바꾸어 비교하고, 개선이 유지될 때 seeds 1–2와 최종 untouched-target 평가로 이동함.
