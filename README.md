@@ -793,6 +793,26 @@ gamma, beta = MLP(area, bbox_h, bbox_w)
 F_depth'    = gamma * F_depth + beta
 ```
 
+#### FiLM은 무엇을 하는가?
+
+FiLM은 target 정보를 보고 scene depth feature의 채널별 중요도를 조절하는 장치임. 예를 들어 큰 target이 주어지면, 큰 빈 공간이나 깊은 틈에 반응하는 depth channel을 더 사용하도록 학습할 수 있음.
+
+```mermaid
+flowchart LR
+    G["Target geometry<br/>68개 입력 칸"] --> M["MLP<br/>64개 학습 내부값"]
+    M --> GB["각 DINO layer용<br/>gamma 256개 + beta 256개"]
+    D["각 위치의 depth feature<br/>256 channels"] --> F["FiLM<br/>gamma × depth + beta"]
+    GB --> F
+    F --> O["크기 조건이 반영된<br/>depth feature"]
+```
+
+- `68-D`는 68개의 물리 개념을 뜻하지 않고 입력을 담는 고정 크기임. Size-only baseline은 `area, bbox height, bbox width` 세 칸만 사용하고 나머지는 0으로 둠. Exact-extent 실험은 다음 세 칸에 `짧은 가로 길이, 긴 가로 길이, 높이`를 추가함.
+- `64-D hidden`은 MLP가 스스로 학습하는 중간 표현임. 각 차원에 사전에 정한 이름이나 단일 물리 의미는 없음.
+- `256 depth channels`도 사람이 지정한 256개 속성이 아니라 ResNet-18이 학습한 서로 다른 depth pattern 반응임. FiLM은 각 channel에 적용할 `gamma`와 `beta`를 만듦.
+- Global FiLM은 같은 `gamma, beta`를 모든 위치에 적용함. Target 크기 정보는 전달하기 쉽지만, target이 들어갈 수 없는 위치까지 함께 활성화할 수 있음.
+
+Zero-shot 가설은 물체 이름을 외우는 대신 `새 target의 크기·외형 ↔ 현재 위치의 RGB-D 구조` 관계를 학습하는 것임. 다만 exact 3D extent는 현재 USD에서 얻은 진단용 oracle이므로, 이 실험만으로 RGB 입력 기반 zero-shot 배포가 증명되지는 않음.
+
 Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. Fresh current-code broadcast-on 재학습이 과거 baseline의 전체 학습 trajectory와 최종 가중치를 정확히 재현하여, 이 저하는 code/data drift가 아니라 broadcast 제거에 따른 결과임을 확인함.
 
 Raw target 대신 scene–target의 normalized channelwise product를 넣은 후속 실험은 scale-response를 `7/8`, camera cell을 `37/40`까지 회복했지만, raw 기준 대비 coverage MAE가 seen `+25.0%`, training-heldout `+12.3%` 증가하여 기각함. 따라서 현재는 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
@@ -869,7 +889,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
 | Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
 | Relation-aware target interaction | Seed-0 complete; scale response mostly recovered but coverage/PF4 gates failed, rejected |
-| Exact 3D extent conditioning | Seed-0 oracle test complete; useful coverage/scale signal confirmed, global FiLM rejected due noncoverage error |
+| Exact 3D extent + global FiLM | Seed-0 oracle test complete; coverage signal confirmed, rejected due workspace leakage |
+| Exact 3D extent + local bounded interaction | Seed-0 complete; average leakage reduced, target-specific gates failed |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -950,8 +971,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Test whether exact 3D target extent contains useful train-only signal
 - [x] Run one controlled seed-0 model ablation with exact 3D extent as a diagnostic input — global FiLM rejected
 - [x] Verify frozen correct-vs-wrong extent causality across 16 scenes and 5 cameras
-- [ ] Replace global FiLM with a zero-initialized local bounded extent interaction and repeat the seed-0 gate
-- [ ] If the local interaction gate passes, estimate 3D extent from deployable target images/masks
+- [x] Replace global FiLM with a zero-initialized local bounded extent interaction — average leakage reduced, rejected at seed 0
+- [ ] Diagnose local correct-vs-wrong extent causality and patch localization before another retrain
+- [ ] If a conditioning method passes all gates, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
@@ -1494,3 +1516,36 @@ Correct extent는 held-out target에서도 coverage 예측과 크기 변화 반�
 **판단:** 현재 병목은 DINOv3의 정보 부족이 아니라, 하나의 extent vector로 전체 depth feature에 `gamma·beta`를 적용하는 global FiLM의 공간 제어 부족임. Target이 숨을 수 있는 영역은 개선하지만, workspace 안에서도 해당 target이 존재할 수 없어 GT가 0인 위치까지 함께 활성화함.
 
 현재 global-FiLM 모델은 기각하며 seed 1–2 반복과 RGB 기반 3D 크기 추정기 개발은 보류함. 다음 실험에서는 exact extent를 계속 oracle로 사용하되, `local depth feature × extent`로 patch별 bounded residual을 만들고 residual을 0으로 초기화해 raw baseline에서 시작함. 동일한 seed-0 조건에서 coverage·coverage 밖 오차·scale-response·5-camera 결과가 함께 개선될 때만 다음 단계로 진행함.
+
+---
+
+### 2026-08-24 · Phase 23 — Local Bounded Extent Interaction
+
+**문제:** Global FiLM은 target 크기로 만든 같은 조절값을 모든 scene patch에 적용함. Target이 들어갈 수 있는 영역은 찾았지만, 서랍 안에서 해당 target이 물리적으로 들어갈 수 없는 위치도 함께 밝아지는 leakage가 발생함.
+
+**방법:** Exact extent와 각 위치의 depth feature를 함께 보고 위치별 gate를 계산하도록 변경함.
+
+```text
+Global: target extent ─────────────→ 모든 위치에 같은 gamma, beta
+Local : target extent + D(x,y) ───→ 위치별 gate g(x,y) ─→ bounded residual
+
+D'(x,y) = D(x,y) + 0.25 × g(x,y) × learned_correction(x,y)
+```
+
+`g(x,y)`는 현재 위치의 depth 구조가 target 크기와 맞는 정도를 `0–1`로 나타냄. `0.25`는 depth feature를 수정하는 residual branch의 세기를 제한하는 값이며, 최종 occlusion probability를 25%로 제한한다는 뜻은 아님. Residual은 0에서 시작하므로 학습 전 출력은 raw baseline과 정확히 같음. Seed·초기 가중치·sample 순서·`5,408` update와 exact extent 입력은 Phase 22와 동일하게 유지함.
+
+아래 MAE는 예측 map과 GT의 평균 절대 차이이며 `0`에 가까울수록 좋음. `Coverage`는 target이 차지할 수 있는 영역의 정확도, `Impossible-to-occupy workspace`는 target이 들어갈 수 없는 위치의 잘못된 활성화, `Whole workspace`는 두 영역을 함께 평가함.
+
+![Local bounded extent seed-0 result](img/occlusion_model/local_bounded_extent_seed0.png)
+
+| 전체 14 target | Raw size-only | Exact extent + global FiLM | Exact extent + local bounded |
+|---|---:|---:|---:|
+| Coverage MAE | `0.05838` | `0.05803` (`0.60%` 개선) | `0.05741` (`1.67%` 개선) |
+| Whole-workspace MAE | `0.13745` | `0.15581` (`13.36%` 악화) | `0.13077` (`4.86%` 개선) |
+| Impossible-workspace MAE | `0.20853` | `0.24371` (`16.87%` 악화) | `0.19671` (`5.67%` 개선) |
+
+Local 방식은 global FiLM의 평균 leakage를 제거하고 raw보다도 세 영역 모두 개선함. Training-heldout 4개 target 평균에서도 coverage `13.33%`, workspace `9.13%`, impossible-workspace `8.01%` 개선함. 크기 변화에 출력이 같은 방향으로 반응하는지는 `8/8` target-scale과 `40/40` camera에서 유지되어 다섯 camera에 공통인 신호도 확인함.
+
+**판단:** 평균 개선만으로 모델을 채택하지 않음. Raw 대비 `book_4` scale-response가 `-0.062`, `-0.054` 감소하여 사전 기준 `-0.05`를 넘었고, `packaged_food_4`의 impossible-workspace MAE는 `30.29%` 악화함. Seen-target coverage도 `4.65%` 악화하여 seed-0 formal gate는 실패함.
+
+따라서 local interaction은 global 방식보다 공간 제어가 낫다는 가설은 지지하지만 최종 모델로는 기각함. Seed 1–2와 RGB 기반 extent estimator는 실행하지 않음. 다음 단계는 같은 frozen checkpoint에서 extent만 올바른 값과 같은 category의 다른 값으로 교체해 원인을 분리하고, gate와 residual이 coverage 안팎을 실제로 구분하는지 확인하는 것임.
