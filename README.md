@@ -974,7 +974,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Replace global FiLM with a zero-initialized local bounded extent interaction — average leakage reduced, rejected at seed 0
 - [x] Diagnose local correct-vs-wrong extent causality and patch localization
 - [x] Replace the saturated sigmoid gate with a regularized local-confidence gate — saturation removed, rejected at seed 0
-- [ ] Supervise the local gate on physically reachable/impossible patches in one controlled seed-0 run
+- [x] Supervise the local gate on physically reachable/impossible patches — localization recovered, book scale gate failed
+- [ ] Separate horizontal footprint and height conditioning in one controlled seed-0 run
 - [ ] If a conditioning method passes all gates, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
@@ -1598,3 +1599,39 @@ Frozen 진단에서 gate의 `0.95` 초과 비율은 기존 `66–97%`에서 `0%`
 Exact extent는 물체 이름이 아니라 실제 크기이므로 원리상 unseen target에도 적용 가능한 정보임. 다만 현재 값은 mesh에서 얻은 진단용 oracle이므로 이 결과는 zero-shot 성능을 증명하지 않음. Oracle 구조가 먼저 모든 target에서 안정적으로 작동한 뒤에만 target RGB/mask로 크기를 추정하는 배포 입력으로 교체함.
 
 **판단 및 다음 단계:** 이 모델도 seed 0에서 기각하고 seed 1–2는 실행하지 않음. 다음 실험은 최종 probability map을 직접 누르는 ring loss가 아니라 gate 자체만 감독함. Target이 실제로 도달 가능한 순수 patch에는 gate가 열리고, workspace 안이지만 target이 들어갈 수 없는 순수 patch에는 닫히도록 balanced auxiliary loss를 추가함. 경계가 섞인 patch는 제외하고 `lambda_gate=0.05`의 단일 seed-0 통제 실험만 수행함. 이 방식은 occlusion 확률을 맞히는 본래 head의 역할을 유지하면서, gate에 부족했던 공간적 역할만 명시함.
+
+---
+
+### 2026-08-24 · Phase 25 — Strict Gate-Localization Supervision
+
+**왜 이 방법을 사용했는가:** Phase 24의 gate 값은 안정됐지만 열어야 할 곳과 닫아야 할 곳을 구분하지 못했음. 최종 probability map의 loss만 사용하면 뒤쪽 MatchingBlock이 오차를 대신 줄일 수 있어 gate가 의도한 역할을 배우지 않아도 됨. 따라서 최종 출력을 직접 0으로 누르는 기존 ring loss 대신, gate에만 위치 역할을 알려주는 보조 loss를 사용함.
+
+```text
+Target이 놓일 수 있는 순수 patch       → gate를 1에 가깝게 학습
+서랍 안이지만 target이 못 들어가는 patch → gate를 0에 가깝게 학습
+두 영역이 섞인 경계 patch              → 보조 loss에서 제외
+
+전체 loss = 기존 probability-map loss + 0.05 × balanced gate loss
+```
+
+두 영역의 patch 수가 달라도 한쪽이 loss를 지배하지 않도록 각각 평균한 뒤 `1:1`로 합침. `0.05`는 결과를 보고 고른 값이 아니라 실험 전에 고정했으며, validation과 checkpoint 선택은 기존 probability-map loss만 사용함. Seed·초기 state·sample 순서·`5,408` update와 exact-extent oracle 입력도 이전 실험과 같게 유지함.
+
+![Strict gate-localization supervision result](img/occlusion_model/gate_supervision_seed0.png)
+
+| 전체 14 target | Raw size-only | Gate supervision | 의미 |
+|---|---:|---:|---|
+| Coverage MAE | `0.05838` | `0.05153` | Target이 놓일 수 있는 영역의 오차 `11.73%` 감소 |
+| Whole-workspace MAE | `0.13745` | `0.07538` | 서랍 전체 오차 `45.16%` 감소 |
+| Impossible-workspace MAE | `0.20853` | `0.09682` | 잘못 밝아지는 leakage `53.57%` 감소 |
+
+보조 loss가 없는 동일 gate 모델과 비교해도 coverage·workspace·impossible-workspace MAE가 각각 `11.76%`, `37.81%`, `45.51%` 감소함. 따라서 단순 학습 변동이 아니라 gate localization supervision이 평균 개선을 만든 것으로 판단함.
+
+Frozen 진단에서도 변화가 확인됨. 보조 loss가 없을 때 가능한 영역과 불가능한 영역의 gate 차이는 `0.005–0.014`였지만, 학습 후에는 target별 `0.580–0.695`로 커짐. 가능한 영역의 평균 gate는 `0.797–0.860`, 불가능한 영역은 `0.166–0.217`이므로 gate가 실제 문지기 역할을 학습함.
+
+**남은 문제:** 평균 결과는 크게 좋아졌지만 사전에 정한 모든 기준을 통과하지는 못함. 다섯 camera에서 scale-response 자체는 `40/40` 모두 양수였으나, `book_4`의 `0.85/1.15` scale 반응은 raw보다 각각 `0.118`, `0.130` 약해져 허용선 `-0.05`를 넘음. 결과를 본 뒤 기준을 완화하지 않고 seed-0 formal gate를 실패로 기록함.
+
+축별 frozen intervention에서는 book의 수평 크기 입력 효과는 scale-response `+0.005`로 거의 중립이었지만, 높이 입력은 `-0.131`을 만들었음. 반대로 높이 입력은 coverage와 impossible-workspace MAE를 각각 약 `0.016`, `0.031` 줄여 단순히 제거할 정보도 아님. 즉 현재 하나의 FiLM/gate가 수평 footprint와 높이의 서로 다른 역할을 함께 처리하는 것이 남은 병목임.
+
+Exact extent와 coverage label은 USD/GT에서 얻은 simulation oracle임. 물체 category 이름을 gate에 주지는 않으므로 크기와 local depth의 관계를 배우는 zero-shot 가설에는 맞지만, 아직 target RGB만 사용하는 배포형 zero-shot을 증명한 결과는 아님.
+
+**판단 및 다음 단계:** 평균 개선과 gate localization은 유지할 가치가 있지만, 현 모델은 book scale 기준 실패로 확정하지 않음. Seeds 1–2와 RGB extent estimator는 계속 보류함. 다음에는 수평 footprint와 높이를 별도 conditioning 경로로 분리하되 동일 gate supervision을 유지하는 seed-0 실험 하나만 수행함. 두 축을 분리한 뒤에도 book 반응이 회복되지 않으면 architecture 확장을 중단하고 scale-paired objective 또는 GT의 book-height 정의를 다시 검토함.
