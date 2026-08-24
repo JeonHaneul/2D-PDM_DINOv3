@@ -91,6 +91,49 @@ def load_target_reference(target_rgb_dir: str, target_seg_dir: str, target_mappi
     return rgb, mask, target_usd_name
 
 
+def extract_target_geometry(mask: np.ndarray, silhouette_size: int = 8) -> np.ndarray:
+    """Convert a target mask into the fixed geometry vector used by Occlusion FiLM.
+
+    The vector contains normalized mask area, bounding-box height/width, log aspect ratio,
+    and a coarse soft silhouette.  It is deterministic and therefore works for a new target
+    without learning target-specific parameters.
+    """
+    if mask.ndim != 2:
+        raise ValueError(f"target mask must be 2-D, got shape {mask.shape}")
+    if silhouette_size <= 0:
+        raise ValueError("silhouette_size must be positive")
+
+    mask_bool = np.asarray(mask, dtype=bool)
+    height, width = mask_bool.shape
+    ys, xs = np.where(mask_bool)
+    output_dim = 4 + silhouette_size * silhouette_size
+    if len(ys) == 0:
+        return np.zeros(output_dim, dtype=np.float32)
+
+    area_ratio = float(np.count_nonzero(mask_bool)) / float(mask_bool.size)
+    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
+    bbox_h = int(y1 - y0 + 1)
+    bbox_w = int(x1 - x0 + 1)
+    bbox_h_ratio = bbox_h / height
+    bbox_w_ratio = bbox_w / width
+    log_aspect = float(np.log(bbox_w / bbox_h))
+    crop = mask_bool[y0:y1 + 1, x0:x1 + 1].astype(np.float32)
+    silhouette = cv2.resize(
+        crop,
+        (silhouette_size, silhouette_size),
+        interpolation=cv2.INTER_AREA,
+    )
+    return np.concatenate(
+        [
+            np.asarray(
+                [area_ratio, bbox_h_ratio, bbox_w_ratio, log_aspect],
+                dtype=np.float32,
+            ),
+            silhouette.reshape(-1).astype(np.float32),
+        ]
+    )
+
+
 def crop_with_mask(rgb_img: np.ndarray, mask: np.ndarray, pad_ratio: float = 0.25):
     """Tight bbox around `mask`, padded by pad_ratio, clipped to image bounds."""
     # target 단독 사진은 640x480 프레임 안에 물체가 아주 작게(수십 px) 찍혀있어서, 그대로
