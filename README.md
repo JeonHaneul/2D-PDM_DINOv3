@@ -508,7 +508,7 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based probability GT validated · clean52 multi-scale benchmark complete · footprint gate와 height residual 역할 분리 확인 · 평균 leakage는 추가 감소했지만 book scale 사전 기준은 미충족 · 최종 untouched-target 평가는 아직 수행하지 않음**
+> **Status: Mesh-based probability GT validated · clean52 multi-scale benchmark complete · footprint/height 분리와 train-only scale-paired loss까지 평가 · BatchNorm batch 구성의 영향 확인 · scale 반응은 일부 개선됐지만 coverage 공간 오차 기준은 미충족 · 최종 untouched-target 평가는 아직 수행하지 않음**
 >
 > 최신 oracle conditioning은 로컬 research harness에서 원인을 비교하는 용도임. 사전에 정한 평가 기준을 모두 만족한 구성만 release baseline에 반영하며, 현재 공개 `occlusion_model.py`는 broadcast-on size-only 구조를 유지함. Clean52 전체 학습·평가 harness와 대용량 GT 배포는 아직 정리 중이므로, 아래 최신 수치는 로컬 고정 프로토콜의 감사 결과임.
 
@@ -575,7 +575,7 @@ corrected_ratio = N_occluded_valid / (N_valid + epsilon)
 is_occluded = corrected_ratio >= 0.7
 ```
 
-확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의함. 따라서 `0.8`은 scene마다 임의로 밝아진 값이 아니라, 그 위치를 덮는 유효 후보 중 약 `80%`가 실제로 가려졌다는 공통 의미를 가짐. Scene별 min–max normalization을 사용하지 않는 이유는 target이 가려질 수 있는 영역이 거의 없는 scene도 가장 밝은 pixel이 강제로 `1`이 되는 문제를 피하기 위해서임. Visible-target 강조는 현재 보이는 물체를 담당하는 Similarity stream과 역할이 겹치므로 새 probability GT에는 넣지 않음.
+확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의함. 따라서 `0.8`은 scene마다 임의로 밝아진 값이 아니라, 그 위치를 덮는 유효 후보 중 약 `80%`가 실제로 가려졌다는 공통 의미를 가짐. Scene별 min–max normalization을 사용하지 않는 이유는 target이 물체 더미에 의해 가려질 수 있는 영역이 거의 없는 scene도 가장 밝은 pixel이 강제로 `1`이 되는 문제를 피하기 위해서임. Visible-target 강조는 현재 보이는 물체를 담당하는 Similarity stream과 역할이 겹치므로 새 probability GT에는 넣지 않음.
 
 ```text
 P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
@@ -871,6 +871,7 @@ Target appearance를 MatchingBlock에 전달하는 방법도 통제 실험으로
 | Channel-wise scene–target relation | Absolute target code 대신 위치별 관계만 전달하려는 목적 | No-broadcast보다 크기 반응은 회복했지만 coverage 오차 증가 | Raw baseline을 대체할 정도로 안정적이지 않아 후속 seed를 진행하지 않음 |
 | Exact 3D extent + global FiLM | 2D mask에 없는 실제 바닥 크기와 높이 정보가 필요한지 확인 | 가능한 영역은 개선됐지만 모든 위치에 같은 보정이 퍼짐 | 3D 크기 정보는 유효하지만 공간 제어 방식의 수정이 필요함 |
 | Local gate + strict supervision | 위치마다 크기 보정을 열고 닫아 불가능한 영역의 활성화를 줄이려는 목적 | Oracle coverage 기준 gate 차이가 `0.005–0.014 → 0.580–0.695`로 증가 | 평균 leakage는 줄었지만 book scale 기준을 충족하지 못해 아직 연구 후보로만 유지 |
+| Train-only scale-paired loss | 같은 scene에서 target 크기가 달라질 때 map의 변화량까지 직접 학습 | BN 통계 보정 후 scale 반응과 workspace 오차는 개선됐지만 coverage 내부의 공간 오차가 증가 | Held-out target은 열지 않고 학습 batch와 loss의 영향을 다시 분리하는 중 |
 
 Fresh broadcast-on 재학습은 과거 baseline의 학습 trajectory와 최종 model tensor를 정확히 재현함. 동일 seed·초기화·sample order를 사용한 controlled seed-0 비교 안에서는 위 차이를 code/data drift보다 target-conditioning 방식의 차이로 해석할 수 있음. 현재 공개 baseline이 raw broadcast를 유지하는 것은 최적이라고 확정했기 때문이 아니라, 아직 모든 사전 기준을 만족한 대체 구조가 없기 때문임.
 
@@ -879,6 +880,8 @@ DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlock
 ![Occlusion conditioning benchmark](img/occlusion_model/conditioning_progress.png)
 
 `S`는 target scale이 바뀔 때 예측 map도 GT가 요구하는 방향으로 반응하는지를 나타내며, 양수이면 최소한 변화 방향이 맞다는 뜻임. `size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled `S`를 `0.1477 → 0.2224`로 개선함. Positive camera cell은 `target × scale transition × camera × seed` 조합 중 `S > 0`인 경우임. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
+
+후속 train-only 실험에서는 같은 scene의 scale별 **변화량**을 직접 맞히는 paired loss를 추가함. 이 loss에는 유효한 scale 신호가 있었지만, 같은 depth frame을 세 번 반복한 batch가 ResNet-18의 BatchNorm 통계도 함께 바꿨음. Train depth 180개로 통계만 다시 맞춘 뒤에는 scale 반응과 workspace leakage가 개선됐으나, target이 물체 더미에 의해 가려질 수 있는 영역의 공간 오차는 기존보다 약 `10.1%` 높았음. 따라서 현재 candidate를 release baseline으로 바꾸거나 untouched target을 평가하지 않고, batch 통계와 paired loss를 분리하는 최소 실험을 먼저 진행함.
 
 ### Deployment Inputs
 
@@ -945,6 +948,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Five-camera development evaluation | `target × scale transition × camera × seed` 120개 중 119개가 기대한 크기 변화 방향을 보임 |
 | Controlled target-conditioning studies | Broadcast 제거·relation interaction·global/local extent 경로를 동일 seed-0 조건에서 비교; 자세한 원인과 결과는 Development Log에 기록 |
 | Strict local-gate research candidate | Oracle coverage 기준 영역 분리는 크게 개선했으나 book scale 기준을 충족하지 못해 release에는 미반영 |
+| Train-only scale-paired objective | 동일 scene의 `0.7/1.0/1.3` map 변화량을 학습하고 5-camera validation 완료; BN 영향과 coverage trade-off 확인 |
+| BatchNorm recalibration diagnostic | Train depth `36 scenes × 5 cameras`만 사용해 가중치 변경 없이 BN 통계 재계산 완료 |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -1020,7 +1025,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Compare broadcast, relation, global extent and local extent conditioning under controlled seed-0 settings
 - [x] Supervise the local gate with oracle coverage — localization improved; book scale criterion remains unmet
 - [x] Separate horizontal footprint and height conditioning in one controlled seed-0 run
-- [ ] Add a train-only scale-paired objective without changing the model architecture
+- [x] Add and evaluate a train-only scale-paired objective without changing the model architecture
+- [x] Separate stored BatchNorm-statistics effects with 180 train-only depth frames
+- [ ] 다음 Step: Phase 26 checkpoint에서 BatchNorm 통계를 고정한 1-epoch paired comparison
 - [ ] If a conditioning method passes all gates, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
@@ -1596,7 +1603,7 @@ Correct extent는 held-out target에서도 coverage 예측과 크기 변화 반�
 
 ### 2026-08-24 · Phase 23 — Local Bounded Extent Interaction
 
-**문제:** Global FiLM은 target 크기로 만든 같은 조절값을 모든 scene patch에 적용함. Target이 가려질 수 있는 영역은 찾았지만, 서랍 안에서 해당 target이 가려질 후보가 없는 위치도 함께 밝아지는 leakage가 발생함.
+**문제:** Global FiLM은 target 크기로 만든 같은 조절값을 모든 scene patch에 적용함. Target이 물체 더미에 의해 가려질 수 있는 영역은 찾았지만, 서랍 안에서 해당 target이 가려질 후보가 없는 위치도 함께 밝아지는 leakage가 발생함.
 
 **방법:** Exact extent와 각 위치의 depth feature를 함께 보고 위치별 gate를 계산하도록 변경함.
 
@@ -1609,7 +1616,7 @@ D'(x,y) = D(x,y) + 0.25 × g(x,y) × learned_correction(x,y)
 
 `g(x,y)`는 현재 위치의 depth 구조가 target 크기와 맞는 정도를 `0–1`로 나타냄. `0.25`는 depth feature를 수정하는 residual branch의 세기를 제한하는 값이며, 최종 occlusion probability를 25%로 제한한다는 뜻은 아님. Residual은 0에서 시작하므로 학습 전 출력은 raw baseline과 정확히 같음. Seed·초기 가중치·sample 순서·`5,408` update와 exact extent 입력은 Phase 22와 동일하게 유지함.
 
-아래 MAE는 예측 map과 GT의 평균 절대 차이이며 `0`에 가까울수록 좋음. `Coverage`는 target이 가려질 수 있는 영역의 정확도, `Impossible-to-occupy workspace`는 target이 가려질 후보가 없는 위치의 잘못된 활성화, `Whole workspace`는 두 영역을 함께 평가함.
+아래 MAE는 예측 map과 GT의 평균 절대 차이이며 `0`에 가까울수록 좋음. `Coverage`는 target이 물체 더미에 의해 가려질 수 있는 영역의 정확도, `Impossible-to-occupy workspace`는 target이 가려질 후보가 없는 위치의 잘못된 활성화, `Whole workspace`는 두 영역을 함께 평가함.
 
 ![Local bounded extent seed-0 result](img/occlusion_model/local_bounded_extent_seed0.png)
 
@@ -1660,7 +1667,7 @@ D'(x,y) = D(x,y) + 0.25 × g(x,y) × size_correction(x,y)
 
 | 전체 14 target | Raw size-only | Local sigmoid | Local confidence | 해석 |
 |---|---:|---:|---:|---|
-| Coverage MAE | `0.05838` | `0.05741` | `0.05840` | Target이 가려질 수 있는 영역은 raw와 사실상 같음 |
+| Coverage MAE | `0.05838` | `0.05741` | `0.05840` | Target이 물체 더미에 의해 가려질 수 있는 영역은 raw와 사실상 같음 |
 | Whole-workspace MAE | `0.13745` | `0.13077` | `0.12122` | 서랍 전체의 평균 오차는 raw보다 `11.81%` 감소 |
 | Impossible-workspace MAE | `0.20853` | `0.19671` | `0.17768` | 가려질 후보가 없는 위치의 잘못된 활성화는 평균 `14.79%` 감소 |
 
@@ -1692,7 +1699,7 @@ Target이 물체 더미에 의해 가려질 수 있는 순수 patch → gate를 
 
 | 전체 14 target | Raw size-only | Gate supervision | 의미 |
 |---|---:|---:|---|
-| Coverage MAE | `0.05838` | `0.05153` | Target이 가려질 수 있는 영역의 오차 `11.73%` 감소 |
+| Coverage MAE | `0.05838` | `0.05153` | Target이 물체 더미에 의해 가려질 수 있는 영역의 오차 `11.73%` 감소 |
 | Whole-workspace MAE | `0.13745` | `0.07538` | 서랍 전체 오차 `45.16%` 감소 |
 | Impossible-workspace MAE | `0.20853` | `0.09682` | 잘못 밝아지는 leakage `53.57%` 감소 |
 
@@ -1712,7 +1719,7 @@ Exact extent와 coverage label은 USD/GT에서 얻은 simulation oracle임. 물�
 
 ### 2026-08-24 · Phase 26 — Footprint Gate / Height Residual Separation
 
-**왜 이 실험을 했는가:** Phase 25는 gate의 위치 분리를 학습했지만, 얇고 넓은 `book_4`의 scale 반응은 여전히 약했음. 하나의 exact-extent 벡터가 “어디에서 target이 가려질 수 있는가”와 “그 안에서 높이 차이를 얼마나 반영할 것인가”를 동시에 결정한 것이 원인인지 확인함.
+**왜 이 실험을 했는가:** Phase 25는 gate의 위치 분리를 학습했지만, 얇고 넓은 `book_4`의 scale 반응은 여전히 약했음. 하나의 exact-extent 벡터가 “어디에서 target이 물체 더미에 의해 가려질 수 있는가”와 “그 안에서 높이 차이를 얼마나 반영할 것인가”를 동시에 결정한 것이 원인인지 확인함.
 
 68개 입력 칸 중 실제로 사용하는 여섯 값의 역할을 다음처럼 나눔.
 
@@ -1733,10 +1740,84 @@ Footprint는 target이 영상에서 차지하는 크기와 바닥 방향 길이�
 | Whole-workspace MAE | `0.13745` | `0.07538` | `0.07276` | Raw보다 `47.07%`, Phase 25보다 `3.48%` 낮음 |
 | Impossible-workspace MAE | `0.20853` | `0.09682` | `0.08907` | Raw보다 `57.29%`, Phase 25보다 `8.00%` 낮음 |
 
-Gate 역할 분리는 실제 checkpoint에서도 유지됨. 네 development-heldout target에서 target이 가려질 수 있는 순수 영역의 평균 gate는 `0.798–0.865`, 가려질 후보가 없는 영역은 `0.128–0.183`이었음. 모든 scale과 다섯 camera에서 예측 반응 방향은 `40/40` 양수였음.
+Gate 역할 분리는 실제 checkpoint에서도 유지됨. 네 development-heldout target에서 target이 물체 더미에 의해 가려질 수 있는 순수 영역의 평균 gate는 `0.798–0.865`, 가려질 후보가 없는 영역은 `0.128–0.183`이었음. 모든 scale과 다섯 camera에서 예측 반응 방향은 `40/40` 양수였음.
 
 그러나 핵심 사전 기준은 충족하지 못함. `book_4 ×0.85/×1.15`의 raw 대비 `ΔS`는 Phase 25의 `-0.118/-0.130`에서 `-0.094/-0.052`로 회복됐지만, 두 값 모두 허용선 `-0.05`를 넘지 못함. Held-out median `ΔS=-0.010`과 다른 held-out target의 native coverage 안전 기준도 충족하지 못했으며, `book_4` native coverage MAE는 raw보다 `10.3%` 높았음. 결과를 본 뒤 기준을 완화하지 않고 seed-0 사전 기준 미충족으로 기록함.
 
 Frozen identity 진단에서는 Phase 26의 local residual을 끄면 `book_4` coverage MAE가 평균 `0.0128` 낮아졌음. 즉 현재 남은 문제는 gate가 잘못된 위치를 여는 것이 아니라, 올바르게 열린 영역 안에서 book의 크기 변화에 적용하는 보정 방향과 크기가 부정확한 것임.
 
 **판단 및 다음 Step:** Seeds 1–2와 RGB 기반 extent estimator는 계속 보류하고, 구조를 더 키우지 않음. 현재 loss는 각 scale의 map을 따로 맞히므로 평균 오차를 낮추면서도 같은 scene에서 scale에 따른 변화량을 충분히 보존하지 못할 수 있음. 다음에는 train target의 동일 scene·camera에서 두 scale을 짝지어 `예측 map 변화량`과 `GT map 변화량`을 직접 비교하는 scale-paired loss를 추가함. Held-out target은 loss 설계나 가중치 선택에 사용하지 않음.
+
+---
+
+### 2026-08-24 · Phase 27 — Train-Only Scale-Paired Loss and BatchNorm Diagnosis
+
+**왜 이 실험을 했는가:** 기존 loss는 scale `0.7`, `1.0`, `1.3`의 probability map을 각각 맞히지만, 같은 scene에서 target 크기가 바뀔 때 map이 **어떻게 달라져야 하는지**는 직접 비교하지 않음. 이 때문에 평균 map 오차를 낮추면서도 크기 변화가 예측에 충분히 반영되지 않을 가능성을 확인하고자 함.
+
+같은 `target–scene–camera`의 세 scale을 한 묶음으로 불러오고, 인접한 두 scale의 예측 변화와 GT 변화를 비교함.
+
+```mermaid
+flowchart LR
+    I["동일한 Scene RGB-D"] --> M07["Model<br/>target scale 0.7"]
+    I --> M10["Model<br/>target scale 1.0"]
+    I --> M13["Model<br/>target scale 1.3"]
+    M07 --> P07["P_0.7"]
+    M10 --> P10["P_1.0"]
+    M13 --> P13["P_1.3"]
+    P07 --> D1["예측 변화 P_1.0 - P_0.7"]
+    P10 --> D1
+    P10 --> D2["예측 변화 P_1.3 - P_1.0"]
+    P13 --> D2
+    D1 --> L["GT 변화와 비교하는<br/>scale-paired loss"]
+    D2 --> L
+```
+
+```text
+ΔP = P(s₂) - P(s₁)                 예측 map이 scale에 따라 변한 양
+ΔG = G(s₂) - G(s₁)                 GT map이 scale에 따라 변해야 하는 양
+
+L_pair = Σ|ΔP - ΔG| / (Σ|ΔG| + ε)
+L_total = L_map + 0.05 L_gate + 0.008902 L_pair
+
+S = 1 - L_pair
+```
+
+`S=1`이면 scale에 따른 공간 변화가 GT와 같고, `S=0`이면 예측이 scale 변화를 사실상 무시한 수준임. 음수이면 변화를 넣지 않은 것보다 오차가 더 큼. `0.008902`는 held-out 결과를 보고 고른 값이 아니라, train target의 gradient에서 paired 항의 크기가 기존 loss의 약 `10%`가 되도록 한 번 계산해 고정함.
+
+#### 첫 통제 실험
+
+Phase 26, paired loader만 사용한 `λ=0` control, paired loss를 추가한 candidate를 같은 seed·초기화·16 epoch·`5,408` update로 비교함. 개발용 held-out 4 target은 읽지 않고, 학습에 사용한 10 target과 학습에 사용하지 않은 validation scene 16개만 다섯 camera에서 평가함.
+
+| Fixed epoch 15 | Coverage MAE ↓ | Workspace MAE ↓ | Noncoverage MAE ↓ | `S` 0.7→1.0 ↑ | `S` 1.0→1.3 ↑ |
+|---|---:|---:|---:|---:|---:|
+| Phase 26 | `0.04956` | `0.07058` | `0.09052` | `0.3517` | `0.4466` |
+| Paired-loader control | `0.06429` | `0.07958` | `0.09409` | `0.3332` | `0.4067` |
+| Scale-paired candidate | `0.07764` | `0.07335` | `0.06929` | `0.3018` | `0.3546` |
+
+Candidate의 train paired error는 낮아졌지만 validation scene에서는 두 `S`가 모두 감소했고, center/top/left/right/bottom 전체에서 같은 경향을 보임. 따라서 특정 camera 문제가 아님. 또한 loss가 없는 paired-loader control도 Phase 26보다 나빠져, paired loss뿐 아니라 batch 구성이 함께 영향을 준다는 점을 확인함.
+
+```text
+기존 batch          : 서로 독립적인 depth frame 16개
+scale-paired batch  : 서로 다른 depth frame 5~6개 × 같은 frame의 scale 조건 3개
+                      └─ ResNet-18 BatchNorm에는 같은 scene depth가 세 번 반복됨
+```
+
+BatchNorm은 학습 중 depth feature의 평균과 분산을 저장하고, 추론 때 그 값으로 feature 범위를 맞춤. Scale-paired batch는 실제 tensor 수가 15–18개여도 서로 다른 depth는 5–6개뿐이므로, 기존 batch와 다른 통계가 저장될 수 있음.
+
+#### BatchNorm 통계만 분리한 진단
+
+모델 가중치는 그대로 두고 `36 train scenes × 5 cameras = 180`개의 고유 depth frame으로 ResNet-18의 BatchNorm 평균·분산만 공통 재계산함. Validation scene, held-out target, GT는 사용하지 않았으며, 자동 검사에서 학습 파라미터는 바뀌지 않고 BatchNorm buffer 60개만 변경됨.
+
+| BN 재계산 후 fixed checkpoint | Coverage MAE ↓ | Workspace MAE ↓ | Noncoverage MAE ↓ | `S` 0.7→1.0 ↑ | `S` 1.0→1.3 ↑ |
+|---|---:|---:|---:|---:|---:|
+| Phase 26 | `0.04772` | `0.06833` | `0.08789` | `0.3585` | `0.4542` |
+| Paired-loader control | `0.05432` | `0.07487` | `0.09435` | `0.3651` | `0.4443` |
+| Scale-paired candidate | `0.05252` | `0.06403` | `0.07494` | `0.3888` | `0.4613` |
+
+BN 통계를 맞추자 candidate는 Phase 26보다 두 scale 구간의 `S`가 높아지고, 전체 10개 `scale transition × camera` 비교 중 9개에서 개선됨. Workspace와 noncoverage MAE도 각각 약 `6.3%`, `14.7%` 낮아짐. 즉 paired loss의 scale 신호는 일부 존재하며, 처음 관측한 후반 악화의 큰 부분은 반복 scene으로 만들어진 BN 통계와 관련 있음.
+
+그러나 coverage MAE는 `0.04772 → 0.05252`로 약 `10.1%` 증가하여 사전 허용선 `2%`를 충족하지 못함. Coverage 평균 예측은 `0.2514`, 평균 GT는 `0.2485`로 전역 bias가 작았음. 평균값은 맞는데 MAE가 높다는 것은 단순히 map 전체가 너무 밝거나 어두운 문제가 아니라, **coverage 안에서 높은 확률과 낮은 확률을 배치하는 공간 패턴이 더 부정확해졌다는 뜻**임. 따라서 output bias나 threshold만 조절해서 해결할 수 없음.
+
+Validation loss가 가장 낮은 checkpoint도 별도 민감도 분석을 수행했지만, fixed epoch 결과를 사후에 교체하는 근거로 사용하지 않음. 최종 untouched target은 계속 열지 않았으며, seed 1–2 확대와 `λ` sweep도 진행하지 않음.
+
+**판단 및 다음 Step:** Scale-paired loss가 전혀 작동하지 않는 것은 아니지만, 현재 학습 방식은 scale 반응을 얻는 대신 coverage 내부 공간 정확도를 일부 희생함. 다음에는 Phase 26 checkpoint에서 정확히 한 epoch만 이어 학습하고, BatchNorm의 running mean/variance를 고정한 상태에서 `λ=0`과 `λ=0.008902`를 같은 `338` update로 비교함. 이 최소 실험으로 training-time BN 영향과 paired loss 자체의 공간 trade-off를 분리함. 두 scale 구간의 `S`가 모두 개선되고 coverage MAE 증가가 `2%` 이내일 때만 더 긴 재학습으로 확장함.
