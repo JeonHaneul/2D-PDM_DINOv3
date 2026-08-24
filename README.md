@@ -58,7 +58,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))
 
 > H. Jeon et al., *A study on deep reinforcement learning-based exploration intelligence for occluded object search*, Engineering Applications of Artificial Intelligence, 2026.
 
-기존 연구는 similarity와 occlusion 기반 column-wise distribution을 사용함. 물체 유사도를 수동 정의한 category score에 의존하여 unseen object에 대한 zero-shot 탐색이 불가능했음.
+기존 연구는 similarity와 occlusion 기반 column-wise distribution을 사용함. 물체 유사도를 수동 정의한 category score에 의존했기 때문에, 학습에 없던 물체로 확장되는 zero-shot 탐색 성능을 확인하지 못했음.
 
 주요 확장:
 
@@ -508,15 +508,49 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based GT generation validated · clean52 multi-scale development benchmark complete · paired reproducibility gate passed · target-interaction seed-0 ablations complete · next representation diagnostic · final untouched-target benchmark pending**
+> **Status: Mesh-based probability GT validated · clean52 multi-scale benchmark complete · oracle coverage를 이용한 local gate의 영역 분리 학습 확인 · book scale 사전 기준은 미충족 · 높이/footprint 역할 분리 실험 예정 · 최종 untouched-target 평가는 아직 수행하지 않음**
 >
-> Phase 14–17의 analytic/size-only/target-interaction 코드는 현재 로컬 실험 harness임. Controlled gate를 통과한 구성만 GitHub의 release baseline 코드로 승격할 예정이며, 현재 공개 `occlusion_model.py`는 broadcast-on baseline을 유지함.
+> 최신 conditioning 실험은 현재 로컬 research harness에서 비교 중임. 사전에 정한 평가 기준을 모두 만족한 구성만 GitHub의 release baseline에 반영하며, 현재 공개 `occlusion_model.py`는 재현 가능한 broadcast-on size-only baseline을 유지함.
 
-Occlusion stream은 target의 크기와 형상을 고려하여 물체 더미 아래에 가려질 가능성이 높은 영역을 예측함.
+Occlusion stream이 답하려는 질문은 **“지금 보이지 않는 target이 이 물체 더미 아래 어디에 들어가 가려져 있을 수 있는가?”**임. 현재 보이는 target을 찾는 Similarity stream과 달리, RGB-D에서 물체 더미의 구조를 읽고 target의 크기를 고려하여 숨을 수 있는 위치의 확률 `P_O`를 예측함. 이 map은 target의 실제 위치를 확정하는 답이 아니라, DRL이 확률이 높은 영역부터 탐색하도록 제공하는 prior임.
+
+학습용 GT 생성과 실제 추론은 분리되어 있음. Mesh와 GT는 학습 데이터를 준비할 때만 필요하고, 배포 시에는 관측 영상만 모델에 입력함.
+
+```mermaid
+flowchart LR
+    subgraph OFFLINE["학습 데이터 생성에서만 사용"]
+        M["Target USD/OBJ mesh"] --> R["여러 후보 pose를 GPU로 렌더링"]
+        SD["Clutter scene depth"] --> R
+        R --> GT["가려질 수 있는 비율 GT"]
+    end
+
+    subgraph NETWORK["학습과 배포에서 공통으로 사용하는 모델"]
+        INPUT["Scene RGB + depth<br/>Target RGB + mask"] --> MODEL["Target-conditioned<br/>occlusion model"]
+        MODEL --> PRED["Predicted occlusion map"]
+    end
+
+    PRED -. "학습 때만 비교" .-> LOSS["Training loss"]
+    GT -. "학습 때만 정답으로 사용" .-> LOSS
+    PRED --> PO["배포 시 DRL에 전달할 P_O"]
+```
+
+| 정보 | 모델에 필요한 이유 | 처리 방법 |
+|---|---|---|
+| Scene RGB | 어떤 물체와 경계가 쌓여 있는지 파악 | Frozen DINOv3의 일반 visual feature 사용 |
+| Scene depth + valid mask | 틈의 깊이, 적층 높이, 빈 공간의 3D 구조 파악 | Trainable ResNet-18 depth encoder 사용 |
+| Target RGB | scene 물체와 target의 외형 관계 파악 | 같은 frozen DINOv3 공간에서 비교 |
+| Target mask | 새 target이 영상에서 차지하는 크기 계산 | `area`, `bbox height`, `bbox width`를 결정적으로 추출 |
+| Target USD/OBJ | 모든 위치를 실제 촬영하지 않고 GT 생성 | 학습 데이터 생성에만 사용하며 배포 입력에는 포함하지 않음 |
+
+ResNet-18을 사용하는 이유는 DINOv3를 대체하기 위해서가 아님. DINOv3는 RGB의 일반적인 외형 표현을 제공하고, ResNet-18은 depth와 valid-mask에서 이 task에 필요한 공간 구조를 처음부터 학습함. 두 feature를 합치면 “무엇이 쌓여 있는가”와 “그 아래 공간이 target 크기에 맞는가”를 함께 판단할 수 있음.
+
+이 절에서 사용하는 용어는 다음과 같음. `Candidate pose`는 target을 가상으로 놓아 보는 위치·높이·회전의 한 조합이고, `coverage`는 유효한 candidate pose가 영상에서 덮을 수 있는 영역임. `Workspace`는 camera에 보이는 서랍 내부이며, workspace 안이지만 target이 들어갈 수 없는 영역이 밝아지는 현상을 `leakage`라고 부름. `Gate`는 target 크기 보정을 각 위치에서 사용할지 조절하는 `0–1` 값임.
 
 ### Occlusion GT Generation
 
-학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성. 해상도는 기존 데이터와 동일한 `640 × 480`을 유지하고, 기존 pose grid와 `70%` occlusion 판정 기준을 적용함. 렌더링된 개별 RGB·depth·mask는 저장하지 않고 scene depth와 즉시 비교하여 누적값만 저장함.
+**목적:** 새 target과 scale을 추가할 때마다 수십만 장을 다시 촬영·저장하지 않고도, 서로 비교 가능한 확률 GT를 만드는 것임.
+
+학습 GT는 target을 모든 pose에서 직접 촬영하는 대신 USD/OBJ mesh로 target depth를 계산하여 생성함. 해상도는 기존 데이터와 동일한 `640 × 480`을 유지하고, 기존 pose grid와 `70%` occlusion 판정 기준을 적용함. 렌더링된 개별 RGB·depth·mask는 저장하지 않고 scene depth와 즉시 비교하여 필요한 누적값만 저장함. Mesh를 쓰는 이유는 target의 실제 크기와 회전을 유지하면서 촬영 시간과 저장 용량을 줄일 수 있기 때문임.
 
 ```text
 Target mesh + scale + candidate pose
@@ -541,11 +575,14 @@ corrected_ratio = N_occluded_valid / (N_valid + epsilon)
 is_occluded = corrected_ratio >= 0.7
 ```
 
-확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의. Scene별 min–max normalization과 visible-target 강조는 사용하지 않음.
+확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의함. 따라서 `0.8`은 scene마다 임의로 밝아진 값이 아니라, 그 위치를 덮는 유효 후보 중 약 `80%`가 실제로 가려졌다는 공통 의미를 가짐. Scene별 min–max normalization을 사용하지 않는 이유는 숨을 공간이 거의 없는 scene도 가장 밝은 pixel이 강제로 `1`이 되는 문제를 피하기 위해서임. Visible-target 강조는 현재 보이는 물체를 담당하는 Similarity stream과 역할이 겹치므로 새 probability GT에는 넣지 않음.
 
 ```text
 P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
 ```
+
+<details>
+<summary><strong>GT 검증 수치와 구현 근거 펼쳐보기</strong></summary>
 
 #### Mesh-Based GT Reproduction Pilot
 
@@ -577,8 +614,6 @@ visibility_ratio >= 0.3
 | Old GT vs Legacy correlation | `0.9999956` | `0.9999919` |
 
 이는 완전한 byte-identical 결과는 아니지만, mesh 기반 Legacy GT가 기존 Isaac Sim GT를 사실상 동일하게 재현함을 보여줌. Corrected probability GT는 valid footprint를 분모로 사용하며 Legacy visibility 후처리를 적용하지 않음.
-
-Multi-scale GT는 mesh를 실제 크기에 맞게 scale함. 현재 analytic-conditioning 실험은 target appearance를 고정하고, 실제 target mask에서 얻은 `area`, `bbox_h`, `bbox_w`만 `area × s²`, `h × s`, `w × s`로 변환하여 size effect를 분리 평가함. 실제 추론에서는 관측된 target mask에서 같은 크기 정보를 계산함.
 
 #### Mesh-Depth Validation
 
@@ -664,6 +699,8 @@ Clutter capture는 물리 낙하가 끝난 뒤 `world.render()`만 사용하여 
 
 10k mesh의 full-grid 최종 승인은 V1/V2 동등성 검사와 별개로 관리함. 새 고복잡도 asset은 원본–단순화 geometry와 `70%` 판정 안정성을 확인한 뒤 production GT에 사용함.
 
+</details>
+
 ### Occlusion GT Generation Protocol
 
 | Setting | Value |
@@ -742,7 +779,9 @@ Generator는 실행 manifest에 없는 `scene*` 디렉터리가 남아 있으면
 | Train | `10` | `0.7 / 1.0 / 1.3` | `7,800` |
 | Training-heldout, development-seen | `4` | `0.85 / 1.0 / 1.15` | `960` |
 
-`book_1/2/3 × 1.3`은 서랍 밖이나 벽을 관통하는 candidate pose를 1 mm containment filter로 제외한 `physical_corrected` GT를 사용함. 나머지 조합은 corrected GT를 사용함. Camera별 workspace mask v4는 현재 고정된 5-camera rig에서 서랍 외부 예측을 제거하는 데 사용하며, 임의 camera 일반화를 의미하지 않음.
+Multi-scale GT는 mesh를 실제 크기에 맞게 scale함. Controlled analytic-conditioning 실험에서는 target appearance를 고정하고, 실제 target mask에서 얻은 `area`, `bbox_h`, `bbox_w`만 `area × s²`, `h × s`, `w × s`로 변환하여 size effect만 분리해 비교함. 실제 추론에서는 관측된 target mask로부터 같은 크기 정보를 계산함.
+
+`book_1/2/3 × 1.3`은 서랍 밖이나 벽을 관통하는 candidate pose를 1 mm containment filter로 제외한 `physical_corrected` GT를 사용함. 여기서 `physical_corrected`는 **서랍 경계 containment를 보정했다는 이름**이며, clutter 충돌과 지지 안정성까지 모두 검사한 완전한 물리 시뮬레이션을 뜻하지 않음. 나머지 조합은 corrected GT를 사용함. Camera별 workspace mask v4는 현재 고정된 5-camera rig에서 서랍 외부 예측을 제거하는 데 사용하며, 임의 camera 일반화를 의미하지 않음.
 
 ![Physical-corrected GT comparison](img/occlusion_gt/physical_corrected_comparison.png)
 
@@ -765,6 +804,8 @@ Asset discovery
 
 ### Target-Conditioned Occlusion Model — Zero-Shot Goal
 
+**목적:** 같은 scene이라도 작은 book과 큰 toy가 들어갈 수 있는 위치는 다름. 따라서 scene RGB-D만으로 하나의 고정 map을 만드는 대신, target reference가 바뀌면 map도 함께 바뀌는 조건부 모델을 학습함. 여기서 zero-shot은 물체 이름을 맞히는 것이 아니라, 학습하지 않은 target에도 `외형·크기와 local RGB-D 구조의 관계`를 적용하는 것을 뜻함.
+
 ```mermaid
 flowchart LR
     SRGB["Scene RGB"] --> DINO_S["DINOv3<br/>Frozen"] --> FRGB["RGB Features"]
@@ -786,12 +827,21 @@ flowchart LR
     PO --> WMASK["5-camera workspace mask"] --> PFINAL["Final P_O"]
 ```
 
-현재 로컬 working baseline은 실제 target mask에서 얻은 세 크기값만 사용함. 68-D 입력 shape는 유지하지만 나머지 65개 값은 0으로 고정하여 모델 크기와 초기화를 통제함. FiLM은 이 size condition으로 depth feature만 조절함.
+현재 공개·accepted baseline은 실제 target mask에서 얻은 세 크기값만 사용하는 size-only 모델임. 68-D 입력 shape는 유지하지만 나머지 65개 값은 0으로 고정하여 모델 크기와 초기화를 통제함. FiLM은 이 size condition으로 depth feature만 조절함. Phase 25의 strict local-gate 모델은 원인을 확인하는 연구 후보이며 아직 release baseline으로 채택하지 않음.
 
 ```text
 gamma, beta = MLP(area, bbox_h, bbox_w)
 F_depth'    = gamma * F_depth + beta
 ```
+
+| 구성 요소 | 단순한 역할 | 이 구성이 필요한 이유 |
+|---|---|---|
+| Frozen DINOv3 | Scene과 target을 같은 visual feature 공간에 배치 | 학습하지 않은 물체도 기존 foundation feature로 표현하기 위함 |
+| Patch-wise cosine | 각 scene 위치와 target 외형의 직접 유사도 한 개를 제공 | MatchingBlock이 처음부터 모든 관계를 다시 추론해야 하는 부담을 줄임 |
+| Trainable ResNet-18 | Depth와 valid mask를 local 3D pattern으로 변환 | RGB foundation model이 직접 제공하지 않는 틈·높이·적층 구조를 학습하기 위함 |
+| FiLM | Target 크기에 따라 depth channel의 사용 방식을 변경 | 같은 공간도 작은 물체에는 충분하고 큰 물체에는 부족할 수 있기 때문 |
+| MatchingBlocks | RGB, depth, target appearance, cosine을 함께 해석 | 단순 cosine만으로는 “외형이 비슷함”과 “실제로 숨을 수 있음”을 구분하기 어렵기 때문 |
+| Workspace mask | 서랍 밖의 확률을 0으로 제한 | 현재 고정 camera rig에서 물리적으로 불가능한 외부 leakage를 제거하기 위함 |
 
 #### FiLM은 무엇을 하는가?
 
@@ -813,15 +863,22 @@ flowchart LR
 
 Zero-shot 가설은 물체 이름을 외우는 대신 `새 target의 크기·외형 ↔ 현재 위치의 RGB-D 구조` 관계를 학습하는 것임. 다만 exact 3D extent는 현재 USD에서 얻은 진단용 oracle이므로, 이 실험만으로 RGB 입력 기반 zero-shot 배포가 증명되지는 않음.
 
-Target appearance는 scene patch와의 cosine 계산에 사용되고, 기존 baseline에서는 각 위치에 broadcast되어 MatchingBlock에도 직접 입력됨. Frozen-model 진단에서는 `packaged_food_4` 출력 변화가 cosine보다 raw broadcast 경로에 훨씬 민감했지만 donor에 따라 오차가 좋아지거나 나빠짐. Broadcast만 제거한 controlled retrain은 held-out scale-response와 MAE를 크게 악화시켜 기각함. Fresh current-code broadcast-on 재학습이 과거 baseline의 전체 학습 trajectory와 최종 가중치를 정확히 재현하여, 이 저하는 code/data drift가 아니라 broadcast 제거에 따른 결과임을 확인함.
+Target appearance를 MatchingBlock에 전달하는 방법도 통제 실험으로 비교함.
 
-Raw target 대신 scene–target의 normalized channelwise product를 넣은 후속 실험은 scale-response를 `7/8`, camera cell을 `37/40`까지 회복했지만, raw 기준 대비 coverage MAE가 seen `+25.0%`, training-heldout `+12.3%` 증가하여 기각함. 따라서 현재는 broadcast-on size-only를 baseline으로 유지함. 이는 raw broadcast가 최적이라는 뜻은 아님.
+| 변경 | 왜 시도했는가 | 확인된 결과 | 현재 판단 |
+|---|---|---|---|
+| Raw target broadcast 제거 | 모델이 target vector 자체를 calibration shortcut처럼 외우는지 확인 | Held-out coverage MAE와 크기 반응이 크게 악화 | Target 정보를 너무 많이 제거하므로 현재 구조에는 사용하지 않음 |
+| Channel-wise scene–target relation | Absolute target code 대신 위치별 관계만 전달하려는 목적 | No-broadcast보다 크기 반응은 회복했지만 coverage 오차 증가 | Raw baseline을 대체할 정도로 안정적이지 않아 후속 seed를 진행하지 않음 |
+| Exact 3D extent + global FiLM | 2D mask에 없는 실제 바닥 크기와 높이 정보가 필요한지 확인 | 가능한 영역은 개선됐지만 모든 위치에 같은 보정이 퍼짐 | 3D 크기 정보는 유효하지만 공간 제어 방식의 수정이 필요함 |
+| Local gate + strict supervision | 위치마다 크기 보정을 열고 닫아 불가능한 영역의 활성화를 줄이려는 목적 | Oracle coverage 기준 gate 차이가 `0.005–0.014 → 0.580–0.695`로 증가 | 평균 leakage는 줄었지만 book scale 기준을 충족하지 못해 아직 연구 후보로만 유지 |
+
+Fresh broadcast-on 재학습은 과거 baseline의 학습 trajectory와 최종 model tensor를 정확히 재현함. 동일 seed·초기화·sample order를 사용한 controlled seed-0 비교 안에서는 위 차이를 code/data drift보다 target-conditioning 방식의 차이로 해석할 수 있음. 현재 공개 baseline이 raw broadcast를 유지하는 것은 최적이라고 확정했기 때문이 아니라, 아직 모든 사전 기준을 만족한 대체 구조가 없기 때문임.
 
 DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
 
 ![Occlusion conditioning benchmark](img/occlusion_model/conditioning_progress.png)
 
-`size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled scale-response `S`를 `0.1477 → 0.2224`로 개선함. 여기서 positive camera cell은 `target × scale transition × camera × seed` 조합을 뜻함. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
+`S`는 target scale이 바뀔 때 예측 map도 GT가 요구하는 방향으로 반응하는지를 나타내며, 양수이면 최소한 변화 방향이 맞다는 뜻임. `size-only`는 3-seed 개발 평가에서 training-heldout MAE를 `0.11082 → 0.08535`, pooled `S`를 `0.1477 → 0.2224`로 개선함. Positive camera cell은 `target × scale transition × camera × seed` 조합 중 `S > 0`인 경우임. 다만 `packaged_food_4`의 underprediction과 seed별 편차가 남아 있어 최종 구조로 확정하지 않음.
 
 ### Deployment Inputs
 
@@ -866,7 +923,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 |---|---|
 | Drawer RGB-D and target-reference dataset | Complete |
 | DINOv3 ViT-B/16 dense similarity baseline | Complete |
-| DINOv3 + SigLIP Similarity stream | Complete |
+| DINOv3 + SigLIP Similarity stream | Implementation complete; qualitative unseen result confirmed, quantitative benchmark pending |
 | Unseen banana qualitative test | Complete |
 | Cosine shortcut ablation | Evaluated and excluded |
 | Object/category-held-out benchmark | Planned |
@@ -884,13 +941,10 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Occlusion model ablation | Complete: target-agnostic / appearance-only / geometry-only / full, 3 seeds |
 | Clean52 multi-scale GT | Complete: train 10 / development-heldout 4 targets, 5 cameras |
 | 3D workspace and physical-corrected GT | Complete for `book_1/2/3 × 1.3`; original GT preserved |
-| Size-only conditioning | 3-seed development benchmark complete; current working baseline |
-| Five-camera development evaluation | `119/120` positive scale-response cells; one failure remains |
-| Target-broadcast causal ablation | Seed-0 complete; no-broadcast rejected after broad-gate failure |
-| Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
-| Relation-aware target interaction | Seed-0 complete; scale response mostly recovered but coverage/PF4 gates failed, rejected |
-| Exact 3D extent + global FiLM | Seed-0 oracle test complete; coverage signal confirmed, rejected due workspace leakage |
-| Exact 3D extent + local bounded interaction | Seed-0 complete; average leakage reduced, frozen diagnosis found a saturated local gate |
+| Size-only conditioning | 3-seed development benchmark complete; current release baseline |
+| Five-camera development evaluation | `target × scale transition × camera × seed` 120개 중 119개가 기대한 크기 변화 방향을 보임 |
+| Controlled target-conditioning studies | Broadcast 제거·relation interaction·global/local extent 경로를 동일 seed-0 조건에서 비교; 자세한 원인과 결과는 Development Log에 기록 |
+| Strict local-gate research candidate | Oracle coverage 기준 영역 분리는 크게 개선했으나 book scale 기준을 충족하지 못해 release에는 미반영 |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -962,19 +1016,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Five-camera development diagnostics
 - [x] Three-seed analytic-full vs size-only development benchmark
 - [x] Multi-scale development evaluation
-- [x] Controlled no-target-broadcast seed-0 comparison — rejected
-- [x] Fresh current-code broadcast-on seed-0 reproducibility gate
-- [x] Evaluate a relation-only target interaction without removing conditioning — rejected at seed 0
-- [x] Diagnose relation magnitude normalization before selecting the next causal candidate
-- [x] Evaluate train-median calibrated relation with one controlled seed-0 run — rejected
-- [x] Diagnose compact physical target descriptors before another full retraining — rejected
-- [x] Test whether exact 3D target extent contains useful train-only signal
-- [x] Run one controlled seed-0 model ablation with exact 3D extent as a diagnostic input — global FiLM rejected
-- [x] Verify frozen correct-vs-wrong extent causality across 16 scenes and 5 cameras
-- [x] Replace global FiLM with a zero-initialized local bounded extent interaction — average leakage reduced, rejected at seed 0
-- [x] Diagnose local correct-vs-wrong extent causality and patch localization
-- [x] Replace the saturated sigmoid gate with a regularized local-confidence gate — saturation removed, rejected at seed 0
-- [x] Supervise the local gate on physically reachable/impossible patches — localization recovered, book scale gate failed
+- [x] Reproduce the release baseline under matched seed, initialization, sample order and update count
+- [x] Compare broadcast, relation, global extent and local extent conditioning under controlled seed-0 settings
+- [x] Supervise the local gate with oracle coverage — localization improved; book scale criterion remains unmet
 - [ ] Separate horizontal footprint and height conditioning in one controlled seed-0 run
 - [ ] If a conditioning method passes all gates, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
@@ -989,7 +1033,28 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 
 ## Development Log
 
-Similarity와 Occlusion stream의 가설, 실험 결과, 한계, 수정 사항을 단계별로 기록.
+Similarity와 Occlusion stream이 현재 구조에 도달한 이유를 시간순으로 기록함. 각 Phase는 단순 모델 목록이 아니라 **왜 문제가 되었는지 → 무엇만 바꿨는지 → 결과가 무엇을 뜻하는지 → 다음 선택이 무엇인지**를 설명함.
+
+### 전체 연구 흐름
+
+| 단계 | 처음 문제 | 선택한 방향과 이유 | 현재까지의 결론 |
+|---|---|---|---|
+| Similarity의 zero-shot 확장 | DINOv3만으로는 외형이 비슷한 물체는 찾지만 category 의미가 부족했음 | Language와 정렬된 SigLIP 의미를 DINOv3의 위치 feature에 결합 | Unseen packaged-food 사례에서 category activation을 관찰했으며, 정량 unseen benchmark는 남아 있음 |
+| Occlusion GT 재설계 | Target마다 수십만 장을 촬영하고 scene별 min–max를 쓰면 시간·용량이 크고 scene 간 값의 의미가 달라짐 | USD/OBJ mesh를 GPU로 렌더링하고 `가려진 pose / 전체 유효 pose` 확률을 계산 | 기존 GT를 거의 동일하게 재현하면서 비교 가능한 probability GT를 생성함 |
+| 공정한 학습 조건 확립 | Target마다 다른 scene을 쓰면 모델이 target 대신 scene 분포를 외울 수 있음 | 모든 target이 같은 scene을 공유하고 target·scale·camera·update 수를 고정 | 이후 모델 차이를 target conditioning 차이로 비교할 수 있게 됨 |
+| Target 크기 조건 추가 | 같은 틈도 작은 물체와 큰 물체의 은닉 가능성이 다름 | Target mask의 크기로 depth feature를 조절하는 FiLM을 사용 | Size-only가 강한 baseline이 되었지만 2D 크기만으로 남는 target 차이가 있음 |
+| 3D 크기의 공간적 사용 | Exact 3D 크기는 유용했지만 모든 위치에 같은 보정을 주면 불가능한 곳도 밝아짐 | Global FiLM → local gate → 포화 방지 → strict gate supervision 순으로 한 요소씩 수정 | Gate localization과 평균 leakage는 크게 개선됐고, book의 높이와 수평 footprint 역할 분리가 다음 과제임 |
+
+### 지표와 범위 읽는 법
+
+- `MAE`: 예측 map과 GT의 평균 절대 오차로, 낮을수록 좋음.
+- `Coverage`: 해당 target의 유효 pose가 실제로 덮을 수 있는 영역.
+- `Workspace`: 현재 camera에서 보이는 서랍 내부 영역.
+- `Impossible-workspace` 또는 `noncoverage`: 서랍 안이지만 해당 target이 들어갈 수 없어 GT가 0인 영역. 이곳이 밝아지는 현상을 `leakage`라고 부름.
+- `S`: target scale 변화에 예측이 GT가 요구하는 방향으로 반응하는 정도. `S > 0`은 방향이 맞다는 최소 조건임.
+- `Training-heldout` 4개 target은 구조 선택에 반복 사용한 development set이며 최종 zero-shot test가 아님.
+- Exact 3D extent와 coverage label은 simulation에서 얻은 oracle임. Oracle 실험은 정보와 구조의 가능성을 확인하는 단계이며, target RGB만 사용하는 실제 배포 성능을 뜻하지 않음.
+- 사전 평가 기준을 만족하지 못했다는 기록은 해당 가설이 불가능하다는 뜻이 아니라, **그 구성으로 후속 seed를 확대하지 않고 원인을 먼저 분리했다는 뜻**임.
 
 ### 2026-07-21 · Phase 1 — DINOv3 Appearance Matching
 
@@ -1008,7 +1073,7 @@ P_S     = CNN_Head(Z^l)
 
 **결과:** 색상·재질·형상 등 appearance가 유사한 영역은 탐지했으나, category-level semantic relation은 표현하지 못함.
 
-**결론:** Dense appearance matching만으로 target–category–scene 관계 표현 불가.
+**의미와 다음 선택:** 해당 구성에서는 dense appearance matching만으로 target–category–scene의 의미 관계를 충분히 표현하지 못했음. 다음 단계에서는 DINOv3의 image-level CLS가 category 정보를 보완할 수 있는지 확인함.
 
 ---
 
@@ -1041,7 +1106,7 @@ Z^l = Concat[
 
 **결과:** Category prior는 제공했으나 prototype도 DINOv3 appearance history의 평균이므로 외부 semantic grounding이 없음. 기존 prototype과 외형 차이가 큰 unseen object에서 category 추론 불안정.
 
-**결론:** CLS prototype만으로 open-vocabulary semantics 확보 불가.
+**의미와 다음 선택:** 해당 네 category prototype은 학습 물체의 DINOv3 외형 이력을 요약한 값이므로, 외형이 달라지는 unseen target까지 안정적으로 설명하지 못했음. 외부 language semantics와 정렬된 VLM을 추가하는 방향으로 이동함.
 
 ---
 
@@ -1065,17 +1130,17 @@ SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차
 ![Unseen packaged-food target: image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
 ![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_v2.png)
 
-**결론:** SigLIP 결합으로 category-level zero-shot activation 확보.
+**의미와 범위:** 학습에 없던 packaged-food target의 정성 사례에서 같은 category 영역이 활성화되는 것을 관찰함. 이는 SigLIP 의미 정보의 가능성을 보여주는 사례이며, 여러 unseen instance에 대한 정량 zero-shot 성능은 최종 benchmark에서 별도로 확인해야 함.
 
 ---
 
 ### 2026-07-28–29 · Phase 4 — Exact-Instance Shortcut Evaluation
 
-**문제:** SigLIP 결합으로 unseen target의 category-level activation은 확보했으나, visible exact target이 same-category object보다 높게 출력되지 않는 사례 확인.
+**문제:** SigLIP 결합 후 unseen packaged-food 사례에서 category-level activation을 관찰했으나, visible exact target이 same-category object보다 높게 출력되지 않는 사례도 확인함.
 
 **실험:** DINOv3 cosine을 output logit에 직접 더하는 residual shortcut과 layer `2 + 5` 선택 방식을 평가. Global pooling, raw appearance cosine, visibility, patch matching도 함께 분석.
 
-**결과:** 공통 held-out scene에서 no-shortcut과 shortcut의 exact-target positive ranking은 각각 `29.0%`, `29.7%`로 거의 동일. Median gap은 소폭 개선됐지만 두 모델 모두 instance-level ranking에 실패. 공간 구조를 사용하지 않는 patch matching도 competitor score를 함께 높여 문제를 해결하지 못함.
+**결과:** 공통 held-out scene에서 no-shortcut과 shortcut의 exact-target positive ranking은 각각 `29.0%`, `29.7%`로 거의 동일. Median gap은 소폭 개선됐지만 두 모델 모두 instance-level ranking을 충분히 달성하지 못함. 공간 구조를 사용하지 않는 patch matching도 competitor score를 함께 높여 문제를 해결하지 못함.
 
 **결론:** Shortcut은 계산 비용보다 구조와 해석의 복잡성을 늘리는 반면 실질적인 개선이 제한적이므로 최종 Similarity stream에서 제거. 현재 모델은 DINOv3–SigLIP interaction과 learned matching head만 사용함.
 
@@ -1141,6 +1206,8 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 **후속 결과:** nvdiffrast V2 generator에 pose·camera·scene vectorization과 probability accumulator를 결합했고, V1/V2를 1,024 effective poses에서 교차검증함. 새 asset의 원본–단순화 최종 승인은 별도 절차로 유지함.
 
+**의미와 다음 선택:** GPU rasterization과 mesh 단순화를 결합하면 기존 `640 × 480` 해상도를 유지하면서 전체 pose grid를 처리할 수 있음. 또한 corrected denominator가 실제 `70%` 판정을 바꾸는 사례를 확인했으므로, 기존 GT 재현에는 legacy ratio를 남기고 새 학습 GT에는 corrected ratio를 사용하기로 함. 다음 단계는 전체 `44,100` pose에서 legacy 재현도와 새 probability map을 동시에 확인하는 것임.
+
 ---
 
 ### 2026-08-07 · Phase 8 — Mesh-Based Legacy and Probability GT Generation
@@ -1197,6 +1264,8 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 
 **구성:** Train 10개와 held-out 4개 target을 결과 확인 전에 고정하고, 14개 target 각각에 `150 shared scenes × 5 cameras`의 scale `1.0` corrected probability GT를 생성함. 전체 target의 scene-key 집합이 동일함을 확인함.
 
+같은 scene을 모든 target에 재사용하는 이유는 scene 외형을 통제한 상태에서 **target만 바뀌면 GT가 어떻게 달라져야 하는지** 학습시키기 위해서임. 다섯 camera는 특정 view 한 곳에서만 맞는 구조를 고르는 것을 막기 위한 현재 고정 rig의 다중-view 검사이며, 임의 camera pose 일반화를 뜻하지 않음.
+
 **검증:** 신규 target은 center에서 찾은 단일 pose를 다섯 camera에 고정하여 실측 Isaac Sim depth/segmentation과 비교함. Camera별 pose 재탐색으로 calibration 오차를 가릴 수 없도록 구성했으며, 다섯 camera 모두 silhouette과 depth 기준을 통과함.
 
 **발견 및 수정:**
@@ -1214,9 +1283,9 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 
 **문제:** 초기 비교는 target 수, scene pool, optimizer update 수가 달라 어떤 변경이 성능 차이를 만들었는지 분리하기 어려웠음.
 
-**수정:** Clean scene 52개를 train 36 / validation 16으로 고정하고 category-balanced sampling을 적용함. 모든 모델을 16 epoch, epoch당 5,400 sample, 총 5,408 update로 통일함.
+**수정:** Clean scene 52개를 train 36 / validation 16으로 고정하고 category-balanced sampling을 적용함. 모든 모델을 16 epoch, epoch당 5,400 sample, 총 5,408 update로 통일함. Update 수를 맞춘 이유는 더 오래 학습한 모델이 구조 때문에 좋아진 것처럼 보이는 혼선을 제거하기 위해서임.
 
-**결과:** Train 10 target은 scale `0.7/1.0/1.3`, training-heldout 4 target은 scale `0.85/1.0/1.15`로 구성하여 총 8,760개의 5-camera GT map을 생성함.
+**결과:** Train 10 target은 차이가 분명한 scale `0.7/1.0/1.3`을 사용해 크기 효과를 학습시키고, training-heldout 4 target은 중간 scale `0.85/1.0/1.15`로 구성해 학습 scale을 그대로 반복하지 않는 반응을 확인함. 총 8,760개의 5-camera GT map을 생성함.
 
 **판단:** 이후 size-effect 실험의 공통 비교 조건을 확립함. Held-out 4개 target은 이후 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development set으로 취급함.
 
@@ -1226,7 +1295,7 @@ Full은 평균 성능이 가장 높고 seed 간 변동이 가장 작았으나 Ap
 
 **문제:** 큰 book target의 일부 candidate pose가 서랍 밖에 있거나 벽을 관통하여, 실제로는 놓을 수 없는 위치가 GT 분모에 포함됨.
 
-**수정:** Camera ray와 drawer AABB를 이용한 3D workspace mask, 1 mm containment filter를 추가함. 기존 legacy/corrected GT는 보존하고 `physical_corrected`를 별도 생성함.
+**수정:** Camera ray와 drawer AABB를 이용한 3D workspace mask, 1 mm containment filter를 추가함. 기존 legacy/corrected GT는 보존하고 `physical_corrected`를 별도 생성함. 이 버전은 drawer-bound containment만 보정하며, clutter 충돌·낙하 안정성까지 포함한 완전한 physics feasibility GT는 아님.
 
 | Target | Valid poses | MAE vs corrected | Correlation | Relative mean-probability change |
 |---|---:|---:|---:|---:|
@@ -1295,14 +1364,14 @@ flowchart LR
 |---|---:|---:|---:|
 | Seen coverage MAE | `0.05155` | `0.08100` | `+57.1%` |
 | Training-heldout coverage MAE | `0.07725` | `0.11494` | `+48.8%` |
-| Heldout pooled `S > 0` | `8 / 8` | `0 / 8` | Fail |
-| Heldout camera `S > 0` | `40 / 40` | `2 / 40` | Fail |
+| Heldout pooled `S > 0` | `8 / 8` | `0 / 8` | 기준 미충족 |
+| Heldout camera `S > 0` | `40 / 40` | `2 / 40` | 기준 미충족 |
 | `packaged_food_4` native MAE | `0.09802` | `0.22229` | `+126.8%` |
 | `packaged_food_4` native bias | `−0.08694` | `−0.22058` | Underprediction 증가 |
 
 CSV 1,680행의 composite key가 모두 고유하고, 두 checkpoint는 seed 0, epoch 15, 5,400 samples/epoch, 5,408 cumulative batches 조건을 만족함.
 
-**판단:** No-broadcast 제거안은 broad gate를 통과하지 못해 기각하고 seeds 1–2는 실행하지 않음. 현 architecture에서 scalar cosine과 size-FiLM만 남기는 방식은 target conditioning을 유지하지 못했음. 다음 실험은 target 정보를 없애지 않으면서 absolute target code 의존을 줄이는 relation-aware interaction으로 제한함.
+**판단:** No-broadcast 구성은 사전 broad gate를 만족하지 못해 seeds 1–2 확대를 진행하지 않음. 현 architecture에서 scalar cosine과 size-FiLM만 남기는 방식은 target conditioning을 충분히 유지하지 못했음. 다음 실험은 target 정보를 없애지 않으면서 absolute target code 의존을 줄이는 relation-aware interaction으로 제한함.
 
 ---
 
@@ -1322,7 +1391,7 @@ CSV 1,680행의 composite key가 모두 고유하고, 두 checkpoint는 seed 0, 
 
 Checkpoint 파일 해시는 provenance metadata 추가로 서로 다르지만, 실제 추론에 쓰이는 모든 model tensor는 동일함.
 
-**판단:** Fresh broadcast-on 재현 gate가 통과했으므로 no-broadcast의 MAE 증가와 scale-response 붕괴는 code/data drift가 아니라 raw target broadcast 제거에 따른 결과로 판단함. 단순 제거 실험은 종료하고, 다음 단계에서는 scene과 target의 채널별 관계를 보존하는 interaction을 동일 조건으로 비교함.
+**판단:** Fresh broadcast-on 재현 gate가 통과했으므로 동일 seed·초기화·sample order의 seed-0 비교에서 나타난 no-broadcast의 MAE 증가와 scale-response 약화는 code/data drift보다 raw target broadcast 제거의 영향으로 판단함. 단순 제거 실험은 종료하고, 다음 단계에서는 scene과 target의 채널별 관계를 보존하는 interaction을 동일 조건으로 비교함.
 
 ---
 
@@ -1364,6 +1433,8 @@ Workspace 전체 MAE는 relation 모델에서 감소했지만, coverage 내부 M
 
 **문제:** Phase 17의 L2 normalization은 채널별 관계 방향은 남기지만 `‖q‖`를 제거함. 이 때문에 target과 약하게 대응하는 patch도 강하게 대응하는 patch와 같은 크기의 relation feature를 받음.
 
+쉽게 말하면 `q`는 scene과 target의 768개 channel이 위치별로 얼마나 같은 방향으로 반응했는지를 담은 목록임. `‖q‖`는 그 목록 전체의 반응 세기인데, 완전히 정규화하면 “매우 비슷함”과 “조금 비슷함”의 세기 차이가 사라질 수 있어 이 정보가 GT 설명에 도움이 되는지 먼저 확인함.
+
 **검증:** Held-out target과 validation scene은 사용하지 않고, 학습용 10 target·36 scene·5 camera만 분석함. 같은 scene·camera·patch에서 target 평균을 제거한 뒤, cubic cosine 12개만 사용한 기준과 cosine으로 설명되지 않는 `log‖q‖` 4개를 추가한 경우를 scene 단위 6-fold로 비교함. Target 가중치는 실제 학습 sampler와 동일하게 category-balanced로 설정함.
 
 ```text
@@ -1383,10 +1454,10 @@ r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
 | Improved scene folds | `6 / 6` |
 | Scene-bootstrap 95% interval | `+2.01% – +3.46%` |
 | Cosine-independent DINO layers | `4 / 4` |
-| Uncalibrated `C·q` scale gate | `0 / 40` — reject |
+| Uncalibrated `C·q` scale gate | `0 / 40` — 기준 미충족 |
 | Train-median calibrated scale gate | `40 / 40` — pass |
 
-**판단:** `‖q‖`에는 cubic cosine만으로 설명되지 않는 target-dependent GT 신호가 남아 있음. 단순 `C·q`는 feature 크기가 지나치게 커서 기각하고, train-only 중앙값으로 크기만 고정한 relation을 동일 초기화·동일 sample order의 seed 0 한 번으로 평가함. 이 진단은 다음 실험을 수행할 근거이며 zero-shot 성능 증명은 아님. Seed 0이 사전 held-out 5-camera gate를 통과하기 전에는 seeds 1–2를 실행하지 않음.
+**판단:** `‖q‖`에는 cubic cosine만으로 설명되지 않는 target-dependent GT 신호가 남아 있음. 단순 `C·q`는 feature 크기가 지나치게 커 사전 기준을 만족하지 못했으며, 대신 train-only 중앙값으로 크기만 고정한 relation을 동일 초기화·동일 sample order의 seed 0 한 번으로 평가함. 이 진단은 다음 실험을 수행할 근거이며 zero-shot 성능 증명은 아님. Seed 0이 사전 held-out 5-camera gate를 통과하기 전에는 seeds 1–2를 실행하지 않음.
 
 ---
 
@@ -1428,7 +1499,7 @@ eta   = (lambda_max - lambda_min) / (lambda_max + lambda_min)
 kappa = mask_area / (2*pi*(lambda_max + lambda_min))
 ```
 
-학습 10 target·36 scene·3 scale·5 camera만 사용하고, target 하나를 donor에서 완전히 제외한 leave-one-target-out 비교를 수행함. Held-out 4 target과 validation scene은 사용하지 않았으며, shape를 같은 category의 다른 target과 바꾸는 64개 대조 조건도 같이 계산함.
+이 단계는 full model 학습이 아니라 descriptor가 다음 학습 후보로서 가치가 있는지 저렴하게 확인하는 train-only screening임. 학습 10 target·36 scene·3 scale·5 camera만 사용하고, target 하나를 donor에서 완전히 제외한 leave-one-target-out 비교를 수행함. Held-out 4 target과 validation scene은 사용하지 않았으며, shape를 같은 category의 다른 target과 바꾸는 64개 대조 조건도 같이 계산함.
 
 ![Compact physical shape2 gate](img/occlusion_model/compact_physical_shape2_probe.png)
 
@@ -1444,7 +1515,7 @@ kappa = mask_area / (2*pi*(lambda_max + lambda_min))
 
 Fruit은 category MAE `17.20%`, toy는 `43.84%` 개선됐지만 book은 `7.78%`, packaged food는 `13.22%` 악화됨. 전체 평균 개선은 특정 category의 큰 이득이 만든 결과이며, 새 target에 공통으로 적용되는 물리 규칙으로 보기 어려움.
 
-**판단:** `eta·kappa` 후보는 full model 재학습 전 gate에서 기각함. Seed 0–2는 실행하지 않고 fresh raw size-only를 기준 모델로 유지함. 다음에는 2D mask descriptor를 더 늘리지 않고, 3D target extent가 잔여 target effect를 설명할 수 있는지 oracle 진단으로 먼저 확인함.
+**판단:** `eta·kappa`는 category별 결과가 일관되지 않아 full-model 후보에서 제외함. Seed 0–2는 실행하지 않고 fresh raw size-only를 기준 모델로 유지함. 다음에는 2D mask descriptor를 더 늘리지 않고, 3D target extent가 잔여 target effect를 설명할 수 있는지 oracle 진단으로 먼저 확인함.
 
 ---
 
@@ -1452,7 +1523,7 @@ Fruit은 category MAE `17.20%`, toy는 `43.84%` 개선됐지만 book은 `7.78%`,
 
 **문제:** 2D mask의 면적과 bbox는 camera에 보이는 크기만 나타냄. 같은 투영 크기라도 실제 높이와 바닥 면적이 다르면 서랍 속에 들어갈 수 있는 위치가 달라지므로, 이 3D 차이가 남은 target 오차의 원인인지 확인할 필요가 있었음.
 
-**검증:** GT 생성에 실제 사용한 mesh에서 `가로 최소 길이·가로 최대 길이·높이`를 추출함. 이 값은 최종 배포 입력이 아니라 정보 유효성만 확인하는 진단용 oracle임. 학습 10 target·36 scene·3 scale·5 camera만 사용했으며, query target을 donor와 정규화 통계에서 완전히 제외함.
+**검증:** GT 생성에 실제 사용한 mesh에서 `가로 최소 길이·가로 최대 길이·높이`를 추출함. 이 단계도 full model 학습 전에 “실제 3D 크기를 알면 비슷한 train target의 GT 차이를 더 잘 설명할 수 있는가?”를 묻는 screening임. 이 값은 최종 배포 입력이 아니라 정보 유효성만 확인하는 진단용 oracle임. 학습 10 target·36 scene·3 scale·5 camera만 사용했으며, query target을 donor와 정규화 통계에서 완전히 제외함.
 
 ```text
 extent3(s) = s × [min(dx, dy), max(dx, dy), dz]
@@ -1475,7 +1546,7 @@ extent3(s) = s × [min(dx, dy), max(dx, dy), dz]
 
 3D extent의 scene-bootstrap 95% interval은 `+23.12% – +24.80%`였고, wrong-extent 대조 조건의 최대 개선은 `1.17%`에 그침. 따라서 실제 3D 크기에 target별 GT를 설명하는 정보가 있음을 확인함.
 
-다만 사전에 고정한 cell 개선 수 기준 `40/50`, `120/150`에는 각각 `36/50`, `100/150`으로 미달함. 남은 cell은 악화가 아니라 hard 3-NN에서 donor 구성이 바뀌지 않아 생긴 동률이지만, 결과를 본 뒤 기준을 바꾸지 않고 formal gate는 실패로 기록함.
+다만 사전에 고정한 cell 개선 수 기준 `40/50`, `120/150`에는 각각 `36/50`, `100/150`으로 미달함. 남은 cell은 악화가 아니라 hard 3-NN에서 donor 구성이 바뀌지 않아 생긴 동률이지만, 결과를 본 뒤 기준을 바꾸지 않고 사전 기준 미충족으로 기록함.
 
 **판단:** 이 결과를 zero-shot 성능이나 최종 구조의 통과로 해석하지 않음. 다음 단계는 raw size-only와 구조·초기값·sample order·update 수를 같게 유지한 seed-0 모델에서 exact extent 3개만 추가하는 controlled oracle ablation임. 이 모델이 기존 5-camera coverage·scale-response gate를 통과할 때만 RGB/multi-view 기반 3D 크기 추정 방법을 개발함.
 
@@ -1502,7 +1573,7 @@ Raw size-only 기준 모델과 seed·초기 가중치·sample 순서·학습 횟
 | Held-out target coverage MAE | `0.07725` | `0.06399` | `17.16%` 개선 |
 | Held-out target workspace MAE | `0.16094` | `0.17477` | `8.59%` 악화 |
 
-Held-out target의 scale-response 방향은 `8/8` target-scale과 `40/40` camera에서 양수였지만, coverage와 workspace를 함께 보는 전체 gate는 실패함.
+Held-out target의 scale-response 방향은 `8/8` target-scale과 `40/40` camera에서 양수였음. 이는 변화 방향이 맞다는 뜻이며 raw보다 더 좋아졌다는 뜻은 아님. Coverage와 workspace를 함께 보는 사전 평가 기준은 충족하지 못함.
 
 **원인 분리:** 같은 checkpoint에서 scene RGB-D·target RGB·2D 크기·camera·scale·GT를 고정하고, exact extent 세 값만 같은 category의 다른 target 값으로 교체함. 모델 재학습은 수행하지 않음.
 
@@ -1516,9 +1587,9 @@ Held-out target의 scale-response 방향은 `8/8` target-scale과 `40/40` camera
 
 Correct extent는 held-out target에서도 coverage 예측과 크기 변화 반응을 일관되게 개선함. 따라서 모델이 3D 크기 정보를 실제로 사용한다는 점은 확인됨. 반면 `book_4·fruit_4`는 coverage 밖 오차도 감소했지만, `toy_4·packaged_food_4`는 5개 camera 모두 증가함. 가장 가까운 wrong extent만 사용한 비교에서도 같은 경향이 남아 극단적인 교체값 때문으로 보기 어려움.
 
-**판단:** 현재 병목은 DINOv3의 정보 부족이 아니라, 하나의 extent vector로 전체 depth feature에 `gamma·beta`를 적용하는 global FiLM의 공간 제어 부족임. Target이 숨을 수 있는 영역은 개선하지만, workspace 안에서도 해당 target이 존재할 수 없어 GT가 0인 위치까지 함께 활성화함.
+**판단:** 이번 exact-extent 경로에서 관찰된 leakage는 하나의 extent vector로 전체 depth feature에 같은 `gamma·beta`를 적용하는 global FiLM과 연결되어 있었음. Target이 숨을 수 있는 영역은 개선했지만, workspace 안에서도 해당 target이 존재할 수 없어 GT가 0인 위치까지 함께 활성화함. 이 실험만으로 DINOv3 정보가 충분하다고 결론 내리지는 않음.
 
-현재 global-FiLM 모델은 기각하며 seed 1–2 반복과 RGB 기반 3D 크기 추정기 개발은 보류함. 다음 실험에서는 exact extent를 계속 oracle로 사용하되, `local depth feature × extent`로 patch별 bounded residual을 만들고 residual을 0으로 초기화해 raw baseline에서 시작함. 동일한 seed-0 조건에서 coverage·coverage 밖 오차·scale-response·5-camera 결과가 함께 개선될 때만 다음 단계로 진행함.
+현재 global-FiLM 구성은 후속 seed로 확대하지 않고, RGB 기반 3D 크기 추정기 개발도 보류함. 다음 실험에서는 exact extent를 계속 oracle로 사용하되, `local depth feature × extent`로 patch별 bounded residual을 만들고 residual을 0으로 초기화해 raw baseline에서 시작함. 동일한 seed-0 조건에서 coverage·coverage 밖 오차·scale-response·현재 고정 rig의 5-camera 결과가 함께 개선될 때만 다음 단계로 진행함.
 
 ---
 
@@ -1547,11 +1618,11 @@ D'(x,y) = D(x,y) + 0.25 × g(x,y) × learned_correction(x,y)
 | Whole-workspace MAE | `0.13745` | `0.15581` (`13.36%` 악화) | `0.13077` (`4.86%` 개선) |
 | Impossible-workspace MAE | `0.20853` | `0.24371` (`16.87%` 악화) | `0.19671` (`5.67%` 개선) |
 
-Local 방식은 global FiLM의 평균 leakage를 제거하고 raw보다도 세 영역 모두 개선함. Training-heldout 4개 target 평균에서도 coverage `13.33%`, workspace `9.13%`, impossible-workspace `8.01%` 개선함. 크기 변화에 출력이 같은 방향으로 반응하는지는 `8/8` target-scale과 `40/40` camera에서 유지되어 다섯 camera에 공통인 신호도 확인함.
+Local 방식은 global FiLM의 평균 leakage를 줄이고 raw보다도 세 영역 모두 개선함. Training-heldout 4개 target 평균에서도 coverage `13.33%`, workspace `9.13%`, impossible-workspace `8.01%` 개선함. 크기 변화에 출력이 같은 방향으로 반응하는지는 `8/8` target-scale과 `40/40` camera에서 유지되어, 현재 고정 rig의 다섯 view에서 같은 방향의 신호를 확인함. 이 수치는 raw 대비 개선이 아니라 scale 변화 방향이 양수였다는 뜻임.
 
-**판단:** 평균 개선만으로 모델을 채택하지 않음. Raw 대비 `book_4` scale-response가 `-0.062`, `-0.054` 감소하여 사전 기준 `-0.05`를 넘었고, `packaged_food_4`의 impossible-workspace MAE는 `30.29%` 악화함. Seen-target coverage도 `4.65%` 악화하여 seed-0 formal gate는 실패함.
+**판단:** 평균 개선만으로 모델을 채택하지 않음. Raw 대비 `book_4` scale-response가 `-0.062`, `-0.054` 감소하여 사전 기준 `-0.05`를 넘었고, `packaged_food_4`의 impossible-workspace MAE는 `30.29%` 악화함. Seen-target coverage도 `4.65%` 악화하여 seed-0 사전 기준을 만족하지 못함.
 
-따라서 local interaction은 global 방식보다 공간 제어가 낫다는 가설은 지지하지만 최종 모델로는 기각함. Seed 1–2와 RGB 기반 extent estimator는 실행하지 않음. 다음 단계는 같은 frozen checkpoint에서 extent만 올바른 값과 같은 category의 다른 값으로 교체해 원인을 분리하고, gate와 residual이 coverage 안팎을 실제로 구분하는지 확인하는 것임.
+따라서 local interaction이 global 방식보다 평균적인 공간 제어를 개선할 가능성은 확인했지만, target별 사전 기준을 만족하지 못해 이 상태로 seed를 확대하지 않음. RGB 기반 extent estimator도 아직 실행하지 않음. 다음 단계는 같은 frozen checkpoint에서 extent만 올바른 값과 같은 category의 다른 값으로 교체해 원인을 분리하고, gate와 residual이 coverage 안팎을 실제로 구분하는지 확인하는 것임.
 
 **Frozen 후속 진단:** 재학습 없이 scene RGB-D·target appearance·GT를 고정하고 extent만 교체함. Held-out 평균에서 correct extent는 wrong extent보다 coverage MAE를 `0.03267` 낮추고 scale-response를 `0.12590` 높였지만, impossible-workspace MAE는 `0.02811` 높였음. 즉 3D 크기 정보는 실제로 사용되지만 유용한 영역과 잘못된 영역을 동시에 활성화함.
 
@@ -1592,13 +1663,13 @@ D'(x,y) = D(x,y) + 0.25 × g(x,y) × size_correction(x,y)
 | Whole-workspace MAE | `0.13745` | `0.13077` | `0.12122` | 서랍 전체의 평균 오차는 raw보다 `11.81%` 감소 |
 | Impossible-workspace MAE | `0.20853` | `0.19671` | `0.17768` | 들어갈 수 없는 위치의 잘못된 활성화는 평균 `14.79%` 감소 |
 
-평균 leakage는 줄었지만, 이것만으로 새 구조를 채택하지 않음. Held-out `book_4`의 두 scale-response는 raw보다 `0.159`, `0.088` 감소했고, `packaged_food_4`는 coverage가 좋아지는 대신 whole-workspace와 impossible-workspace 오차가 각각 `22.04%`, `44.61%` 증가함. 즉 일부 target의 큰 개선이 전체 평균을 낮췄을 뿐, 모든 unseen target에 공통인 규칙은 아직 학습되지 않음.
+평균 leakage는 줄었지만, 이것만으로 새 구조를 채택하지 않음. Held-out `book_4`의 두 scale-response는 raw보다 `0.159`, `0.088` 감소했고, `packaged_food_4`는 coverage가 좋아지는 대신 whole-workspace와 impossible-workspace 오차가 각각 `22.04%`, `44.61%` 증가함. 즉 일부 target의 큰 개선이 전체 평균을 낮췄으며, 반복 사용한 네 development-heldout target에서도 일관된 개선을 확인하지 못함.
 
-Frozen 진단에서 gate의 `0.95` 초과 비율은 기존 `66–97%`에서 `0%`로 줄어 구조적 포화는 크게 감소함. 그러나 도달 가능한 patch와 불가능한 patch의 평균 gate 차이는 target별 `0.005–0.014`에 불과했음. Gate 값은 안정됐지만 **어디를 열고 닫아야 하는지 학습하지 못한 것**이 남은 핵심 문제임. 특히 toy와 packaged food에서는 size conditioning이 coverage 오차를 줄이면서도 impossible-workspace 오차를 각각 약 `0.108`, `0.117` 증가시킨 직접 원인이었음.
+Frozen 진단에서 gate의 `0.95` 초과 비율은 기존 `66–97%`에서 `0%`로 줄어 구조적 포화는 크게 감소함. 그러나 도달 가능한 patch와 불가능한 patch의 평균 gate 차이는 target별 `0.005–0.014`에 불과했음. Gate 값은 안정됐지만 **어디를 열고 닫아야 하는지 학습하지 못한 것**이 남은 핵심 문제임. 해당 frozen correct/wrong-extent intervention에서 toy와 packaged food의 extent 입력은 coverage 오차를 줄이는 동시에 impossible-workspace 오차를 각각 약 `0.108`, `0.117` 높이는 방향에 직접 관여함.
 
 Exact extent는 물체 이름이 아니라 실제 크기이므로 원리상 unseen target에도 적용 가능한 정보임. 다만 현재 값은 mesh에서 얻은 진단용 oracle이므로 이 결과는 zero-shot 성능을 증명하지 않음. Oracle 구조가 먼저 모든 target에서 안정적으로 작동한 뒤에만 target RGB/mask로 크기를 추정하는 배포 입력으로 교체함.
 
-**판단 및 다음 단계:** 이 모델도 seed 0에서 기각하고 seed 1–2는 실행하지 않음. 다음 실험은 최종 probability map을 직접 누르는 ring loss가 아니라 gate 자체만 감독함. Target이 실제로 도달 가능한 순수 patch에는 gate가 열리고, workspace 안이지만 target이 들어갈 수 없는 순수 patch에는 닫히도록 balanced auxiliary loss를 추가함. 경계가 섞인 patch는 제외하고 `lambda_gate=0.05`의 단일 seed-0 통제 실험만 수행함. 이 방식은 occlusion 확률을 맞히는 본래 head의 역할을 유지하면서, gate에 부족했던 공간적 역할만 명시함.
+**판단 및 다음 단계:** Seed 0의 사전 기준을 만족하지 못해 seed 1–2 확대는 진행하지 않음. 다음 실험은 최종 probability map을 직접 누르는 ring loss가 아니라 gate 자체만 감독함. Target이 실제로 도달 가능한 순수 patch에는 gate가 열리고, workspace 안이지만 target이 들어갈 수 없는 순수 patch에는 닫히도록 balanced auxiliary loss를 추가함. 경계가 섞인 patch는 제외하고 `lambda_gate=0.05`의 단일 seed-0 통제 실험만 수행함. 이 방식은 occlusion 확률을 맞히는 본래 head의 역할을 유지하면서, gate에 부족했던 공간적 역할만 명시함.
 
 ---
 
@@ -1624,14 +1695,14 @@ Target이 놓일 수 있는 순수 patch       → gate를 1에 가깝게 학습
 | Whole-workspace MAE | `0.13745` | `0.07538` | 서랍 전체 오차 `45.16%` 감소 |
 | Impossible-workspace MAE | `0.20853` | `0.09682` | 잘못 밝아지는 leakage `53.57%` 감소 |
 
-보조 loss가 없는 동일 gate 모델과 비교해도 coverage·workspace·impossible-workspace MAE가 각각 `11.76%`, `37.81%`, `45.51%` 감소함. 따라서 단순 학습 변동이 아니라 gate localization supervision이 평균 개선을 만든 것으로 판단함.
+보조 loss가 없는 동일 gate 모델과 비교해도 coverage·workspace·impossible-workspace MAE가 각각 `11.76%`, `37.81%`, `45.51%` 감소함. 동일 seed·초기 state·sample order의 controlled seed-0 비교에서는 gate localization supervision 추가와 평균 개선이 함께 나타남. 다중 seed 일반화는 아직 확인하지 않음.
 
-Frozen 진단에서도 변화가 확인됨. 보조 loss가 없을 때 가능한 영역과 불가능한 영역의 gate 차이는 `0.005–0.014`였지만, 학습 후에는 target별 `0.580–0.695`로 커짐. 가능한 영역의 평균 gate는 `0.797–0.860`, 불가능한 영역은 `0.166–0.217`이므로 gate가 실제 문지기 역할을 학습함.
+Frozen 진단에서도 변화가 확인됨. 보조 loss가 없을 때 가능한 영역과 불가능한 영역의 gate 차이는 `0.005–0.014`였지만, 학습 후에는 target별 `0.580–0.695`로 커짐. 가능한 영역의 평균 gate는 `0.797–0.860`, 불가능한 영역은 `0.166–0.217`이므로 현재 oracle coverage 정의와 고정 rig의 development target에서 gate가 위치 분리를 학습했음을 확인함.
 
-**남은 문제:** 평균 결과는 크게 좋아졌지만 사전에 정한 모든 기준을 통과하지는 못함. 다섯 camera에서 scale-response 자체는 `40/40` 모두 양수였으나, `book_4`의 `0.85/1.15` scale 반응은 raw보다 각각 `0.118`, `0.130` 약해져 허용선 `-0.05`를 넘음. 결과를 본 뒤 기준을 완화하지 않고 seed-0 formal gate를 실패로 기록함.
+**남은 문제:** 평균 결과는 크게 좋아졌지만 사전에 정한 모든 기준을 통과하지는 못함. 현재 고정 rig의 다섯 camera에서 scale-response 자체는 `40/40` 모두 양수였으나, `book_4`의 `0.85/1.15` scale 반응은 raw보다 각각 `0.118`, `0.130` 약해져 허용선 `-0.05`를 넘음. 결과를 본 뒤 기준을 완화하지 않고 seed-0 사전 기준 미충족으로 기록함.
 
-축별 frozen intervention에서는 book의 수평 크기 입력 효과는 scale-response `+0.005`로 거의 중립이었지만, 높이 입력은 `-0.131`을 만들었음. 반대로 높이 입력은 coverage와 impossible-workspace MAE를 각각 약 `0.016`, `0.031` 줄여 단순히 제거할 정보도 아님. 즉 현재 하나의 FiLM/gate가 수평 footprint와 높이의 서로 다른 역할을 함께 처리하는 것이 남은 병목임.
+축별 frozen intervention에서 book의 수평 크기 축을 교체했을 때 scale-response 변화는 `+0.005`로 거의 중립이었지만, 높이 축 교체는 `-0.131`의 변화를 만들었음. 반대로 높이 축은 coverage와 impossible-workspace MAE를 각각 약 `0.016`, `0.031` 줄여 단순히 제거할 정보도 아님. 즉 현재 하나의 FiLM/gate가 수평 footprint와 높이의 서로 다른 역할을 함께 처리하는 것이 남은 병목임.
 
 Exact extent와 coverage label은 USD/GT에서 얻은 simulation oracle임. 물체 category 이름을 gate에 주지는 않으므로 크기와 local depth의 관계를 배우는 zero-shot 가설에는 맞지만, 아직 target RGB만 사용하는 배포형 zero-shot을 증명한 결과는 아님.
 
-**판단 및 다음 단계:** 평균 개선과 gate localization은 유지할 가치가 있지만, 현 모델은 book scale 기준 실패로 확정하지 않음. Seeds 1–2와 RGB extent estimator는 계속 보류함. 다음에는 수평 footprint와 높이를 별도 conditioning 경로로 분리하되 동일 gate supervision을 유지하는 seed-0 실험 하나만 수행함. 두 축을 분리한 뒤에도 book 반응이 회복되지 않으면 architecture 확장을 중단하고 scale-paired objective 또는 GT의 book-height 정의를 다시 검토함.
+**판단 및 다음 단계:** 평균 개선과 gate localization은 유지할 가치가 있지만, 현 모델을 최종 candidate로 확정하지 않음. Seeds 1–2와 RGB extent estimator는 계속 보류함. 수평 footprint는 물체가 차지할 바닥 면적에, 높이는 위쪽 공간과 가려짐 깊이에 주로 영향을 주므로 다음에는 두 값을 별도 conditioning 경로로 분리함. 동일 gate supervision을 유지한 seed-0 실험 하나에서 book 반응을 확인하고, 회복되지 않으면 architecture 확장을 중단한 뒤 scale-paired objective 또는 GT의 book-height 정의를 다시 검토함.
