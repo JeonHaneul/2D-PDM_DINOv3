@@ -890,7 +890,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Fresh paired broadcast-on reference | Seed-0 reproduction complete; initialization/sample order and training trajectory matched; final weights bitwise identical |
 | Relation-aware target interaction | Seed-0 complete; scale response mostly recovered but coverage/PF4 gates failed, rejected |
 | Exact 3D extent + global FiLM | Seed-0 oracle test complete; coverage signal confirmed, rejected due workspace leakage |
-| Exact 3D extent + local bounded interaction | Seed-0 complete; average leakage reduced, target-specific gates failed |
+| Exact 3D extent + local bounded interaction | Seed-0 complete; average leakage reduced, frozen diagnosis found a saturated local gate |
 | Final zero-shot benchmark | Pending with untouched target instances/scales |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | Refinement in progress |
@@ -972,7 +972,8 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 - [x] Run one controlled seed-0 model ablation with exact 3D extent as a diagnostic input — global FiLM rejected
 - [x] Verify frozen correct-vs-wrong extent causality across 16 scenes and 5 cameras
 - [x] Replace global FiLM with a zero-initialized local bounded extent interaction — average leakage reduced, rejected at seed 0
-- [ ] Diagnose local correct-vs-wrong extent causality and patch localization before another retrain
+- [x] Diagnose local correct-vs-wrong extent causality and patch localization
+- [ ] Replace the saturated sigmoid gate with a normalized local-similarity gate and repeat one controlled seed-0 run
 - [ ] If a conditioning method passes all gates, estimate 3D extent from deployable target images/masks
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
@@ -1549,3 +1550,13 @@ Local 방식은 global FiLM의 평균 leakage를 제거하고 raw보다도 세 �
 **판단:** 평균 개선만으로 모델을 채택하지 않음. Raw 대비 `book_4` scale-response가 `-0.062`, `-0.054` 감소하여 사전 기준 `-0.05`를 넘었고, `packaged_food_4`의 impossible-workspace MAE는 `30.29%` 악화함. Seen-target coverage도 `4.65%` 악화하여 seed-0 formal gate는 실패함.
 
 따라서 local interaction은 global 방식보다 공간 제어가 낫다는 가설은 지지하지만 최종 모델로는 기각함. Seed 1–2와 RGB 기반 extent estimator는 실행하지 않음. 다음 단계는 같은 frozen checkpoint에서 extent만 올바른 값과 같은 category의 다른 값으로 교체해 원인을 분리하고, gate와 residual이 coverage 안팎을 실제로 구분하는지 확인하는 것임.
+
+**Frozen 후속 진단:** 재학습 없이 scene RGB-D·target appearance·GT를 고정하고 extent만 교체함. Held-out 평균에서 correct extent는 wrong extent보다 coverage MAE를 `0.03267` 낮추고 scale-response를 `0.12590` 높였지만, impossible-workspace MAE는 `0.02811` 높였음. 즉 3D 크기 정보는 실제로 사용되지만 유용한 영역과 잘못된 영역을 동시에 활성화함.
+
+![Local gate and axis diagnosis](img/occlusion_model/local_gate_axis_diagnostic.png)
+
+Gate가 위치를 실제로 거르는지 확인하기 위해 target이 도달 가능한 patch와 불가능한 patch를 분리함. 네 held-out target의 평균 gate는 가능한 영역 `0.974–0.988`, 불가능한 영역도 `0.943–0.972`였음. `0`이면 닫힘, `1`이면 완전히 열림이므로 두 영역에서 거의 항상 열린 상태임. 따라서 residual 크기는 제한됐지만, 공간을 선택하는 gate는 충분히 작동하지 않았음.
+
+축별 교체에서는 `book_4`의 올바른 높이 값이 scale-response를 `0.021` 낮추고, `toy_4`의 수평 크기는 scale-response를 `0.213` 높이는 대신 impossible-workspace MAE를 `0.081` 높였음. 하나의 벡터에서 수평 크기와 높이를 함께 처리하면서 역할이 얽힌 것도 확인함.
+
+**다음 결정:** Noncoverage loss를 바로 추가하면 이전 ring-loss처럼 크기 변화 반응까지 억제할 수 있어 보류함. 먼저 parameter 수와 초기 출력을 유지한 채, 포화되는 sigmoid dot-product를 channel-normalized local similarity로 교체하는 seed-0 실험을 수행함. 이 변경으로 leakage가 줄어도 `book_4` 역반응이 남으면 수평 크기와 높이 conditioning을 분리함.
