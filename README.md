@@ -512,7 +512,7 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 >
 > 최신 conditioning 실험은 현재 로컬 research harness에서 비교 중임. 사전에 정한 평가 기준을 모두 만족한 구성만 GitHub의 release baseline에 반영하며, 현재 공개 `occlusion_model.py`는 재현 가능한 broadcast-on size-only baseline을 유지함.
 
-Occlusion stream이 답하려는 질문은 **“지금 보이지 않는 target이 이 물체 더미 아래 어디에 들어가 가려져 있을 수 있는가?”**임. 현재 보이는 target을 찾는 Similarity stream과 달리, RGB-D에서 물체 더미의 구조를 읽고 target의 크기를 고려하여 숨을 수 있는 위치의 확률 `P_O`를 예측함. 이 map은 target의 실제 위치를 확정하는 답이 아니라, DRL이 확률이 높은 영역부터 탐색하도록 제공하는 prior임.
+Occlusion stream이 답하려는 질문은 **“Target이 물체 더미에 의해 어느 위치에서 가려질 수 있는가?”**임. 현재 보이는 target을 찾는 Similarity stream과 달리, RGB-D에서 물체 더미의 구조를 읽고 target의 크기를 고려하여 가려질 수 있는 위치의 확률 `P_O`를 예측함. 이 map은 target의 실제 위치를 확정하는 답이 아니라, DRL이 확률이 높은 영역부터 탐색하도록 제공하는 prior임.
 
 학습용 GT 생성과 실제 추론은 분리되어 있음. Mesh와 GT는 학습 데이터를 준비할 때만 필요하고, 배포 시에는 관측 영상만 모델에 입력함.
 
@@ -575,7 +575,7 @@ corrected_ratio = N_occluded_valid / (N_valid + epsilon)
 is_occluded = corrected_ratio >= 0.7
 ```
 
-확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의함. 따라서 `0.8`은 scene마다 임의로 밝아진 값이 아니라, 그 위치를 덮는 유효 후보 중 약 `80%`가 실제로 가려졌다는 공통 의미를 가짐. Scene별 min–max normalization을 사용하지 않는 이유는 숨을 공간이 거의 없는 scene도 가장 밝은 pixel이 강제로 `1`이 되는 문제를 피하기 위해서임. Visible-target 강조는 현재 보이는 물체를 담당하는 Similarity stream과 역할이 겹치므로 새 probability GT에는 넣지 않음.
+확률 GT는 해당 위치를 target이 덮는 유효 후보 pose 중 target의 관측 가능한 부분이 `70%` 이상 가려지는 pose의 비율로 정의함. 따라서 `0.8`은 scene마다 임의로 밝아진 값이 아니라, 그 위치를 덮는 유효 후보 중 약 `80%`가 실제로 가려졌다는 공통 의미를 가짐. Scene별 min–max normalization을 사용하지 않는 이유는 target이 가려질 수 있는 영역이 거의 없는 scene도 가장 밝은 pixel이 강제로 `1`이 되는 문제를 피하기 위해서임. Visible-target 강조는 현재 보이는 물체를 담당하는 Similarity stream과 역할이 겹치므로 새 probability GT에는 넣지 않음.
 
 ```text
 P_O(u,v) = N_occluded(u,v) / (N_candidate(u,v) + epsilon)
@@ -840,7 +840,7 @@ F_depth'    = gamma * F_depth + beta
 | Patch-wise cosine | 각 scene 위치와 target 외형의 직접 유사도 한 개를 제공 | MatchingBlock이 처음부터 모든 관계를 다시 추론해야 하는 부담을 줄임 |
 | Trainable ResNet-18 | Depth와 valid mask를 local 3D pattern으로 변환 | RGB foundation model이 직접 제공하지 않는 틈·높이·적층 구조를 학습하기 위함 |
 | FiLM | Target 크기에 따라 depth channel의 사용 방식을 변경 | 같은 공간도 작은 물체에는 충분하고 큰 물체에는 부족할 수 있기 때문 |
-| MatchingBlocks | RGB, depth, target appearance, cosine을 함께 해석 | 단순 cosine만으로는 “외형이 비슷함”과 “실제로 숨을 수 있음”을 구분하기 어렵기 때문 |
+| MatchingBlocks | RGB, depth, target appearance, cosine을 함께 해석 | 단순 cosine만으로는 “외형이 비슷함”과 “물체 더미에 의해 가려질 수 있음”을 구분하기 어렵기 때문 |
 | Workspace mask | 서랍 밖의 확률을 0으로 제한 | 현재 고정 camera rig에서 물리적으로 불가능한 외부 leakage를 제거하기 위함 |
 
 #### FiLM은 무엇을 하는가?
@@ -1042,7 +1042,7 @@ Similarity와 Occlusion stream이 현재 구조에 도달한 이유를 시간순
 | Similarity의 zero-shot 확장 | DINOv3만으로는 외형이 비슷한 물체는 찾지만 category 의미가 부족했음 | Language와 정렬된 SigLIP 의미를 DINOv3의 위치 feature에 결합 | Unseen packaged-food 사례에서 category activation을 관찰했으며, 정량 unseen benchmark는 남아 있음 |
 | Occlusion GT 재설계 | Target마다 수십만 장을 촬영하고 scene별 min–max를 쓰면 시간·용량이 크고 scene 간 값의 의미가 달라짐 | USD/OBJ mesh를 GPU로 렌더링하고 `가려진 pose / 전체 유효 pose` 확률을 계산 | 기존 GT를 거의 동일하게 재현하면서 비교 가능한 probability GT를 생성함 |
 | 공정한 학습 조건 확립 | Target마다 다른 scene을 쓰면 모델이 target 대신 scene 분포를 외울 수 있음 | 모든 target이 같은 scene을 공유하고 target·scale·camera·update 수를 고정 | 이후 모델 차이를 target conditioning 차이로 비교할 수 있게 됨 |
-| Target 크기 조건 추가 | 같은 틈도 작은 물체와 큰 물체의 은닉 가능성이 다름 | Target mask의 크기로 depth feature를 조절하는 FiLM을 사용 | Size-only가 강한 baseline이 되었지만 2D 크기만으로 남는 target 차이가 있음 |
+| Target 크기 조건 추가 | 같은 물체 더미에서도 target 크기에 따라 완전히 가려질 수 있는 영역이 달라짐 | Target mask의 크기로 depth feature를 조절하는 FiLM을 사용 | Size-only가 강한 baseline이 되었지만 2D 크기만으로 남는 target 차이가 있음 |
 | 3D 크기의 공간적 사용 | Exact 3D 크기는 유용했지만 모든 위치에 같은 보정을 주면 불가능한 곳도 밝아짐 | Global FiLM → local gate → 포화 방지 → strict gate supervision 순으로 한 요소씩 수정 | Gate localization과 평균 leakage는 크게 개선됐고, book의 높이와 수평 footprint 역할 분리가 다음 과제임 |
 
 ### 지표와 범위 읽는 법
@@ -1587,7 +1587,7 @@ Held-out target의 scale-response 방향은 `8/8` target-scale과 `40/40` camera
 
 Correct extent는 held-out target에서도 coverage 예측과 크기 변화 반응을 일관되게 개선함. 따라서 모델이 3D 크기 정보를 실제로 사용한다는 점은 확인됨. 반면 `book_4·fruit_4`는 coverage 밖 오차도 감소했지만, `toy_4·packaged_food_4`는 5개 camera 모두 증가함. 가장 가까운 wrong extent만 사용한 비교에서도 같은 경향이 남아 극단적인 교체값 때문으로 보기 어려움.
 
-**판단:** 이번 exact-extent 경로에서 관찰된 leakage는 하나의 extent vector로 전체 depth feature에 같은 `gamma·beta`를 적용하는 global FiLM과 연결되어 있었음. Target이 숨을 수 있는 영역은 개선했지만, workspace 안에서도 해당 target이 존재할 수 없어 GT가 0인 위치까지 함께 활성화함. 이 실험만으로 DINOv3 정보가 충분하다고 결론 내리지는 않음.
+**판단:** 이번 exact-extent 경로에서 관찰된 leakage는 하나의 extent vector로 전체 depth feature에 같은 `gamma·beta`를 적용하는 global FiLM과 연결되어 있었음. Target이 물체 더미에 의해 가려질 수 있는 영역은 개선했지만, workspace 안에서도 해당 target이 존재할 수 없어 GT가 0인 위치까지 함께 활성화함. 이 실험만으로 DINOv3 정보가 충분하다고 결론 내리지는 않음.
 
 현재 global-FiLM 구성은 후속 seed로 확대하지 않고, RGB 기반 3D 크기 추정기 개발도 보류함. 다음 실험에서는 exact extent를 계속 oracle로 사용하되, `local depth feature × extent`로 patch별 bounded residual을 만들고 residual을 0으로 초기화해 raw baseline에서 시작함. 동일한 seed-0 조건에서 coverage·coverage 밖 오차·scale-response·현재 고정 rig의 5-camera 결과가 함께 개선될 때만 다음 단계로 진행함.
 
