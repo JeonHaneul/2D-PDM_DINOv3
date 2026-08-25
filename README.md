@@ -829,23 +829,80 @@ flowchart LR
 
 현재 공개·accepted baseline은 실제 target mask에서 얻은 세 크기값만 사용하는 size-only 모델임. 68-D 입력 shape는 유지하지만 나머지 65개 값은 0으로 고정하여 모델 크기와 초기화를 통제함. FiLM은 이 size condition으로 depth feature만 조절함. Phase 25–26의 oracle local-gate 모델은 원인을 확인하는 연구 후보이며 사전 기준을 모두 충족하지 않아 release baseline으로 채택하지 않음.
 
-```text
-gamma, beta = MLP(area, bbox_h, bbox_w)
-F_depth'    = gamma * F_depth + beta
-```
-
 | 구성 요소 | 단순한 역할 | 이 구성이 필요한 이유 |
 |---|---|---|
 | Frozen DINOv3 | Scene과 target을 같은 visual feature 공간에 배치 | 학습하지 않은 물체도 기존 foundation feature로 표현하기 위함 |
 | Patch-wise cosine | 각 scene 위치와 target 외형의 직접 유사도 한 개를 제공 | MatchingBlock이 처음부터 모든 관계를 다시 추론해야 하는 부담을 줄임 |
 | Trainable ResNet-18 | Depth와 valid mask를 local 3D pattern으로 변환 | RGB foundation model이 직접 제공하지 않는 틈·높이·적층 구조를 학습하기 위함 |
-| FiLM | Target 크기에 따라 depth channel의 사용 방식을 변경 | 같은 공간도 작은 물체에는 충분하고 큰 물체에는 부족할 수 있기 때문 |
+| FiLM | Target geometry로 만든 `γ`는 depth channel을 곱해서 조절하고 `β`는 기준값을 이동 | 같은 공간도 작은 물체에는 충분하고 큰 물체에는 부족할 수 있기 때문 |
 | MatchingBlocks | RGB, depth, target appearance, cosine을 함께 해석 | 단순 cosine만으로는 “외형이 비슷함”과 “물체 더미에 의해 가려질 수 있음”을 구분하기 어렵기 때문 |
 | Workspace mask | 서랍 밖의 확률을 0으로 제한 | 현재 고정 camera rig에서 물리적으로 불가능한 외부 leakage를 제거하기 위함 |
 
-#### FiLM은 무엇을 하는가?
+#### Q. FiLM은 target 정보로 depth feature를 정확히 어떻게 바꾸는가?
 
-FiLM은 target 정보를 보고 scene depth feature의 채널별 중요도를 조절하는 장치임. 예를 들어 큰 target이 주어지면, 큰 빈 공간이나 깊은 틈에 반응하는 depth channel을 더 사용하도록 학습할 수 있음.
+FiLM은 **Feature-wise Linear Modulation**의 약자임. “FiLM이 depth channel의 중요도를 조절한다”는 말은, 실제로는 **target마다 다른 곱셈값 `γ`와 덧셈값 `β`를 만들어 depth feature에 적용한다**는 뜻임. FiLM 자체가 occlusion 확률을 바로 출력하는 것은 아니며, target에 맞게 바뀐 depth feature를 다음 MatchingBlock에 전달함.
+
+먼저 ResNet-18 depth encoder는 scene의 각 위치를 256개 값으로 표현함. 한 위치 `(u,v)`의 depth vector가 아래와 같다고 생각할 수 있음.
+
+```text
+한 scene patch의 depth feature
+
+[channel 1, channel 2, ..., channel 256]
+     0.12       0.60             -0.08
+```
+
+각 channel은 사람이 미리 “틈”, “높이”라고 이름 붙인 값이 아니라, 학습 과정에서 서로 다른 depth pattern에 반응하도록 만들어지는 latent feature임. Target geometry `g`는 별도의 MLP를 통과해 이 256개 channel 각각에 적용할 `γ`와 `β`를 만듦.
+
+```text
+68-D target geometry
+    → Linear(68 → 64) → ReLU
+    → Linear(64 → 4 layers × 2 parameters × 256 channels)
+    → layer마다 gamma 256개와 beta 256개
+```
+
+$$
+\mathbf{h}=\operatorname{ReLU}(W_1\mathbf{g}+\mathbf{b}_1),
+\qquad
+[\boldsymbol{\gamma}^{\ell},\boldsymbol{\beta}^{\ell}]
+=W_2^{\ell}\mathbf{h}+\mathbf{b}_2^{\ell}
+$$
+
+$$
+F'^{\ell}_{c}(u,v)
+=\gamma^{\ell}_{c}(\mathbf{g})F^{\ell}_{c}(u,v)
++\beta^{\ell}_{c}(\mathbf{g})
+$$
+
+| 기호 | 실제 shape | 의미 |
+|---|---|---|
+| `g` | `B × 68` | Target geometry를 담는 고정 크기 입력. `g[0:3]`은 `area ratio, bbox height, bbox width`임. 최신 oracle 후보는 `g[3:6]`에 학습 target 기준으로 표준화한 `짧은 수평 길이, 긴 수평 길이, 높이`를 추가하고 나머지는 0으로 둠 |
+| `h` | `B × 64` | MLP가 학습한 중간 code. 64개 축에 사람이 정한 개별 의미는 없음 |
+| `Fˡ` | `B × 256 × Hₚ × Wₚ` | Layer `ℓ`의 scene depth feature. 각 patch가 256-D vector를 가짐 |
+| `γˡ, βˡ` | 각각 `B × 256 × 1 × 1` | Layer별·channel별 조절값. `1 × 1`이므로 Global FiLM에서는 같은 target의 모든 위치에 같은 값이 broadcast됨 |
+
+여기서 `B`는 batch 안의 sample 수, `ℓ`은 feature layer, `c`는 256개 channel 중 하나, `(u,v)`는 scene patch의 공간 위치임.
+
+구현상 DINOv3/FiLM/MatchingBlock branch는 4개이지만 ResNet-18 depth encoder가 만드는 공간 scale은 3개임. 앞의 세 branch는 서로 다른 depth scale을 사용하고, 네 번째 branch는 가장 깊은 세 번째 depth feature를 한 번 더 사용함. 따라서 `γˡ,βˡ`는 네 묶음이지만 서로 완전히 다른 ResNet feature map이 네 장 생성되는 것은 아님.
+
+`γ`와 `β`의 작용은 다음과 같음.
+
+| 값 | 한 channel에 일어나는 일 |
+|---|---|
+| `γ=1, β=0` | 원래 depth feature를 그대로 유지 |
+| `0<γ<1` | 기존 반응의 절댓값을 작게 만듦 |
+| `γ>1` | 기존 반응의 절댓값을 크게 만듦 |
+| `γ=0` | 기존 반응을 제거하고 `β`만 남김 |
+| `γ<0` | 기존 반응의 부호를 뒤집을 수 있음 |
+| `β>0 / β<0` | 해당 channel의 기준값을 위/아래로 이동 |
+
+가상의 숫자로 보면 원리가 더 명확함. 어떤 위치에서 한 depth channel 값이 `F=0.60`이라고 가정함.
+
+```text
+작은 target: gamma=0.50, beta=-0.10  →  F' = 0.50×0.60-0.10 = 0.20
+큰 target:   gamma=1.40, beta= 0.05  →  F' = 1.40×0.60+0.05 = 0.89
+```
+
+Scene depth는 같아도 target이 달라지면 MatchingBlock에 전달되는 값이 `0.20` 또는 `0.89`로 달라짐. 이것이 “같은 공간을 target 크기에 따라 다르게 해석한다”는 말의 수학적 의미임. 위 숫자는 설명을 위한 예시이며, 실제 어떤 channel이 어떤 depth pattern을 담당하고 `γ,β`가 얼마가 되는지는 occlusion-map loss로 학습됨.
 
 ```mermaid
 flowchart LR
@@ -856,12 +913,69 @@ flowchart LR
     F --> O["크기 조건이 반영된<br/>depth feature"]
 ```
 
-- `68-D`는 68개의 물리 개념을 뜻하지 않고 입력을 담는 고정 크기임. Size-only baseline은 `area, bbox height, bbox width` 세 칸만 사용하고 나머지는 0으로 둠. Exact-extent 실험은 다음 세 칸에 `짧은 가로 길이, 긴 가로 길이, 높이`를 추가함.
-- `64-D hidden`은 MLP가 스스로 학습하는 중간 표현임. 각 차원에 사전에 정한 이름이나 단일 물리 의미는 없음.
-- `256 depth channels`도 사람이 지정한 256개 속성이 아니라 ResNet-18이 학습한 서로 다른 depth pattern 반응임. FiLM은 각 channel에 적용할 `gamma`와 `beta`를 만듦.
-- Global FiLM은 같은 `gamma, beta`를 모든 위치에 적용함. Target 크기 정보는 전달하기 쉽지만, target이 물체 더미에 의해 가려질 후보가 없는 위치까지 함께 활성화할 수 있음.
+FiLM의 마지막 linear layer는 처음에 `γ=1, β=0`이 되도록 초기화함. 따라서 학습 시작 시에는 `F'=F`인 항등변환이고, 처음부터 depth feature를 임의로 망가뜨리지 않음. 이후 최종 occlusion-map loss의 gradient가 ResNet-18, FiLM MLP, MatchingBlocks에 함께 전달되면서 어떤 target geometry에서 어떤 channel을 얼마나 바꿀지 하나의 모델 안에서 학습함. FiLM은 학습할 때만 쓰는 장치가 아니므로 추론 때도 항상 같은 계산을 수행함.
 
-Zero-shot 가설은 물체 이름을 외우는 대신 `새 target의 크기·외형 ↔ 현재 위치의 RGB-D 구조` 관계를 학습하는 것임. 다만 exact 3D extent는 현재 USD에서 얻은 진단용 oracle이므로, 이 실험만으로 RGB 입력 기반 zero-shot 배포가 증명되지는 않음.
+**왜 Global FiLM만으로는 부족할 수 있는가?** `γ,β`는 target마다 달라지지만 Global FiLM에서는 모든 위치 `(u,v)`에 동일하게 적용됨. 위치마다 원래 depth feature `F(u,v)`가 다르므로 결과 map의 공간 정보가 사라지는 것은 아니지만, target 보정이 drawer 전체에 퍼져 target이 물체 더미에 의해 가려질 후보가 아닌 위치도 함께 밝아질 수 있음.
+
+최신 oracle 후보는 이를 줄이기 위해 위치별 gate `G(u,v)`를 추가한 bounded residual 형태를 사용함. 먼저 geometry를 다음처럼 나눔.
+
+```text
+g_F = zeros(68); g_F[0:5] = g[0:5]  # 화면상 area·bbox 크기 + 실제 짧은/긴 수평 길이
+g_H = zeros(68); g_H[5]   = g[5]    # 실제 높이만 남기고 나머지는 0
+```
+
+같은 FiLM MLP에 footprint-only, height-only, zero geometry를 각각 넣어 세 parameter 묶음을 만들고, 공통 bias가 두 번 더해지지 않도록 zero 결과를 한 번 뺌.
+
+$$
+(\gamma_F,\beta_F)=\operatorname{FiLM}(g_F),\qquad
+(\gamma_H,\beta_H)=\operatorname{FiLM}(g_H),\qquad
+(\gamma_0,\beta_0)=\operatorname{FiLM}(\mathbf 0)
+$$
+
+$$
+\gamma_C=\gamma_F+\gamma_H-\gamma_0,qquad
+\beta_C=\beta_F+\beta_H-\beta_0
+$$
+
+각 위치의 depth vector는 channel 방향만 비교할 수 있도록 정규화함.
+
+$$
+\widetilde F(u,v)=\tanh\!\left(\operatorname{LayerNorm}_{channel}(F(u,v))\right),
+\qquad
+\widehat d(u,v)=\frac{\widetilde F(u,v)}{\lVert\widetilde F(u,v)\rVert_2}
+$$
+
+Footprint geometry가 만든 query와 local depth 방향의 alignment로 gate를 계산함. `C=256`은 depth channel 수임.
+
+$$
+q_F=\tanh(\gamma_F-1)+\tanh(\beta_F)
+$$
+
+$$
+G(u,v)=\frac{1}{2}\left[
+1+\operatorname{clamp}\!\left(
+\frac{\widehat d(u,v)\cdot q_F}{\sqrt{\lVert q_F\rVert_2^2+C}},-1,1
+\right)
+\right]
+$$
+
+일반 cosine과 비슷하지만 `q_F`를 단순 L2 정규화하지 않고 분모에 `C`를 더해, query 크기가 작을 때 우연한 방향 일치가 과도한 gate가 되지 않도록 제한한 **regularized alignment**임. 최종 보정은 아래와 같음.
+
+$$
+F_{\mathrm{local}}(u,v)
+=F(u,v)+0.25\,G(u,v)
+\left[
+\tanh(\gamma_C-1)\odot F(u,v)
++\tanh(\beta_C)\odot\widetilde{F}(u,v)
+\right]
+$$
+
+- `G(u,v)∈[0,1]`은 해당 위치의 local depth pattern과 target footprint 조건이 얼마나 맞는지 나타냄.
+- `G≈0`이면 FiLM 보정을 거의 적용하지 않고, `G≈1`이면 그 위치에서만 target 조건을 강하게 반영함.
+- `tanh`와 계수 `0.25`는 한 번의 보정이 기존 depth feature를 지나치게 바꾸지 않도록 범위를 제한함.
+- Gate `G`는 `q_F`, 즉 footprint parameter만 사용하고, height parameter는 최종 `γ_C,β_C`에만 들어감. 따라서 target height만으로 새로운 위치의 gate를 열 수 없고, footprint와 맞는 위치 안에서 보정 강도만 바꿀 수 있음.
+
+배포 가능한 size-only 경로의 `g[0:3]`은 target mask만 있으면 계산되지만, 최신 oracle 후보의 `g[3:6]`은 USD의 exact 3D extent를 사용함. 두 경우 모두 zero-shot 가설은 물체 ID별 `γ,β`를 표처럼 저장하는 것이 아니라, 하나의 MLP가 **새 target의 연속적인 크기·형태값 `g_new`를 `γ_new,β_new`로 변환하는 함수**를 학습한다는 데 있음. 따라서 학습하지 않은 target도 같은 입력 규격으로 계산할 수 있음. 다만 이것만으로 일반화가 보장되지는 않으며, 학습 target과 분리한 target-heldout 평가가 필요함. 특히 RGB/mask만 사용하는 실제 배포 zero-shot은 exact extent를 추정값으로 교체한 뒤 별도로 검증해야 함.
 
 Target appearance를 MatchingBlock에 전달하는 방법도 통제 실험으로 비교함.
 
