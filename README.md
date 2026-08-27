@@ -235,13 +235,13 @@ SigLIP image/text vector는 각각 L2 정규화하고, 평균낸 1152-D vector�
 Mask가 포함된 patch를 포함 비율에 따라 pooling하여 target appearance를 계산함. `M(x,y)`가 pixel mask라면 먼저 각 `16×16` patch에서 target pixel 비율 `r_ij`를 구하고, 전체 합이 1이 되도록 `w_ij`로 정규화함.
 
 $$
-r_{ij}=\frac{1}{16^2}\sum_{(x,y)\in\operatorname{patch}(i,j)}M(x,y),
+r_{ij}=\frac{1}{16^2}\sum_{(x,y)\in\mathrm{patch}(i,j)}M(x,y),
 \qquad
 w_{ij}=\frac{r_{ij}}{\sum_{p,q}r_{pq}+\epsilon}
 $$
 
 $$
-a_t^{\ell}=\operatorname{L2Norm}\!\left(
+a_t^{\ell}=\mathrm{L2Norm}\!\left(
 \sum_{i,j}w_{ij}T_t^{\ell}(:,i,j)
 \right)\in\mathbb{R}^{768}
 $$
@@ -1028,20 +1028,20 @@ flowchart LR
 수식으로 한 DINO layer `ℓ`의 MatchingBlock 입력을 쓰면 다음과 같음.
 
 $$
-Z^{\ell}(u,v)=\operatorname{Concat}\left[
+Z^{\ell}(u,v)=\mathrm{Concat}\left[
 X_{\mathrm{rgb}}^{\ell}(u,v)_{768},\;
-\operatorname{FiLM}(D^{\ell}(u,v);g)_{256},\;
+\mathrm{FiLM}(D^{\ell}(u,v);g)_{256},\;
 q_t^{\ell}{}_{768},\;
 \widehat c^{\ell}(u,v)_{1}
 \right]\in\mathbb{R}^{1793}
 $$
 
 $$
-M^{\ell}=\operatorname{MatchingBlock}_{\ell}(Z^{\ell})\in
+M^{\ell}=\mathrm{MatchingBlock}_{\ell}(Z^{\ell})\in
 \mathbb{R}^{64\times30\times40},
 \qquad
-P_O=\sigma\!\left(\operatorname{Head}\left(
-\operatorname{Fuse}(\operatorname{Concat}_{\ell}M^{\ell})
+P_O=\sigma\!\left(\mathrm{Head}\left(
+\mathrm{Fuse}(\mathrm{Concat}_{\ell}M^{\ell})
 \right)\right)
 $$
 
@@ -1138,7 +1138,7 @@ FiLM은 **Feature-wise Linear Modulation**의 약자임. “FiLM이 depth channe
 ```
 
 $$
-\mathbf{h}=\operatorname{ReLU}(W_1\mathbf{g}+\mathbf{b}_1),
+\mathbf{h}=\mathrm{ReLU}(W_1\mathbf{g}+\mathbf{b}_1),
 \qquad
 [\boldsymbol{\gamma}^{\ell},\boldsymbol{\beta}^{\ell}]
 =W_2^{\ell}\mathbf{h}+\mathbf{b}_2^{\ell}
@@ -1204,9 +1204,9 @@ g_H = zeros(68); g_H[5]   = g[5]    # 실제 높이만 남기고 나머지는 0
 같은 FiLM MLP에 footprint-only, height-only, zero geometry를 각각 넣어 세 parameter 묶음을 만들고, 공통 bias가 두 번 더해지지 않도록 zero 결과를 한 번 뺌.
 
 $$
-(\gamma_F,\beta_F)=\operatorname{FiLM}(g_F),\qquad
-(\gamma_H,\beta_H)=\operatorname{FiLM}(g_H),\qquad
-(\gamma_0,\beta_0)=\operatorname{FiLM}(\mathbf 0)
+(\gamma_F,\beta_F)=\mathrm{FiLM}(g_F),\qquad
+(\gamma_H,\beta_H)=\mathrm{FiLM}(g_H),\qquad
+(\gamma_0,\beta_0)=\mathrm{FiLM}(\mathbf 0)
 $$
 
 $$
@@ -1217,7 +1217,7 @@ $$
 각 위치의 depth vector는 channel 방향만 비교할 수 있도록 정규화함.
 
 $$
-\widetilde F(u,v)=\tanh\!\left(\operatorname{LayerNorm}_{channel}(F(u,v))\right),
+\widetilde F(u,v)=\tanh\!\left(\mathrm{LayerNorm}_{\mathrm{channel}}(F(u,v))\right),
 \qquad
 \widehat d(u,v)=\frac{\widetilde F(u,v)}{\lVert\widetilde F(u,v)\rVert_2}
 $$
@@ -1230,7 +1230,7 @@ $$
 
 $$
 G(u,v)=\frac{1}{2}\left[
-1+\operatorname{clamp}\!\left(
+1+\mathrm{clamp}\!\left(
 \frac{\widehat d(u,v)\cdot q_F}{\sqrt{\lVert q_F\rVert_2^2+C}},-1,1
 \right)
 \right]
@@ -2341,3 +2341,51 @@ Learning rate `1e-3`에서는 leakage와 `S`가 개선됐지만 Phase 26 대비 
 - `S=0.247/0.291`은 Phase 26보다 높지만 `S=1`의 완전한 scale 변화 재현과는 거리가 있음.
 
 **다음 Step:** 이 checkpoint를 exact-size oracle 상한선으로 동결함. 동일 pose·거리의 5-view target reference와 camera calibration 저장 protocol을 먼저 고정한 뒤, RGB/mask silhouette에서 3D extent를 추정함. 같은 960개 조건에서 `mesh oracle / RGB-mask 추정 extent / extent 없음`만 바꾸어 비교하고, 개선이 유지될 때 seeds 1–2와 최종 untouched-target 평가로 이동함.
+
+---
+
+### 2026-08-27 · Phase 31 — Target-specific GT Coverage Check
+
+**확인하려는 문제:** 기존 GT는 모든 target을 동일한 `x/y = ±0.17 m` 범위에서 이동시켜 생성함. 이 범위는 회전할 때 서랍 벽을 통과할 수 있는 큰 책을 기준으로 정한 값이므로, Peach처럼 작은 물체에는 지나치게 좁음. 그 결과 실제로 target이 가려질 수 있는 위치가 GT coverage 밖에 남고, 모델이 그 위치를 예측하면 잘못된 활성화처럼 평가될 수 있음.
+
+이를 확인하기 위해 학습에 사용하지 않은 Peach 하나에서 다음 두 GT만 비교함.
+
+| 고정한 조건 | 내용 |
+|---|---|
+| Model output | GT를 보기 전에 저장한 동일 checkpoint의 동일 예측 |
+| Scene / camera | 동일한 8개 scene과 `center/top/left/right/bottom` 5개 view |
+| Target geometry | 동일한 Peach 원본 mesh `524,288` faces |
+| 가림 판정 | 물체의 유효 pixel 중 `70%` 이상이 scene 물체보다 뒤에 있을 때 해당 pose를 가려질 수 있는 pose로 집계 |
+| Probability | 각 pixel에서 `N_occ / N_all` 계산 |
+| 바꾼 조건 | 기존 고정 pose grid와 물체 크기·회전각에 따라 범위를 계산한 adaptive pose grid |
+
+```text
+Legacy fixed GT
+  x/y = ±0.17 m, 모든 물체에 동일
+  44,100 poses
+
+Adaptive GT
+  각 yaw에서 회전된 target mesh의 끝점을 계산
+  서랍 내부에 들어가는 중심 위치만 1 cm 간격으로 생성
+  Peach: 146,688 poses
+```
+
+10k 단순화 mesh도 70% 가림 판정을 `99.966%` 재현했지만, 서랍 경계의 매우 작은 footprint 한 건에서 사전에 정한 silhouette 기준을 충족하지 못함. 기준을 결과 확인 후 완화하지 않고, 이번 비교 GT는 원본 mesh로 다시 생성함.
+
+| 8 scenes × 5 views | 결과 | 의미 |
+|---|---:|---|
+| Fixed coverage | `266,222 px` | 기존 고정 범위가 기록한 영역 |
+| Adaptive coverage | `560,896 px` | 물체 크기와 회전에 맞춰 기록한 영역 |
+| Coverage 증가 | `+110.69%` | 기존보다 약 `2.11배` 넓은 영역을 확인 |
+| Adaptive에서만 추가된 영역 | `294,674 px` | 기존 GT가 누락한 영역 |
+| 추가 영역의 adaptive GT 평균 | `0.03808` | 누락 영역에도 실제 가림 확률이 존재 |
+| 기존 모델 오차 — adaptive GT 기준 | `0.01145` | 모델 예측이 새 GT와 비교적 가까움 |
+| 기존 모델 오차 — 해당 영역을 0으로 간주 | `0.03801` | 누락 영역을 정답 없음으로 보면 오차가 커짐 |
+
+아래 그림은 실제 scene, 두 GT, frozen model 예측을 함께 나타냄. 첫째 줄에서 adaptive GT가 fixed GT보다 넓게 이어지고, 둘째 줄에서 같은 예측을 fixed GT와 비교할 때 오른쪽 경계가 큰 오차로 나타나는 것을 확인할 수 있음. 셋째 줄의 초록색은 두 GT가 모두 다루는 영역, 빨간색은 adaptive GT에서 새로 포함된 영역임.
+
+![Peach fixed-grid and adaptive-grid GT comparison](img/occlusion_model/adaptive_gt_coverage_peach.png)
+
+이 결과는 **Peach에서 기존 고정 pose 범위가 정상적인 예측 일부를 오류처럼 보이게 만들었다는 가설을 지지함**. 반면 모든 target의 zero-shot 성능이나 Occlusion Stream의 최종 구조가 검증된 것은 아님. Target 입력을 더 복잡하게 바꾼 조건도 기존 입력 대비 MAE `0.00029`, soft-IoU `0.00020`만 개선했고 8-scene bootstrap 구간이 0을 포함했으므로, 현재 단계에서는 모델 구조를 더 확장하지 않음.
+
+**다음 Step:** Small/medium/large 대표 target의 adaptive GT를 먼저 생성하고, 복잡한 추가 구조 없이 기존 baseline을 재학습하여 5개 camera와 unseen target에서 확인함. 같은 방향이 재현되면 전체 target·scale GT를 갱신하고, 그 최종 결과를 기준으로 Occlusion Stream 본문과 Development Log의 후속 실험을 전반적으로 정리함.
