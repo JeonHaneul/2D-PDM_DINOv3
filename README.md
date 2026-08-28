@@ -644,9 +644,9 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: Mesh-based probability GT와 clean52 multi-scale benchmark 완료 · BatchNorm 통계를 고정한 저학습률 common-anchor + scale-paired seed-0 모델이 train-only 기준 통과 · 학습하지 않은 4개 development target과 고정 5-camera 평가에서도 개선 확인 · exact 3D extent는 아직 simulation oracle이며 최종 untouched-target 평가는 미수행**
+> **Status: 16개 학습 target의 adaptive probability GT 240,000장 생성 완료 · 전체 scene의 10%를 사용한 baseline 학습 완료 · 학습하지 않은 `packaged_food_5`를 학습에 쓰지 않은 30개 scene × 5개 camera에서 평가 완료 · 다음 Step은 Complexity Stream 구현**
 >
-> 최신 oracle conditioning은 “정확한 target 크기를 알면 unseen instance에도 크기 효과를 전달할 수 있는가”를 확인하는 연구용 상한선임. 공개 `occlusion_model.py` class는 generic 68-D geometry를 받으며, 현재 deployment reference는 별도 inference 전처리에서 RGB·mask 기반 `[area,bbox_h,bbox_w,0×65]`를 구성함. Exact extent를 RGB/mask에서 얻는 전처리가 검증되기 전에는 oracle checkpoint를 최종 모델로 부르지 않음.
+> 현재 baseline은 한 장의 center/top-down target RGB와 mask에서 appearance 및 68-D geometry를 만들고, 모든 scene camera에 같은 target reference를 사용함. 외부 target 평가는 합성 segmentation mask를 사용했으므로 **모델의 zero-shot 가능성은 확인했지만, 실환경 RGB에서 mask를 얻는 과정까지 검증한 결과는 아님**.
 
 Occlusion stream이 답하려는 질문은 **“Target이 물체 더미에 의해 어느 위치에서 가려질 수 있는가?”**임. 현재 보이는 target을 찾는 Similarity stream과 달리, RGB-D에서 물체 더미의 구조를 읽고 target의 크기를 고려하여 가려질 수 있는 위치의 확률 `P_O`를 예측함. 이 map은 target의 실제 위치를 확정하는 답이 아니라, DRL이 확률이 높은 영역부터 탐색하도록 제공하는 prior임.
 
@@ -679,6 +679,39 @@ flowchart LR
 | Target USD/OBJ | 모든 위치를 실제 촬영하지 않고 GT 생성 | Release baseline에서는 GT 생성에만 사용. Exact-extent oracle 진단에서는 3D 크기 condition의 출처로도 사용 |
 
 ResNet-18을 사용하는 이유는 DINOv3를 대체하기 위해서가 아님. DINOv3는 RGB의 일반적인 외형 표현을 제공하고, ResNet-18은 depth와 valid-mask에서 이 task에 필요한 공간 구조를 처음부터 학습함. 두 feature를 합치면 “무엇이 쌓여 있는가”와 “그 아래 공간이 target 크기에 맞는가”를 함께 판단할 수 있음.
+
+### Current Baseline and External Zero-Shot Check
+
+**확인하려는 질문:** 16개 학습 target으로 배운 하나의 모델이, 학습에서 전혀 사용하지 않은 새 target의 크기와 외형을 보고 물체 더미에 의해 가려질 수 있는 영역을 바꿀 수 있는지 확인함.
+
+학습에는 `book_1–4`, `fruit_1–4`, `packaged_food_1–4`, `toy_1–4`를 모두 사용함. Scene key를 먼저 train/validation/test로 나누고 한 scene의 5개 camera가 서로 다른 split으로 섞이지 않도록 고정함. 빠른 구조 검증을 위해 전체 3,000개 scene key 중 10%를 사용했으며, 학습 sample은 `16 targets × 240 scenes × 5 cameras = 19,200장`임. Target 입력은 camera마다 바꾸지 않고 항상 한 장의 center/top-down RGB와 mask를 사용함.
+
+외부 평가는 학습에 없던 `packaged_food_5`와 학습에 쓰지 않은 30개 scene을 결합하여 `30 scenes × 5 cameras = 150장`으로 수행함. GT는 adaptive mesh generator로 새로 계산했으며 150장 생성에는 약 78초가 걸림.
+
+| 평가 | MAE ↓ | Soft-IoU ↑ | Binary IoU ↑ | 의미 |
+|---|---:|---:|---:|---|
+| 올바른 `packaged_food_5` reference | `0.0180` | `0.812` | `0.723` | 새 target의 GT 공간 패턴을 전반적으로 재현함 |
+| 잘못된 `toy_1` reference | `0.0282` | `0.736` | `0.575` | 다른 크기·형태를 주면 성능이 낮아짐 |
+| 잘못된 `fruit_1` reference | `0.0375` | `0.530` | `0.425` | Target 입력을 실제로 사용하고 있음을 보여줌 |
+| 잘못된 `book_1` reference | `0.0968` | `0.432` | `0.291` | 크기와 형태가 크게 다른 reference에서는 가장 크게 저하됨 |
+
+MAE는 예측 확률과 GT 사이의 평균 차이이므로 낮을수록 좋음. Soft-IoU는 threshold로 자르기 전 확률 분포가 겹치는 정도이고, Binary IoU는 `0.5` 이상인 영역의 겹침이므로 둘 다 높을수록 좋음.
+
+`packaged_food_1`을 잘못된 reference로 사용했을 때는 올바른 reference와 성능이 거의 같았음. 이는 target conditioning 실패로 바로 해석할 수 없음. 같은 150장에서 두 물체의 GT 자체가 `Pearson r=0.990`, patch MAE `0.0120`으로 거의 같았기 때문임. 따라서 target conditioning은 GT가 실제로 다른 `book_1`, `fruit_1`, `toy_1` 대조군으로 판정함.
+
+| Camera | MAE ↓ | Soft-IoU ↑ | Binary IoU ↑ |
+|---|---:|---:|---:|
+| center | `0.0117` | `0.859` | `0.777` |
+| top | `0.0193` | `0.803` | `0.716` |
+| left | `0.0203` | `0.796` | `0.722` |
+| right | `0.0232` | `0.776` | `0.650` |
+| bottom | `0.0172` | `0.825` | `0.753` |
+
+아래 그림은 한 unseen scene의 다섯 camera를 같은 순서로 보여줌. 각 행은 `target RGB → scene RGB → adaptive GT → raw prediction → workspace-masked prediction`임. Raw prediction에서 서랍 벽이 밝아지는 값은 camera calibration으로 만든 workspace mask를 적용하면 제거되며, 최종 map은 물체 더미가 있는 영역의 GT 형태를 따라감.
+
+![Unseen packaged_food_5 predictions on five cameras](img/occlusion_model/zero_shot_packaged_food_5_test30.png)
+
+**판단:** 현재 결과는 Occlusion Stream의 core baseline을 계속 확장할 근거로 충분함. 5개 camera 모두에서 공간 패턴이 유지되고, GT가 다른 잘못된 target을 넣으면 성능이 분명히 감소함. 따라서 구조를 더 복잡하게 바꾸거나 전체 데이터로 다시 학습하는 작업은 보류하고 Complexity Stream으로 이동함. 단, target geometry가 합성 segmentation에서 계산된 조건이므로 실환경에서는 controlled background subtraction 또는 별도 segmentation으로 target mask를 얻는 단계가 추가로 검증되어야 함.
 
 ### Occlusion 영역과 metric은 어떻게 읽는가?
 
@@ -1001,7 +1034,7 @@ flowchart LR
 
 ### Occlusion tensor flow: 입력 네 가지가 어디서 합쳐지는가?
 
-아래 1–17단계는 **현재 size-only release baseline의 Global FiLM 흐름**을 ViT-B/16과 `480×640` 입력 한 batch 기준으로 적은 것임. 최신 footprint–height oracle은 뒤에서 설명하는 것처럼 7–9단계에서 같은 FiLM을 `g_F`, `g_H`, `0`에 세 번 적용한 뒤 local gate residual을 사용함. 같은 `64`나 `256`이 반복되더라도 서로 같은 정보라는 뜻은 아님.
+아래 1–17단계는 **현재 full16 baseline의 Global FiLM 흐름**을 ViT-B/16과 `480×640` 입력 한 batch 기준으로 적은 것임. 같은 `64`나 `256`이 반복되더라도 서로 같은 정보라는 뜻은 아님. 뒤에 기록된 footprint–height 및 exact-extent 구조는 최종 baseline을 정하기 전에 수행한 연구용 ablation임.
 
 `ResNet-18`의 `18`은 이 architecture에서 세는 weighted layer 수이며 18-D feature라는 뜻이 아님. Residual connection으로 앞 feature를 뒤 layer에 더해 depth network를 안정적으로 학습하는 비교적 작은 CNN임. 표의 stride `8/16/32`는 feature 한 칸이 입력에서 각각 8/16/32 pixel 간격으로 이동한다는 뜻이므로, stride가 커질수록 map은 작아지고 더 넓은 depth 문맥을 요약함.
 
@@ -1047,7 +1080,7 @@ $$
 
 Cosine은 output에 직접 더하는 shortcut이 아니라 1,793개 MatchingBlock 입력 channel 중 **한 channel의 단서**로만 사용됨. DINO branch는 네 개지만 depth encoder가 만드는 scale은 세 개이므로 layer `2/5/8` branch가 세 depth map을 순서대로 사용하고 layer `11` branch는 가장 깊은 세 번째 map을 재사용함.
 
-현재 5-camera 평가는 scene camera마다 같은 방향에서 촬영한 target reference view를 짝지음. 즉 center scene에는 center target, left scene에는 left target을 사용함. 한 장의 target RGB만으로 임의 view scene에 배포하는 조건은 아직 별도 검증 전임. Target mask는 geometry `g`를 계산하는 데 사용하고 Occlusion DINO appearance에는 곱하지 않음.
+현재 5-camera 평가는 **한 장의 center/top-down target RGB와 mask를 모든 scene camera에 공통으로 사용함**. 따라서 target reference view를 camera마다 바꾸지 않아도 고정된 다섯 scene camera에서 동작하는 조건까지 검증함. Target mask는 geometry `g`를 계산하는 데 사용하고 Occlusion DINO appearance에는 곱하지 않음. 임의 위치·화각의 camera 일반화는 아직 별도 검증 전임.
 
 #### Q. 68-D target geometry는 정확히 68개의 무엇인가?
 
@@ -1077,8 +1110,8 @@ g[4], g[5], ..., g[67]  (64개)
 
 | Geometry schema | 실제 68칸 구성 | 사용 목적 |
 |---|---|---|
-| Native full descriptor | `[area, bbox_h, bbox_w, log_aspect, silhouette 64개]` | Mask의 크기와 형태를 모두 넣는 원형 표현 |
-| Release size-only | `[area, bbox_h, bbox_w, 0×65]` | 현재 배포 가능한 baseline. Target 세부 silhouette를 외울 가능성을 줄이고 관측 mask 크기만 사용 |
+| Native full descriptor | `[area, bbox_h, bbox_w, log_aspect, silhouette 64개]` | **현재 full16 baseline.** Mask의 크기와 거친 형태를 함께 사용 |
+| Size-only ablation | `[area, bbox_h,bbox_w,0×65]` | Target 세부 silhouette 없이 화면상 크기만 사용할 때를 비교한 이전 실험 |
 | Exact-extent oracle | `[area, bbox_h, bbox_w, z_short, z_long, z_height, 0×62]` | 2D mask에 없는 실제 짧은 수평 길이·긴 수평 길이·높이의 유용성을 확인하는 simulation-only 상한선 |
 
 Controlled scale `s` 실험에서 size-only 값은 `[area×s², bbox_h×s, bbox_w×s]`로 바뀜. 길이가 `s`배이면 면적은 `s²`배가 되기 때문임. 실제 배포에서는 임의의 `s`를 입력하는 대신 관측된 target mask에서 세 값을 직접 계산함.
@@ -1104,7 +1137,7 @@ $$
 
 `GroupNorm(8,64)`의 `8`도 camera 수가 아님. 64 channel을 8개 group, group당 8 channel로 나누어 sample 내부에서 scale을 안정화함. ReLU는 음수 값을 0으로 만들고 명시적인 비선형성을 추가하여 더 복잡한 관계를 표현하게 함.
 
-현재 size-only baseline checkpoint를 사용할 때는 inference에서 `[area,bbox_h,bbox_w,0×65]` 전처리를 적용함. 최신 common-anchor + scale-paired oracle 후보는 development gate를 통과했지만 exact USD extent가 필요하므로 배포 가능한 최종 모델이 아님. 이전 local-gate 단독 실험의 실패와 최신 low-learning-rate 후속 실험의 통과를 구분하여 기록함.
+현재 full16 baseline checkpoint는 inference에서도 학습과 같은 native 68-D descriptor를 사용해야 함. 즉 target mask에서 `[area,bbox_h,bbox_w,log_aspect]`와 `8×8` silhouette를 동일하게 계산함. Exact USD extent를 쓰는 과거 oracle 후보는 아래 Development Log에 연구 과정으로만 남기며 현재 baseline 입력에는 포함하지 않음.
 
 | 구성 요소 | 단순한 역할 | 이 구성이 필요한 이유 |
 |---|---|---|
@@ -1266,7 +1299,7 @@ Target appearance를 MatchingBlock에 전달하는 방법도 통제 실험으로
 | Strict common-mode anchor | 세 scale 어디에서도 target이 덮지 않는 서랍 내부의 공통 출력을 0에 가깝게 감독 | Scale 경계를 건드리지 않으면서 noncoverage leakage를 크게 줄임 | Paired loss와 함께 사용하되 작은 learning rate로 기존 공간 map을 보존함 |
 | Low-LR common + paired | Phase 26에서 BN running statistics를 고정하고 한 epoch만 `1e-4`로 이어 학습 | Train-only 기준과 4-target·5-camera development 기준을 통과 | Exact extent oracle 상한선으로 동결하고 RGB/mask 기반 extent 교체를 준비함 |
 
-Fresh broadcast-on 재학습은 과거 baseline의 학습 trajectory와 최종 model tensor를 정확히 재현함. 동일 seed·초기화·sample order를 사용한 controlled seed-0 비교 안에서는 위 차이를 code/data drift보다 target-conditioning 방식의 차이로 해석할 수 있음. 최신 oracle 후보는 고정 기준을 통과했지만 exact mesh extent가 필요하므로, 현재 공개 baseline은 deployable RGB/mask 입력만 사용하는 raw broadcast 구조를 유지함.
+Fresh broadcast-on 재학습은 과거 baseline의 학습 trajectory와 최종 model tensor를 정확히 재현함. 동일 seed·초기화·sample order를 사용한 controlled seed-0 비교 안에서는 위 차이를 code/data drift보다 target-conditioning 방식의 차이로 해석할 수 있음. 현재 baseline은 raw target broadcast와 native 68-D RGB-mask geometry를 사용하며 exact mesh extent는 입력하지 않음.
 
 DINOv3는 frozen으로 유지하고 depth encoder, FiLM generator, MatchingBlocks와 output head는 하나의 loss로 함께 학습함. Training-heldout 4개 target은 이미 모델 선택과 진단에 반복 사용했으므로 최종 zero-shot test가 아니라 development benchmark로 구분함.
 
@@ -1307,19 +1340,19 @@ Phase 26은 특히 top과 bottom camera에서 주황색 선 밖까지 밝기가 
 
 ### Deployment Inputs
 
-현재 release prototype 추론 입력은 scene RGB, scene depth, target RGB와 target mask 또는 segmentation임. 지금 검증된 고정-rig protocol은 다섯 scene camera 각각에 같은 방향의 target RGB/mask view를 대응시키므로 target별 5-view reference set을 사용함. Target 한 장만으로 다섯 camera에 적용하는 조건은 아직 검증하지 않음. Empty-background reference를 이용한 자동 target mask 생성도 아직 구현되지 않은 deployment 전처리 과제임. 최신 oracle 후보는 여기에 USD mesh에서 얻은 exact 3D extent 세 값을 추가로 사용하므로, 그대로는 RGB-only 배포 모델이 아님.
+현재 baseline 추론 입력은 scene RGB, scene depth, **한 장의 center/top-down target RGB와 target mask**임. 같은 target reference 한 장을 center/top/left/right/bottom scene camera에 공통으로 적용하는 조건을 검증함. USD mesh, target depth와 occlusion GT는 추론에 사용하지 않음. 다만 이번 unseen-target 평가는 합성 segmentation mask를 사용했으므로, empty-background reference나 별도 segmentation을 이용해 실환경 target RGB에서 mask를 얻는 전처리는 아직 검증 과제임.
 
 | 구분 | 필요 정보 |
 |---|---|
-| 현재 검증된 매-view 입력 | Scene RGB, scene depth, 해당 scene camera에 대응하는 target RGB와 target mask/segmentation |
-| Target reference 자산 | 고정 rig의 center/top/left/right/bottom 5-view RGB·mask set |
+| 현재 검증된 입력 | Scene RGB, scene depth, 공통 center/top-down target RGB 한 장과 mask |
+| Target reference 자산 | 일정한 거리와 방향에서 촬영한 center/top-down RGB·mask 한 쌍 |
 | 고정 시스템 자산 | Camera calibration, camera별 workspace mask |
 | Release GT 생성에만 사용 | Target USD/OBJ, mesh scale, occlusion GT |
-| Exact-extent oracle에서만 추가 | USD mesh에서 얻은 3D extent 세 값 |
+| 현재 baseline 추론에 사용하지 않음 | Target USD/OBJ, target depth, exact 3D extent, GT |
 
-현재 target reference는 물체마다 촬영 위치가 일정하지 않고, `target_capture.py`도 camera calibration을 target 결과와 함께 저장하지 않음. 따라서 다음 Step에서는 동일 위치·거리의 5-view target 촬영과 calibration 저장을 먼저 고정하고, RGB/mask silhouette로 `[짧은 가로 길이, 긴 가로 길이, 높이]`를 추정함. 같은 checkpoint에서 `mesh oracle / RGB-mask 추정값 / extent 없음` 세 조건을 비교하여, USD 없이도 oracle 개선이 유지되는지 확인함.
+현재 합성 target reference는 촬영 규격이 고정돼 있지만, 실제 카메라의 거리·화각이 바뀌면 mask의 면적과 bbox 크기도 달라짐. 따라서 실환경 배포 전에는 center/top-down 촬영 거리와 화각을 고정하고, 같은 규격에서 target mask를 안정적으로 추출하는 protocol을 검증함.
 
-Zero-shot 성능은 frozen encoder만으로 가정하지 않음. 최종 평가는 개발 중 사용하지 않은 새 target instance와 scale을 별도로 고정하여 수행해야 함. Camera pose가 바뀌면 workspace mask도 calibration에서 다시 생성해야 하므로 camera-free 일반화는 후속 과제임.
+Zero-shot 평가는 학습에 없던 `packaged_food_5`와 학습에 쓰지 않은 30개 scene에서 수행함. 이는 core model이 unseen target에 반응한다는 근거이지만, 합성 mask를 사용했으므로 RGB-only 실환경 배포를 증명하지는 않음. Camera pose가 바뀌면 workspace mask도 calibration에서 다시 생성해야 하므로 camera-free 일반화는 후속 과제임.
 
 ---
 
@@ -1366,7 +1399,7 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Reproducible clutter capture | Implemented and validated |
 | V1/V2 vectorized GT regression | `1,024` effective poses, output equivalence checked |
 | Probability-map GT accumulator | Pose/camera/scene-vectorized V2 implemented and validated |
-| 14-target production Occlusion GT | Complete: `150 scenes × 5 cameras` per target |
+| 16-target adaptive production Occlusion GT | Complete: `16 targets × 3,000 scenes × 5 cameras = 240,000 maps` |
 | Occlusion model ablation | Complete: target-agnostic / appearance-only / geometry-only / full, 3 seeds |
 | Clean52 multi-scale GT | Complete: train 10 / development-heldout 4 targets, 5 cameras |
 | 3D workspace and physical-corrected GT | Complete for `book_1/2/3 × 1.3`; original GT preserved |
@@ -1379,11 +1412,12 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | Low-LR oracle candidate | Phase 26에서 `1e-4`, 338 update로 이어 학습; train-only 공간 정확도·scale-response 기준 통과 |
 | Five-camera development-heldout oracle check | 학습에 사용하지 않은 4개 development instances × 3 scales × 16 scenes × 5 cameras의 960 samples/model 평가; anchor-only 대비 camera-transition `10/10`, target-camera-transition `40/40` 개선 |
 | BatchNorm diagnostic | BN 재계산과 BN-frozen 비교로 stored-statistics 영향과 paired objective 영향을 분리 |
-| Deployable 3D extent estimation | Pending; 현재 oracle candidate는 target mask 크기와 USD mesh extent를 함께 사용 |
-| Final zero-shot benchmark | Pending with untouched target instances/scales |
+| External zero-shot core benchmark | Complete: unseen `packaged_food_5`, unseen 30 scenes, 5 cameras, 150 samples; MAE `0.0180`, Soft-IoU `0.812`, IoU `0.723` |
+| Deployable target-mask extraction | Pending; external benchmark currently uses the synthetic segmentation mask |
+| Final multi-target zero-shot benchmark | One external target complete; additional unseen instances/categories remain future validation |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
-| Occlusion stream training | Refinement in progress |
-| Complexity stream training | Planned |
+| Occlusion stream training | 10% full16 baseline complete and frozen for the next module |
+| Complexity stream training | **Next Step** |
 | Three-stream fusion | Planned |
 | Exploration policy integration | Planned |
 | Sim-to-real drawer experiment | Planned |
@@ -1403,8 +1437,9 @@ Fusion gate에서 Similarity·Occlusion evidence와 함께 Complexity의 상대�
 | `target_capture.py` | Five-camera target RGB/depth/segmentation capture for zero-shot inference |
 | `occlusion_model.py` | RGB-D target conditioning, geometry-FiLM and Occlusion map head |
 | `occlusion_dataset.py` | Corrected probability GT and coverage-aware RGB-D dataset |
-| `train_occlusion.py` | Occlusion ablation, scene split, checkpoint and camera/target evaluation |
-| `generate_occlusion_gt_batched_v2.py` | Pose/scene-vectorized production probability GT generator |
+| `train_occlusion.py` | Full16 scene-key split, coverage-aware loss, checkpoint and camera/target evaluation |
+| `generate_occlusion_map.py` | Adaptive pose/scene-vectorized production probability GT generator |
+| `evaluate_occlusion_checkpoint.py` | Saved-test and external-target stratified evaluation across five cameras |
 | `mesh_utils.py` | USD mesh extraction, world-unit conversion, pose and scale transform |
 | `mesh_cache.py` | Asset complexity check and automatic 10k simplified-mesh cache |
 | `depth_rasterizer.py` | Full-resolution mesh-depth accuracy reference |
@@ -2389,3 +2424,26 @@ Adaptive GT
 이 결과는 **Peach에서 기존 고정 pose 범위가 정상적인 예측 일부를 오류처럼 보이게 만들었다는 가설을 지지함**. 반면 모든 target의 zero-shot 성능이나 Occlusion Stream의 최종 구조가 검증된 것은 아님. Target 입력을 더 복잡하게 바꾼 조건도 기존 입력 대비 MAE `0.00029`, soft-IoU `0.00020`만 개선했고 8-scene bootstrap 구간이 0을 포함했으므로, 현재 단계에서는 모델 구조를 더 확장하지 않음.
 
 **다음 Step:** Small/medium/large 대표 target의 adaptive GT를 먼저 생성하고, 복잡한 추가 구조 없이 기존 baseline을 재학습하여 5개 camera와 unseen target에서 확인함. 같은 방향이 재현되면 전체 target·scale GT를 갱신하고, 그 최종 결과를 기준으로 Occlusion Stream 본문과 Development Log의 후속 실험을 전반적으로 정리함.
+
+---
+
+### 2026-08-28 · Phase 32 — Full16 Baseline and External Zero-Shot Evaluation
+
+**목적:** Adaptive GT의 범위 문제를 수정한 뒤, 복잡한 oracle 구조를 계속 추가하지 않고 기본 target-conditioned 모델이 실제로 unseen target에 적용되는지 확인함.
+
+**진행 내용:** 기존 데이터의 16개 target을 모두 학습에 사용하고, scene key 기준으로 train/validation/test를 분리함. 전체 scene의 10%인 19,200개 training sample로 baseline을 학습함. Target은 모든 scene camera에서 동일한 center/top-down RGB와 mask를 사용함. 학습에 없던 `packaged_food_5`는 별도 mesh로 GT를 생성하고, 학습에 쓰지 않은 30개 scene의 다섯 camera에서 총 150개 map을 평가함.
+
+| 확인 항목 | 결과 | 해석 |
+|---|---:|---|
+| Full16 saved test | MAE `0.0140`, Soft-IoU `0.868`, IoU `0.813` | 학습에 없던 scene에서 baseline의 공간 map이 안정적으로 유지됨 |
+| `packaged_food_5` external test | MAE `0.0180`, Soft-IoU `0.812`, IoU `0.723` | 학습하지 않은 target에서도 GT 공간 패턴을 재현함 |
+| Wrong `book_1` reference | MAE `0.0968`, Soft-IoU `0.432`, IoU `0.291` | 다른 크기·형태의 target을 넣으면 출력이 크게 악화되어 target 조건을 실제로 사용함 |
+| Five-camera worst case | right camera IoU `0.650` | 다섯 view 모두 동작하지만 right view가 상대적으로 가장 어려움 |
+
+처음에는 잘못된 `packaged_food_1` reference가 올바른 `packaged_food_5`보다 근소하게 좋은 결과를 보여 target conditioning이 약한 것으로 보였음. 그러나 두 target의 GT map을 직접 비교하자 `Pearson r=0.990`, patch MAE `0.0120`으로 물리적으로 가려질 수 있는 분포 자체가 거의 같았음. 따라서 이 pair는 wrong-target 검증력이 낮다고 판단하고, GT가 실제로 다른 `book_1`, `fruit_1`, `toy_1`을 추가 대조군으로 사용함. 세 대조군 모두 올바른 reference보다 성능이 분명히 낮았음.
+
+![External zero-shot occlusion result](img/occlusion_model/zero_shot_packaged_food_5_test30.png)
+
+**판단:** Occlusion Stream의 core baseline은 다음 모듈로 넘어갈 수준의 결과를 보임. 전체 데이터 재학습과 추가 구조 실험은 보류하고 현재 checkpoint를 baseline으로 고정함. 이번 external 평가는 합성 target mask를 사용했으므로, 실환경 target RGB에서 mask를 안정적으로 얻는 전처리는 별도 후속 검증으로 남김.
+
+**다음 Step:** Complexity Stream의 GT 정의와 학습 입력을 확정하고, Similarity·Occlusion·Complexity 세 feature를 결합할 fusion 입력 규격을 설계함.
