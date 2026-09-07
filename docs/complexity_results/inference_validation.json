@@ -1,0 +1,41 @@
+{
+  "row": [
+    "book_1",
+    "scene00001_env0050",
+    "center",
+    "test"
+  ],
+  "shapes": {
+    "maps": [
+      4,
+      30,
+      40
+    ],
+    "features": [
+      64,
+      30,
+      40
+    ],
+    "geometry": [
+      9,
+      30,
+      40
+    ],
+    "validity": [
+      1,
+      30,
+      40
+    ]
+  },
+  "finite": true,
+  "max_map_difference_vs_cached": 0.009765625,
+  "mean_map_difference_vs_cached": 0.0006252797320485115,
+  "max_feature_difference_vs_cached": 0.046875,
+  "max_geometry_difference_after_quantization": 0.0,
+  "cli_seconds_including_load": 5.056523696985096,
+  "npz_sha256": "585a101f9c50817bcf246b816119548c34209bfc3a37e593115cbe85c4d869c3",
+  "torch": "2.12.0+cu130",
+  "numpy": "2.4.6",
+  "device": "NVIDIA GeForce RTX 5090",
+  "trainable_head_parameters": 132475
+}

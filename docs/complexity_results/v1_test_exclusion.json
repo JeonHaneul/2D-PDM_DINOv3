@@ -1,0 +1,19 @@
+{
+  "split": {
+    "test": [
+      "scene00001_env0054",
+      "scene00001_env0066",
+      "scene00001_env0191",
+      "scene00002_env0299",
+      "scene00004_env0099",
+      "scene00004_env0127",
+      "scene00005_env0271",
+      "scene00006_env0091",
+      "scene00006_env0210",
+      "scene00007_env0195",
+      "scene00009_env0197",
+      "scene00010_env0188"
+    ]
+  },
+  "reason": "previously inspected diagnostic test scenes"
+}

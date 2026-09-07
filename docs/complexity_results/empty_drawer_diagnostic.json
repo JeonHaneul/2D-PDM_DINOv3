@@ -1,0 +1,102 @@
+{
+  "center": {
+    "scene": {
+      "roughness_mean_by_scale": [
+        0.30555814504623413,
+        0.4801160395145416,
+        0.6860558390617371
+      ],
+      "roughness_max": 1.0,
+      "occupancy_max": 0.0
+    },
+    "empty_difference": {
+      "roughness_mean_by_scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "roughness_max": 0.0,
+      "occupancy_max": 0.0
+    }
+  },
+  "top": {
+    "scene": {
+      "roughness_mean_by_scale": [
+        0.20751185715198517,
+        0.42207011580467224,
+        0.6472403407096863
+      ],
+      "roughness_max": 1.0,
+      "occupancy_max": 0.0
+    },
+    "empty_difference": {
+      "roughness_mean_by_scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "roughness_max": 0.0,
+      "occupancy_max": 0.0
+    }
+  },
+  "left": {
+    "scene": {
+      "roughness_mean_by_scale": [
+        0.20751190185546875,
+        0.42207032442092896,
+        0.6472401022911072
+      ],
+      "roughness_max": 1.0,
+      "occupancy_max": 0.0
+    },
+    "empty_difference": {
+      "roughness_mean_by_scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "roughness_max": 0.0,
+      "occupancy_max": 0.0
+    }
+  },
+  "right": {
+    "scene": {
+      "roughness_mean_by_scale": [
+        0.2072405368089676,
+        0.42212218046188354,
+        0.6472401022911072
+      ],
+      "roughness_max": 1.0,
+      "occupancy_max": 0.0
+    },
+    "empty_difference": {
+      "roughness_mean_by_scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "roughness_max": 0.0,
+      "occupancy_max": 0.0
+    }
+  },
+  "bottom": {
+    "scene": {
+      "roughness_mean_by_scale": [
+        0.20724046230316162,
+        0.4221220016479492,
+        0.6472400426864624
+      ],
+      "roughness_max": 1.0,
+      "occupancy_max": 0.0
+    },
+    "empty_difference": {
+      "roughness_mean_by_scale": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "roughness_max": 0.0,
+      "occupancy_max": 0.0
+    }
+  }
+}

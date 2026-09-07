@@ -1,0 +1,218 @@
+{
+  "schema": "complexity_visible_density_pilot_v1",
+  "method_revision": "empty_reference_corrected_geometry_v2",
+  "excluded_previously_inspected_test_keys": [
+    "scene00001_env0054",
+    "scene00001_env0066",
+    "scene00001_env0191",
+    "scene00002_env0299",
+    "scene00004_env0099",
+    "scene00004_env0127",
+    "scene00005_env0271",
+    "scene00006_env0091",
+    "scene00006_env0210",
+    "scene00007_env0195",
+    "scene00009_env0197",
+    "scene00010_env0188"
+  ],
+  "revision_reason": "raw-depth roughness responds to empty drawer walls; use empty-depth displacement before slope removal",
+  "split": {
+    "train": [
+      "scene00001_env0141",
+      "scene00001_env0217",
+      "scene00002_env0001",
+      "scene00002_env0130",
+      "scene00002_env0156",
+      "scene00002_env0161",
+      "scene00002_env0208",
+      "scene00002_env0255",
+      "scene00002_env0258",
+      "scene00002_env0290",
+      "scene00003_env0025",
+      "scene00003_env0095",
+      "scene00003_env0255",
+      "scene00004_env0031",
+      "scene00004_env0062",
+      "scene00004_env0121",
+      "scene00004_env0268",
+      "scene00005_env0050",
+      "scene00005_env0058",
+      "scene00005_env0232",
+      "scene00006_env0069",
+      "scene00006_env0106",
+      "scene00006_env0118",
+      "scene00006_env0206",
+      "scene00006_env0208",
+      "scene00007_env0006",
+      "scene00007_env0030",
+      "scene00007_env0074",
+      "scene00007_env0219",
+      "scene00007_env0249",
+      "scene00007_env0288",
+      "scene00008_env0047",
+      "scene00008_env0084",
+      "scene00008_env0134",
+      "scene00008_env0140",
+      "scene00008_env0186",
+      "scene00008_env0206",
+      "scene00008_env0244",
+      "scene00009_env0092",
+      "scene00009_env0142",
+      "scene00009_env0149",
+      "scene00009_env0155",
+      "scene00009_env0189",
+      "scene00009_env0216",
+      "scene00010_env0018",
+      "scene00010_env0075",
+      "scene00010_env0206",
+      "scene00010_env0250"
+    ],
+    "val": [
+      "scene00002_env0171",
+      "scene00003_env0018",
+      "scene00003_env0070",
+      "scene00003_env0186",
+      "scene00003_env0211",
+      "scene00004_env0001",
+      "scene00004_env0285",
+      "scene00005_env0001",
+      "scene00005_env0005",
+      "scene00005_env0185",
+      "scene00008_env0033",
+      "scene00008_env0197"
+    ],
+    "test": [
+      "scene00001_env0050",
+      "scene00003_env0232",
+      "scene00003_env0262",
+      "scene00004_env0083",
+      "scene00005_env0234",
+      "scene00005_env0263",
+      "scene00007_env0013",
+      "scene00008_env0157",
+      "scene00009_env0042",
+      "scene00009_env0141",
+      "scene00009_env0265",
+      "scene00010_env0047"
+    ]
+  },
+  "sample_counts": {
+    "train": 3840,
+    "val": 960,
+    "test": 960
+  },
+  "fixed_asset_sha256": {
+    "workspace/center": "37ac4ef34962674ac7e58d9cd8128ed5eb8980864efac916b68bc681807af2b5",
+    "workspace/top": "7a60109b570ecf19d83a978b60dbd6e76cdf7f320013920c1938c2338089ba88",
+    "workspace/left": "4fd40d974642b769bce53418fcb2c73fed27e7096aedddd51c61cad3baa356e6",
+    "workspace/right": "b83d7ba2177f87300cb620dbd8718753483c9a8095e550ce0ffa9d4b566c0acf",
+    "workspace/bottom": "959772dc580aa1a94448c7128096cabc9401bf927a05b139ba710b0217e49c24",
+    "empty_depth/center": "195bf0dcc6460a0feb545f6bfb69fad5c8b85a6170501932124531adda3253b3",
+    "empty_depth/top": "901e96101c4f9c8003441f7337763d9c32ca87adb044de80c0660fcc26ad7ade",
+    "empty_depth/left": "cd2555400344026dc608ed783e6ad8712d0bf1b4c42943e6e9f86f318facd4a6",
+    "empty_depth/right": "1ff4b45013d7576adf4d50dd538bfa3615b70e8353d1c2b30f1b0b8e6536de3a",
+    "empty_depth/bottom": "73048fbdcff9f008b68463fb21def91f80e4b910b247b8be3b73aaa602da671c"
+  },
+  "code_sha256": {
+    "complexity_cues.py": "e98d3d0103bccb98abc62dfced6625cd2667d86c45c7ff588537e56bd2b63c2a",
+    "complexity_model.py": "2edfab0bf7984b26fd469ce6aa8047837802da2c0cb623fcc68369372495f47a",
+    "run_complexity_pilot.py": "2d050d110ac5f22d0c9fec78a89bab1ab45682df54387ea6d5556cee8fff03cd"
+  },
+  "dino_weights_sha256": "73cec8be7427c8655ceced13ce62f6e20a1fa90d1b4d4a550df17a1144081a7c",
+  "dino_layers": [
+    11
+  ],
+  "windows_pixels": [
+    48,
+    96,
+    160
+  ],
+  "count_normalizer": 16,
+  "geometry_channels": [
+    "normalized_depth",
+    "foreground_occupancy",
+    "depth_validity",
+    "plane_residual_rms_48px",
+    "plane_residual_rms_96px",
+    "plane_residual_rms_160px",
+    "gradient_variation_48px",
+    "gradient_variation_96px",
+    "gradient_variation_160px"
+  ],
+  "coordinate_scope": "image-space windows, fixed five-camera rig; not metric area or view invariant density",
+  "supervision": "visible mapped asset-label count and occupancy; no hidden count or overlap GT",
+  "gt_options": {
+    "min_visible_area_pixels": 32,
+    "min_window_pixels": 16,
+    "min_workspace_fraction": 0.95
+  },
+  "depth_options": {
+    "foreground_threshold_m": 0.015,
+    "roughness_scale_m": 0.03,
+    "gradient_scale_m": 0.02,
+    "depth_range_m": [
+      2.5,
+      3.5
+    ],
+    "min_window_valid_fraction": 0.25,
+    "roughness_reference": "empty_difference"
+  },
+  "inference_inputs": "RGB, depth, fixed workspace and empty-depth calibration; no segmentation or target",
+  "feature_contract": "B x 64 x 30 x 40: 55 learned channels + 9 deterministic depth channels",
+  "training": {
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "modes": [
+      "rgbd",
+      "depth"
+    ],
+    "max_epochs": 24,
+    "patience": 5,
+    "batch_size": 64,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "loss": "equal channel masked SmoothL1(beta=.05), each channel normalized by its mask mass",
+    "selection": "validation occupied-neighborhood count MAE, equally averaged over three scales",
+    "paired": "identical initialization and permutation for each seed, same full architecture; depth mode zeros DINO features"
+  },
+  "metrics": {
+    "density_domain": "density_valid and GT count>0, same mask for every model",
+    "count_mae": "sample-wise masked MAE x16, mean over samples, then equally over three scales and seeds",
+    "all_workspace_count_mae": "same metric including zero-count neighborhoods",
+    "occupancy_mae": "sample-wise fractional-workspace weighted absolute area-fraction error",
+    "bootstrap": "2000 resamples, seed3300, paired entire scene-key clusters including all pools/views/seeds"
+  },
+  "adoption_gate": {
+    "relative_count_mae_gain_over_depth_at_least": 0.1,
+    "paired_scene_bootstrap_95_lower_gain_gt": 0,
+    "improved_cameras_at_least": 3,
+    "must_beat_train_camera_position_mean": true
+  },
+  "scientific_limits": [
+    "seen asset library; no unseen-scene-object claim",
+    "not target existence probability",
+    "no fusion/DRL utility validated",
+    "three seeds do not establish broad robustness"
+  ],
+  "prepare_seconds": 243.38588249200257,
+  "original_local_protocol_sha256": "dfabb0d42da44bc23e917145dc6301325a344a5f4daec19a8fd0f4a1ae2505a9",
+  "publication_note": "Portable record; machine paths and sample inventory omitted. This is not the byte-identical checkpoint protocol.",
+  "rgb_cache_reuse": {
+    "protocol_sha256": "e4b4e5df9bbb8eed844ba382186eeff095354966e1d6339f5b179678aa627dbb",
+    "reused_samples": 4800,
+    "scope": "frozen layer11 RGB only; all GT and geometry recomputed"
+  },
+  "checkpoint_sha256": {
+    "rgbd_seed0/best.pth": "f5a5e770a4d778c786178490d5c834bc63d3617751fd438b7b7b07ab8636d44a",
+    "rgbd_seed1/best.pth": "1520da01546e6a39edf761ceaf3d49c8146b95e85d8c028b356a2f5c2bdb92f8",
+    "rgbd_seed2/best.pth": "0bce654296eedf711f0fae2ee13bd02d7f0177040fda79c3ec91f43176730fab",
+    "depth_seed0/best.pth": "a1c54b989ef004115277e41887d5a6a3483302e2b6669a5c2f5af8dba01bab5e",
+    "depth_seed1/best.pth": "b9dac2bb5319520737690618eb7eb1e369532dba13165b8b9fcb2373287e2b0a",
+    "depth_seed2/best.pth": "f25a8f08adb643bd9158ef06e6993f4fb8c3590190ab2d2c47f7d4ae82e75342"
+  },
+  "default_inference_checkpoint": "rgbd_seed0/best.pth (representative seed fixed by CLI default; not chosen using test scores)",
+  "train_seconds": 27.204202092951164
+}

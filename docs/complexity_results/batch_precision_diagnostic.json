@@ -1,0 +1,6 @@
+{
+  "encoding_batch_size": 8,
+  "batch8_reencoded_max_abs_difference_vs_cache": 0.0,
+  "single_vs_batch8_dino_max_abs": 0.061817169189453125,
+  "single_vs_batch8_dino_mean_abs": 0.0024520796723663807
+}

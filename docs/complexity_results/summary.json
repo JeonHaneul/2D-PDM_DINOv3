@@ -1,0 +1,613 @@
+{
+  "schema": "complexity_visible_density_pilot_v1",
+  "scope": [
+    "seen asset library; no unseen-scene-object claim",
+    "not target existence probability",
+    "no fusion/DRL utility validated",
+    "three seeds do not establish broad robustness"
+  ],
+  "sample_counts": {
+    "train": 3840,
+    "val": 960,
+    "test": 960
+  },
+  "metrics": {
+    "density_domain": "density_valid and GT count>0, same mask for every model",
+    "count_mae": "sample-wise masked MAE x16, mean over samples, then equally over three scales and seeds",
+    "all_workspace_count_mae": "same metric including zero-count neighborhoods",
+    "occupancy_mae": "sample-wise fractional-workspace weighted absolute area-fraction error",
+    "bootstrap": "2000 resamples, seed3300, paired entire scene-key clusters including all pools/views/seeds"
+  },
+  "results": {
+    "rgbd_seed0": {
+      "count_mae": 0.6387269298235575,
+      "count_mae_by_scale": [
+        0.34839528799057007,
+        0.6213058233261108,
+        0.9464796781539917
+      ],
+      "all_workspace_count_mae": 0.588637779156367,
+      "occupancy_mae": 0.0088419234380126,
+      "best_epoch": 24
+    },
+    "rgbd_zero_rgb_intervention": {
+      "count_mae": 1.3812656203905742,
+      "count_mae_by_scale": [
+        0.8125692009925842,
+        1.5210615396499634,
+        1.8101661205291748
+      ],
+      "all_workspace_count_mae": 1.2998318870862324,
+      "occupancy_mae": 0.06612427532672882
+    },
+    "rgbd_seed1": {
+      "count_mae": 0.6415187021096548,
+      "count_mae_by_scale": [
+        0.3534693419933319,
+        0.6205065250396729,
+        0.9505802392959595
+      ],
+      "all_workspace_count_mae": 0.5954324801762899,
+      "occupancy_mae": 0.008363364264369011,
+      "best_epoch": 20
+    },
+    "rgbd_seed2": {
+      "count_mae": 0.6440025170644125,
+      "count_mae_by_scale": [
+        0.35568684339523315,
+        0.6235845685005188,
+        0.9527361392974854
+      ],
+      "all_workspace_count_mae": 0.5940419634183248,
+      "occupancy_mae": 0.00842572282999754,
+      "best_epoch": 22
+    },
+    "rgbd": {
+      "count_mae": 0.6414160231749216,
+      "count_mae_by_scale": [
+        0.35251715779304504,
+        0.6217989325523376,
+        0.9499319791793823
+      ],
+      "all_workspace_count_mae": 0.5927040974299113,
+      "occupancy_mae": 0.008543670177459717
+    },
+    "depth_seed0": {
+      "count_mae": 0.8340688546498617,
+      "count_mae_by_scale": [
+        0.5015957951545715,
+        0.8057470917701721,
+        1.1948636770248413
+      ],
+      "all_workspace_count_mae": 0.7624712685743967,
+      "occupancy_mae": 0.0151959378272295,
+      "best_epoch": 23
+    },
+    "depth_seed1": {
+      "count_mae": 0.8302818735440572,
+      "count_mae_by_scale": [
+        0.4916325807571411,
+        0.8058082461357117,
+        1.1934047937393188
+      ],
+      "all_workspace_count_mae": 0.7631267110506693,
+      "occupancy_mae": 0.01532223355025053,
+      "best_epoch": 20
+    },
+    "depth_seed2": {
+      "count_mae": 0.8337996105353037,
+      "count_mae_by_scale": [
+        0.4998979866504669,
+        0.8057916164398193,
+        1.195709228515625
+      ],
+      "all_workspace_count_mae": 0.764100710550944,
+      "occupancy_mae": 0.015214994549751282,
+      "best_epoch": 22
+    },
+    "depth": {
+      "count_mae": 0.8327167431513468,
+      "count_mae_by_scale": [
+        0.497708797454834,
+        0.8057823181152344,
+        1.1946591138839722
+      ],
+      "all_workspace_count_mae": 0.7632328967253367,
+      "occupancy_mae": 0.015244388952851295
+    },
+    "train_camera_position_mean": {
+      "count_mae": 1.2445174256960552,
+      "count_mae_by_scale": [
+        0.8555365204811096,
+        1.2401902675628662,
+        1.6378254890441895
+      ],
+      "all_workspace_count_mae": 1.2285958925882976,
+      "occupancy_mae": 0.2280498445034027
+    },
+    "direct_depth_occupancy_mae": 0.009813901036977768
+  },
+  "by_camera": {
+    "center": {
+      "rgbd": {
+        "count_mae": 0.605587512254715,
+        "count_mae_by_scale": [
+          0.32985028624534607,
+          0.5798743367195129,
+          0.9070379137992859
+        ],
+        "all_workspace_count_mae": 0.5592778672774633,
+        "occupancy_mae": 0.008152716793119907
+      },
+      "depth": {
+        "count_mae": 0.7979597747325897,
+        "count_mae_by_scale": [
+          0.4745422303676605,
+          0.759728729724884,
+          1.1596083641052246
+        ],
+        "all_workspace_count_mae": 0.731629361708959,
+        "occupancy_mae": 0.017386436462402344
+      }
+    },
+    "top": {
+      "rgbd": {
+        "count_mae": 0.6504720350106558,
+        "count_mae_by_scale": [
+          0.36041340231895447,
+          0.6342763304710388,
+          0.9567263722419739
+        ],
+        "all_workspace_count_mae": 0.6011030177275339,
+        "occupancy_mae": 0.008975754491984844
+      },
+      "depth": {
+        "count_mae": 0.8399586280186971,
+        "count_mae_by_scale": [
+          0.5043401718139648,
+          0.819566011428833,
+          1.1959697008132935
+        ],
+        "all_workspace_count_mae": 0.7696846425533295,
+        "occupancy_mae": 0.01485773827880621
+      }
+    },
+    "left": {
+      "rgbd": {
+        "count_mae": 0.6448731323083242,
+        "count_mae_by_scale": [
+          0.35727807879447937,
+          0.6313334107398987,
+          0.9460079073905945
+        ],
+        "all_workspace_count_mae": 0.5934498409430186,
+        "occupancy_mae": 0.008511730469763279
+      },
+      "depth": {
+        "count_mae": 0.8334892988204956,
+        "count_mae_by_scale": [
+          0.5025295615196228,
+          0.8112538456916809,
+          1.186684489250183
+        ],
+        "all_workspace_count_mae": 0.7609959741433462,
+        "occupancy_mae": 0.01424082089215517
+      }
+    },
+    "right": {
+      "rgbd": {
+        "count_mae": 0.6531334420045217,
+        "count_mae_by_scale": [
+          0.3562079966068268,
+          0.6310479044914246,
+          0.9721444249153137
+        ],
+        "all_workspace_count_mae": 0.6057342787583669,
+        "occupancy_mae": 0.008581303991377354
+      },
+      "depth": {
+        "count_mae": 0.8431922396024069,
+        "count_mae_by_scale": [
+          0.5012533664703369,
+          0.815106213092804,
+          1.2132171392440796
+        ],
+        "all_workspace_count_mae": 0.7755885819594065,
+        "occupancy_mae": 0.015026666224002838
+      }
+    },
+    "bottom": {
+      "rgbd": {
+        "count_mae": 0.6530141532421112,
+        "count_mae_by_scale": [
+          0.3588360846042633,
+          0.6324627995491028,
+          0.9677435755729675
+        ],
+        "all_workspace_count_mae": 0.6039554178714752,
+        "occupancy_mae": 0.008496846072375774
+      },
+      "depth": {
+        "count_mae": 0.848983883857727,
+        "count_mae_by_scale": [
+          0.505878746509552,
+          0.82325679063797,
+          1.2178161144256592
+        ],
+        "all_workspace_count_mae": 0.7782659232616425,
+        "occupancy_mae": 0.014710280112922192
+      }
+    }
+  },
+  "by_source_pool": {
+    "book_1": {
+      "rgbd": {
+        "count_mae": 0.6721106370290121,
+        "count_mae_by_scale": [
+          0.36442893743515015,
+          0.6378955245018005,
+          1.0140074491500854
+        ],
+        "all_workspace_count_mae": 0.6235149999459585,
+        "occupancy_mae": 0.009583381935954094
+      },
+      "depth": {
+        "count_mae": 0.8790400226910909,
+        "count_mae_by_scale": [
+          0.5293287634849548,
+          0.8654316663742065,
+          1.2423596382141113
+        ],
+        "all_workspace_count_mae": 0.8071449597676595,
+        "occupancy_mae": 0.015209782868623734
+      }
+    },
+    "book_2": {
+      "rgbd": {
+        "count_mae": 0.6599300801753998,
+        "count_mae_by_scale": [
+          0.37525036931037903,
+          0.6465967297554016,
+          0.9579431414604187
+        ],
+        "all_workspace_count_mae": 0.597724030415217,
+        "occupancy_mae": 0.009058537892997265
+      },
+      "depth": {
+        "count_mae": 0.8302362362543741,
+        "count_mae_by_scale": [
+          0.52863609790802,
+          0.8219019174575806,
+          1.140170693397522
+        ],
+        "all_workspace_count_mae": 0.7430012126763662,
+        "occupancy_mae": 0.016495803371071815
+      }
+    },
+    "book_3": {
+      "rgbd": {
+        "count_mae": 0.6713342567284902,
+        "count_mae_by_scale": [
+          0.37090548872947693,
+          0.6563407778739929,
+          0.9867565035820007
+        ],
+        "all_workspace_count_mae": 0.6082106729348501,
+        "occupancy_mae": 0.008037439547479153
+      },
+      "depth": {
+        "count_mae": 0.850901206334432,
+        "count_mae_by_scale": [
+          0.5321651697158813,
+          0.8356088399887085,
+          1.184929609298706
+        ],
+        "all_workspace_count_mae": 0.761199434598287,
+        "occupancy_mae": 0.01076184306293726
+      }
+    },
+    "book_4": {
+      "rgbd": {
+        "count_mae": 0.6633987426757812,
+        "count_mae_by_scale": [
+          0.3694198727607727,
+          0.644108772277832,
+          0.976667582988739
+        ],
+        "all_workspace_count_mae": 0.6060727139314016,
+        "occupancy_mae": 0.007943684235215187
+      },
+      "depth": {
+        "count_mae": 0.7682784299055735,
+        "count_mae_by_scale": [
+          0.47761884331703186,
+          0.7471800446510315,
+          1.0800364017486572
+        ],
+        "all_workspace_count_mae": 0.6979091664155325,
+        "occupancy_mae": 0.008539359085261822
+      }
+    },
+    "fruit_1": {
+      "rgbd": {
+        "count_mae": 0.6031450827916464,
+        "count_mae_by_scale": [
+          0.32860666513442993,
+          0.5954177379608154,
+          0.8854108452796936
+        ],
+        "all_workspace_count_mae": 0.5650987525780996,
+        "occupancy_mae": 0.0085738655179739
+      },
+      "depth": {
+        "count_mae": 0.7760162552197775,
+        "count_mae_by_scale": [
+          0.4542278051376343,
+          0.7508217692375183,
+          1.1229991912841797
+        ],
+        "all_workspace_count_mae": 0.7217177947362264,
+        "occupancy_mae": 0.01522663701325655
+      }
+    },
+    "fruit_2": {
+      "rgbd": {
+        "count_mae": 0.6285882989565531,
+        "count_mae_by_scale": [
+          0.3415753245353699,
+          0.6183664202690125,
+          0.9258231520652771
+        ],
+        "all_workspace_count_mae": 0.5792231013377508,
+        "occupancy_mae": 0.007853182032704353
+      },
+      "depth": {
+        "count_mae": 0.8724244236946106,
+        "count_mae_by_scale": [
+          0.5055011510848999,
+          0.8345078825950623,
+          1.2772642374038696
+        ],
+        "all_workspace_count_mae": 0.7965611815452576,
+        "occupancy_mae": 0.013368134386837482
+      }
+    },
+    "fruit_3": {
+      "rgbd": {
+        "count_mae": 0.6250403424104055,
+        "count_mae_by_scale": [
+          0.3362620174884796,
+          0.5926192998886108,
+          0.946239709854126
+        ],
+        "all_workspace_count_mae": 0.5780044148365656,
+        "occupancy_mae": 0.007965230382978916
+      },
+      "depth": {
+        "count_mae": 0.8855371077855428,
+        "count_mae_by_scale": [
+          0.4820602536201477,
+          0.8190845847129822,
+          1.3554664850234985
+        ],
+        "all_workspace_count_mae": 0.815464456876119,
+        "occupancy_mae": 0.009384100325405598
+      }
+    },
+    "fruit_4": {
+      "rgbd": {
+        "count_mae": 0.6209760208924612,
+        "count_mae_by_scale": [
+          0.3469824492931366,
+          0.6131963729858398,
+          0.902749240398407
+        ],
+        "all_workspace_count_mae": 0.5761270026365916,
+        "occupancy_mae": 0.009004286490380764
+      },
+      "depth": {
+        "count_mae": 0.8434681991736094,
+        "count_mae_by_scale": [
+          0.4953591525554657,
+          0.8393445611000061,
+          1.1957008838653564
+        ],
+        "all_workspace_count_mae": 0.7743408183256785,
+        "occupancy_mae": 0.015422782860696316
+      }
+    },
+    "packaged_food_1": {
+      "rgbd": {
+        "count_mae": 0.6568824251492819,
+        "count_mae_by_scale": [
+          0.3479838967323303,
+          0.6154556274414062,
+          1.0072077512741089
+        ],
+        "all_workspace_count_mae": 0.6121415297190348,
+        "occupancy_mae": 0.009243213571608067
+      },
+      "depth": {
+        "count_mae": 0.9097688992818197,
+        "count_mae_by_scale": [
+          0.5031697154045105,
+          0.8562918305397034,
+          1.3698451519012451
+        ],
+        "all_workspace_count_mae": 0.8424355884393057,
+        "occupancy_mae": 0.023735754191875458
+      }
+    },
+    "packaged_food_2": {
+      "rgbd": {
+        "count_mae": 0.6291947265466055,
+        "count_mae_by_scale": [
+          0.3329727351665497,
+          0.6194235682487488,
+          0.9351878762245178
+        ],
+        "all_workspace_count_mae": 0.588209331035614,
+        "occupancy_mae": 0.00820618774741888
+      },
+      "depth": {
+        "count_mae": 0.8223709364732107,
+        "count_mae_by_scale": [
+          0.46793267130851746,
+          0.7999749779701233,
+          1.1992051601409912
+        ],
+        "all_workspace_count_mae": 0.764691025018692,
+        "occupancy_mae": 0.01666019856929779
+      }
+    },
+    "packaged_food_3": {
+      "rgbd": {
+        "count_mae": 0.6053314507007599,
+        "count_mae_by_scale": [
+          0.3445083796977997,
+          0.5936468839645386,
+          0.8778390884399414
+        ],
+        "all_workspace_count_mae": 0.5638976395130157,
+        "occupancy_mae": 0.00828658789396286
+      },
+      "depth": {
+        "count_mae": 0.7649362285931905,
+        "count_mae_by_scale": [
+          0.4798509478569031,
+          0.7628840208053589,
+          1.0520737171173096
+        ],
+        "all_workspace_count_mae": 0.7059233486652374,
+        "occupancy_mae": 0.01060190424323082
+      }
+    },
+    "packaged_food_4": {
+      "rgbd": {
+        "count_mae": 0.6467779378096262,
+        "count_mae_by_scale": [
+          0.35369357466697693,
+          0.6139651536941528,
+          0.972675085067749
+        ],
+        "all_workspace_count_mae": 0.6041083931922913,
+        "occupancy_mae": 0.009326784871518612
+      },
+      "depth": {
+        "count_mae": 0.7983133296171824,
+        "count_mae_by_scale": [
+          0.48370954394340515,
+          0.7666294574737549,
+          1.1446009874343872
+        ],
+        "all_workspace_count_mae": 0.7391927440961202,
+        "occupancy_mae": 0.018142258748412132
+      }
+    },
+    "toy_1": {
+      "rgbd": {
+        "count_mae": 0.6253132621447245,
+        "count_mae_by_scale": [
+          0.3660491704940796,
+          0.615085244178772,
+          0.894805371761322
+        ],
+        "all_workspace_count_mae": 0.574394146601359,
+        "occupancy_mae": 0.009342052973806858
+      },
+      "depth": {
+        "count_mae": 0.8082645535469055,
+        "count_mae_by_scale": [
+          0.5399215221405029,
+          0.7992069125175476,
+          1.085665225982666
+        ],
+        "all_workspace_count_mae": 0.7343654334545135,
+        "occupancy_mae": 0.026179617270827293
+      }
+    },
+    "toy_2": {
+      "rgbd": {
+        "count_mae": 0.6536349852879842,
+        "count_mae_by_scale": [
+          0.3647674322128296,
+          0.6307644248008728,
+          0.9653730988502502
+        ],
+        "all_workspace_count_mae": 0.5956859091917673,
+        "occupancy_mae": 0.0074424147605896
+      },
+      "depth": {
+        "count_mae": 0.8300959765911102,
+        "count_mae_by_scale": [
+          0.49870672821998596,
+          0.7863606214523315,
+          1.2052205801010132
+        ],
+        "all_workspace_count_mae": 0.7516430219014486,
+        "occupancy_mae": 0.009242118336260319
+      }
+    },
+    "toy_3": {
+      "rgbd": {
+        "count_mae": 0.6615308523178101,
+        "count_mae_by_scale": [
+          0.35552042722702026,
+          0.6434510946273804,
+          0.9856210350990295
+        ],
+        "all_workspace_count_mae": 0.6124805708726248,
+        "occupancy_mae": 0.008027351461350918
+      },
+      "depth": {
+        "count_mae": 0.840302308400472,
+        "count_mae_by_scale": [
+          0.48318564891815186,
+          0.7956811189651489,
+          1.2420401573181152
+        ],
+        "all_workspace_count_mae": 0.7737492620944977,
+        "occupancy_mae": 0.01453123614192009
+      }
+    },
+    "toy_4": {
+      "rgbd": {
+        "count_mae": 0.6394676665465037,
+        "count_mae_by_scale": [
+          0.34134790301322937,
+          0.6124497652053833,
+          0.9646053314208984
+        ],
+        "all_workspace_count_mae": 0.5983720123767853,
+        "occupancy_mae": 0.00880452711135149
+      },
+      "depth": {
+        "count_mae": 0.8435145616531372,
+        "count_mae_by_scale": [
+          0.5019668936729431,
+          0.8116070628166199,
+          1.2169697284698486
+        ],
+        "all_workspace_count_mae": 0.7823872963587443,
+        "occupancy_mae": 0.02040868066251278
+      }
+    }
+  },
+  "bootstrap": {
+    "unit": "scene key with all source pools, five views, and seed-averaged paired errors",
+    "n_scene_keys": 12,
+    "count_mae_gain_ci95": [
+      0.17898246472080542,
+      0.2053769379854202
+    ]
+  },
+  "relative_gain": 0.22973084371098818,
+  "improved_camera_count": 5,
+  "adoption_gate_results": {
+    "relative_gain_at_least_10pct": true,
+    "paired_ci_lower_positive": true,
+    "at_least_three_cameras_improved": true,
+    "beats_train_position_mean": true
+  },
+  "rgbd_pilot_gate_passed": true
+}

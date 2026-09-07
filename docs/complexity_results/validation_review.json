@@ -1,0 +1,126 @@
+{
+  "split_key_counts": {
+    "train": 48,
+    "val": 12,
+    "test": 12
+  },
+  "split_intersections": {
+    "train/val": [],
+    "train/test": [],
+    "val/test": []
+  },
+  "old_v1_test_overlap_any_v2_split": {
+    "train": [],
+    "val": [],
+    "test": []
+  },
+  "excluded_keys_match_v1_test": true,
+  "unique_rows": true,
+  "all_groups_have_five_cameras": true,
+  "code_hash_match": {
+    "complexity_cues.py": true,
+    "complexity_model.py": true,
+    "run_complexity_pilot.py": true
+  },
+  "fixed_asset_hash_match": {
+    "workspace/center": true,
+    "workspace/top": true,
+    "workspace/left": true,
+    "workspace/right": true,
+    "workspace/bottom": true,
+    "empty_depth/center": true,
+    "empty_depth/top": true,
+    "empty_depth/left": true,
+    "empty_depth/right": true,
+    "empty_depth/bottom": true
+  },
+  "checkpoints": {
+    "rgbd_seed0": {
+      "contract_passed": true,
+      "completion_hash_match": true
+    },
+    "rgbd_seed1": {
+      "contract_passed": true,
+      "completion_hash_match": true
+    },
+    "rgbd_seed2": {
+      "contract_passed": true,
+      "completion_hash_match": true
+    },
+    "depth_seed0": {
+      "contract_passed": true,
+      "completion_hash_match": true
+    },
+    "depth_seed1": {
+      "contract_passed": true,
+      "completion_hash_match": true
+    },
+    "depth_seed2": {
+      "contract_passed": true,
+      "completion_hash_match": true
+    }
+  },
+  "dino_weights_hash_match": true,
+  "source_inventory_stat_mismatch_count": 0,
+  "recomputed_seed_metrics": {
+    "rgbd_seed0": {
+      "count_mae": 0.6387269286904483,
+      "all_workspace_count_mae": 0.5886378182356969,
+      "occupancy_mae": 0.008841924606531392
+    },
+    "rgbd_seed1": {
+      "count_mae": 0.641518700438448,
+      "all_workspace_count_mae": 0.5954324662116254,
+      "occupancy_mae": 0.00836336368083721
+    },
+    "rgbd_seed2": {
+      "count_mae": 0.6440025239820696,
+      "all_workspace_count_mae": 0.5940419583063986,
+      "occupancy_mae": 0.008425722928465499
+    },
+    "depth_seed0": {
+      "count_mae": 0.8340688332397904,
+      "all_workspace_count_mae": 0.762471307338112,
+      "occupancy_mae": 0.015195937599249495
+    },
+    "depth_seed1": {
+      "count_mae": 0.8302818822570973,
+      "all_workspace_count_mae": 0.7631267045107153,
+      "occupancy_mae": 0.01532223306664188
+    },
+    "depth_seed2": {
+      "count_mae": 0.8337996168372532,
+      "all_workspace_count_mae": 0.7641007101525449,
+      "occupancy_mae": 0.01521499467198737
+    }
+  },
+  "recomputed_mode_metrics": {
+    "rgbd": {
+      "count_mae": 0.6414160507575919,
+      "all_workspace_count_mae": 0.5927040811110702,
+      "occupancy_mae": 0.008543670387977424
+    },
+    "depth": {
+      "count_mae": 0.832716777248101,
+      "all_workspace_count_mae": 0.7632329079115556,
+      "occupancy_mae": 0.015244388453720604
+    }
+  },
+  "max_summary_metric_delta": 3.9079329994251566e-08,
+  "recomputed_bootstrap_ci95": [
+    0.17898245577635755,
+    0.2053770036479304
+  ],
+  "relative_gain": 0.22973084212702566,
+  "recomputed_cache_samples": 16,
+  "cache_samples_bitwise_match": true,
+  "cpu_unittest": {
+    "command": "python -m unittest tests/test_complexity_cues.py tests/test_complexity_model.py",
+    "tests": 22,
+    "result": "passed"
+  },
+  "visual_review": {
+    "panel": "prediction_panels/book_1_five_views.png",
+    "observation": "Direct occupancy follows visible object silhouettes. Empty-reference residual responds broadly around object groups; no distinct empty-drawer rectangular rim is apparent in this panel. RGB-D count maps smooth some GT transitions."
+  }
+}

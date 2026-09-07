@@ -1,0 +1,14 @@
+{
+  "samples": 5760,
+  "unknown_nonblack_pixels_total": 0,
+  "max_raw_count_by_window": [
+    10.0,
+    14.0,
+    16.0
+  ],
+  "max_clipping_fraction_by_window": [
+    0.0,
+    0.0,
+    0.0
+  ]
+}
