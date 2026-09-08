@@ -1359,9 +1359,9 @@ Zero-shot 평가는 학습에 없던 `packaged_food_5`와 학습에 쓰지 않�
 
 ## Complexity Stream
 
-> **Status: Visible-density RGB-D pilot evaluated · local Complexity GT under revision**
+> **Status: Density pilot preserved · observed-proximity counterexamples checked locally · Complexity GT not approved**
 
-Complexity는 target identity와 무관하게 **더미 내부의 물체 간 국소 구조 차이**를 표현하려는 stream임. 아래 count/occupancy 모델은 이를 위한 초기 density pilot이며, 점유율과 개수만으로 해당 정의를 검증하지 못했음. [2026-09-08 최근 문헌·GT 진단](docs/complexity_results/definition_review_20260908.md)을 현재 판단으로 우선함. 같은 높이의 물체 여러 개는 depth 변화가 작을 수 있고, 비스듬한 책 한 권은 depth 변화가 클 수 있으므로 RGB와 depth를 함께 사용함. 별도 VLM은 추가하지 않음.
+Complexity는 target identity와 무관하게 **더미 내부의 물체 간 국소 구조 차이**를 표현하려는 stream임. 아래 count/occupancy 모델은 이를 위한 초기 density pilot이며, 점유율과 개수만으로 해당 정의를 검증하지 못했음. [최근 문헌·GT 진단](docs/complexity_results/definition_review_20260908.md) 이후 Phase 34에서 다른 물체의 관측 표면까지 거리를 쓰는 후보를 비교함. 가까운 접경의 국소 반응은 확인했지만 면적 통제에 실패했고, 근접도만으로 적층·가림 전체를 설명할 수 없어 공식 GT와 새 학습으로 채택하지 않음. 같은 높이의 물체 여러 개는 depth 변화가 작을 수 있고, 비스듬한 책 한 권은 depth 변화가 클 수 있으므로 RGB와 depth를 함께 사용함. 별도 VLM은 추가하지 않음.
 
 추론에는 **scene RGB + metric depth + 고정 camera의 workspace/empty-drawer reference**를 사용함. Segmentation은 학습 정답 생성과 평가에만 필요함. RGB-D 한 장으로 보이지 않는 물체 수나 실제 적층 수를 알아낸다는 가정은 하지 않음.
 
@@ -1397,7 +1397,7 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 
 왼쪽부터 scene RGB, 96px visible count GT, RGB-D prediction, absolute error, occupancy GT, direct depth occupancy, depth plane residual임. Count 그림은 GT-valid window만 표시하며, 표시 밖의 0은 물체가 없다는 판정이 아님. 네 대표 source pool의 전체 그림·seed별 지표·정확한 실행 조건은 [실험 상세](docs/complexity_results/README.md)에 있음.
 
-**한계와 다음 Step:** 현재 점수는 영상 면적 기준 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. 고정 camera와 기존 asset library에서 검증했으므로 unseen scene-object 일반화는 미확인임. 다음 Step은 개수·점유율이 비슷한 더미 내부에서 근접·가림 관계에 따른 국소 구조를 구분하는 후보 정의의 반례 검증임. 이를 통과한 후 새 물체와 fusion의 GT·loss·비교 조건을 검증함. Complexity가 실제 탐색을 개선하는지는 이후 fusion/DRL ablation으로 판단함.
+**한계와 다음 Step:** Density pilot의 점수는 영상 window의 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. 후속 근접도 후보도 GT label을 사용한 진단으로, RGB-D 추론 성능을 검증한 결과가 아님. 다음 Step은 투영 면적 통제를 보완하고 같은 근접도에서 방향·가림 구조가 달라지는 반례와 독립적인 국소 접근/탐색 지표를 비교하는 것임. 정의를 검증한 뒤 RGB-D 학습·unseen scene-object와 fusion 비교로 진행함. 최종 추가 효용은 S+O 대비 S+O+C의 탐색 결과로 판단함.
 
 ---
 
@@ -1527,7 +1527,8 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 - [ ] Confirm an accepted conditioning method with seeds 1–2
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
-- [x] RGB-D Complexity GT, depth control, 3-seed evaluation and inference
+- [x] RGB-D visible-density pilot GT, depth control, 3-seed evaluation and inference
+- [x] Local observed-surface proximity diagnostic; area-control criterion failed, GT remains unapproved
 - [ ] Validate local Complexity definition within piles, controlling count/occupancy and texture
 - [ ] Unseen scene-object Complexity evaluation
 - [ ] Define fusion GT, loss and three-stream ablation protocol
@@ -2497,3 +2498,15 @@ Adaptive GT
 **한계와 다음 Step:** Visible count는 hidden object count나 target 존재 확률이 아니며, 동일 asset을 여러 번 배치한 데이터에는 instance label을 새로 확인해야 함. 현재 고정 camera·기존 asset library 결과를 unseen object 또는 실환경 성능으로 확대하지 않음. 다음 Step은 unseen scene-object 평가와 fusion의 GT·loss·비교 protocol 설계이며, 최종 탐색 효용은 fusion/DRL ablation으로 검증함.
 
 **2026-09-08 재검토 기록:** 물체 더미 내부의 국소 구조 차이를 구분하는 기준으로 count/occupancy GT를 재검토함. 기존 test 영상 960장에서 물체가 조금이라도 있는 유효 occupancy patch의 56.721%가 0.95 이상으로, 점유율은 넓은 단일 물체와 여러 물체의 밀집을 구분하지 못함. Count에는 내부 변화가 있으나 간격·가림·접촉 구조를 직접 감독하지 않음. 최근 5년의 Disperse-and-Pick, ARMOR, ClutterDexGrasp, Distracted Robot을 비교하고, 현재 run을 **visible-density pilot**으로 한정함. 다음 Step을 fusion 확대에서 **국소 구조 정의와 반례 검증**으로 변경함. 원래 실험·수치·checkpoint는 보존하며 새 GT나 학습을 완료했다고 보고하지 않음. [문헌과 진단 근거](docs/complexity_results/definition_review_20260908.md).
+
+---
+
+### 2026-09-08 · Phase 34 — Observed-Surface Proximity Diagnostic
+
+**목적과 방법:** 점유율이 높은 더미 전체 대신, 가까운 다른 물체가 모이는 표면 부분을 구분할 수 있는지 확인함. GT object label과 axial-Z depth, camera intrinsics로 각 물체 표면에서 다른 물체의 관측 표면까지 거리를 계산함. 반경 20/30/50mm 안에서 거리별 기여를 합하며, 이 반경은 비교용 가설이지 확정된 복잡도 임계값이 아님. Scene별 min–max 정규화는 사용하지 않음. 이 계산은 GT 후보 진단이며 RGB-D 추론 모델은 아님.
+
+**범위와 결과:** Analytic ray-cast 13배치 ×5시점=65영상과 원본 Isaac 데이터의 16개 pool ×기존 train key 한 개 ×5시점=80영상을 로컬에서 확인함. 기본 점검 14개 중 13개를 만족함. 중심 시점의 세 box 간격 2/10/40/80mm에서, 중앙 물체 가장자리의 r30 근접도 평균은 **0.614/0.356/0/0**이었음. 단독 물체는 0이고 5시점 모두 가까운 가장자리와 물체 내부를 구분함. 원본 영상에서도 일부 접경에 반응하지만 독립적인 물체 pose/contact 정답이 없어 정성 결과로만 해석함.
+
+**실패와 판단:** 투영 물체 면적 편차 **3.1746%**가 사전 3% 기준을 넘어 면적 통제에 실패함. 연속 silhouette도 원근·옆면 노출로 1.6396% 변하므로 단순 raster 오차로 설명하지 않음. 허용치를 사후 완화하지 않았음. 또한 관측 근접도 0은 숨겨진 접촉의 부재나 장면의 단순함을 보장하지 않고, 합쳐진 instance label은 관계를 놓침. 따라서 **관측 근접도 후보로만 유지하고 전체 Complexity GT로 승인하지 않음**. 새 학습·fusion은 실행하지 않음.
+
+**다음 Step:** 실제로 면적이 같은 통제 조건을 보완하고, 근접도에 포함되지 않는 방향·가림 구조와 독립적인 국소 행동 지표를 검증함. 미검증 실험 코드·그림·결과는 로컬에 보존하며, GitHub에는 주요 milestone의 README 요약만 반영함.
