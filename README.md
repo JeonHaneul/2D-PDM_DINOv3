@@ -15,7 +15,7 @@
 |---|---|---|
 | **Similarity** | 타겟과 시각적·의미적으로 관련된 물체는 어디에 있는가? | Similarity feature `F_S` |
 | **Occlusion** | 타겟이 다른 물체 아래에 물리적으로 가려질 수 있는가? | Occlusion feature `F_O` |
-| **Complexity** | 해당 영역의 물체 더미가 얼마나 조밀하고 복잡한가? | Complexity feature `F_C` |
+| **Complexity** | 물체 더미 안에서 어느 부분의 물체 간 구조가 복잡한가? | 후보 feature `F_C`; GT 정의 재검토 중 |
 
 ```mermaid
 flowchart LR
@@ -80,7 +80,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))
 | Sigmoid | Logit을 `0–1` 값으로 변환하는 함수 `σ(z)=1/(1+e^{-z})` |
 | Frozen / Trainable | 가중치를 고정하여 feature만 추출 / loss의 gradient로 가중치를 갱신 |
 
-Overview의 `F_S, F_O, F_C`는 stream마다 숫자 하나가 아니라 위치를 유지한 spatial feature map임. 개념적인 shape는 각각 `B × C_i × Hₚ × Wₚ`이며, `Concat`은 세 map의 같은 위치를 channel 방향으로 결합함. 최종 `P_2D`는 `B × 1 × H × W`의 한 장짜리 확률 map임. 현재 세 stream의 출력 규격은 각각 `B × 64 × 30 × 40`임. Complexity의 RGB-D pilot까지 구현·평가했으며, 이를 같은 위치에서 합치면 `B × 192 × 30 × 40`이 됨. 이 규격은 fusion 설계의 입력 계약이며, 세 stream의 통합 forward·fusion 학습·최종 decoder·DRL은 아직 미구현임.
+Overview의 `F_S, F_O, F_C`는 stream마다 숫자 하나가 아니라 위치를 유지한 spatial feature map임. 개념적인 shape는 각각 `B × C_i × Hₚ × Wₚ`이며, `Concat`은 세 map의 같은 위치를 channel 방향으로 결합함. 최종 `P_2D`는 `B × 1 × H × W`의 한 장짜리 확률 map임. 현재 세 stream의 출력 규격은 각각 `B × 64 × 30 × 40`임. Complexity 후보의 visible-density RGB-D pilot을 구현·평가했으며, 이를 같은 위치에서 합치면 `B × 192 × 30 × 40`이 됨. 이 규격은 현재 구현의 fusion 입력 후보이며, 구조적 Complexity GT 타당성은 재검토 중임. 세 stream의 통합 forward·fusion 학습·최종 decoder·DRL은 아직 미구현임.
 
 ---
 
@@ -645,7 +645,7 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: 16개 학습 target의 adaptive probability GT 240,000장 생성 완료 · 전체 scene의 10%를 사용한 baseline 학습 완료 · 학습하지 않은 `packaged_food_5`를 학습에 쓰지 않은 30개 scene × 5개 camera에서 평가 완료 · Complexity RGB-D pilot 완료 · fusion 설계는 다음 Step**
+> **Status: 16개 학습 target의 adaptive probability GT 240,000장 생성 완료 · 전체 scene의 10%를 사용한 baseline 학습 완료 · 학습하지 않은 `packaged_food_5`를 학습에 쓰지 않은 30개 scene × 5개 camera에서 평가 완료 · Density pilot 완료 · 다음 Step은 국소 Complexity GT 재검증**
 >
 > 현재 baseline은 한 장의 center/top-down target RGB와 mask에서 appearance 및 68-D geometry를 만들고, 모든 scene camera에 같은 target reference를 사용함. 외부 target 평가는 합성 segmentation mask를 사용했으므로 **모델의 zero-shot 가능성은 확인했지만, 실환경 RGB에서 mask를 얻는 과정까지 검증한 결과는 아님**.
 
@@ -1359,9 +1359,9 @@ Zero-shot 평가는 학습에 없던 `packaged_food_5`와 학습에 쓰지 않�
 
 ## Complexity Stream
 
-> **Status: RGB-D pilot implemented and evaluated · unseen scene-object / fusion utility validation pending**
+> **Status: Visible-density RGB-D pilot evaluated · local Complexity GT under revision**
 
-Complexity는 target identity와 무관하게 **관측된 물체의 국소 밀집과 표면 불규칙성**을 표현함. 같은 높이의 물체 여러 개는 depth 변화가 작을 수 있고, 비스듬한 책 한 권은 depth 변화가 클 수 있으므로 RGB와 depth를 함께 사용함. 별도 VLM은 추가하지 않음.
+Complexity는 target identity와 무관하게 **더미 내부의 물체 간 국소 구조 차이**를 표현하려는 stream임. 아래 count/occupancy 모델은 이를 위한 초기 density pilot이며, 점유율과 개수만으로 해당 정의를 검증하지 못했음. [2026-09-08 최근 문헌·GT 진단](docs/complexity_results/definition_review_20260908.md)을 현재 판단으로 우선함. 같은 높이의 물체 여러 개는 depth 변화가 작을 수 있고, 비스듬한 책 한 권은 depth 변화가 클 수 있으므로 RGB와 depth를 함께 사용함. 별도 VLM은 추가하지 않음.
 
 추론에는 **scene RGB + metric depth + 고정 camera의 workspace/empty-drawer reference**를 사용함. Segmentation은 학습 정답 생성과 평가에만 필요함. RGB-D 한 장으로 보이지 않는 물체 수나 실제 적층 수를 알아낸다는 가정은 하지 않음.
 
@@ -1391,13 +1391,13 @@ Depth + fixed reference → geometry9 → conv64┘                         ├�
 | **RGB-D learned head** | **0.6414** | **0.00854** |
 | Direct depth foreground | 해당 없음 | 0.00981 |
 
-Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이며 세 window와 세 seed를 평균함. RGB-D는 depth-only 대비 **22.97% 개선**, 모든 5개 camera에서 개선됨. 12개 test scene-key cluster를 함께 재표집한 개선량 95% bootstrap 구간은 `[0.1790, 0.2054]`개임. 사전 진행 기준 네 항목을 모두 통과해 RGB-D를 Complexity pilot baseline으로 유지함.
+Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이며 세 window와 세 seed를 평균함. RGB-D는 depth-only 대비 **22.97% 개선**, 모든 5개 camera에서 개선됨. 12개 test scene-key cluster를 함께 재표집한 개선량 95% bootstrap 구간은 `[0.1790, 0.2054]`개임. 사전 count 예측 기준 네 항목을 통과함. 이 기준은 RGB 입력의 count 예측 효과에 관한 것이며, 구조적 Complexity의 타당성이나 탐색 효용을 검증하지 않음.
 
 ![Complexity RGB-D five-view result](img/complexity_model/book_1_five_views.png)
 
 왼쪽부터 scene RGB, 96px visible count GT, RGB-D prediction, absolute error, occupancy GT, direct depth occupancy, depth plane residual임. Count 그림은 GT-valid window만 표시하며, 표시 밖의 0은 물체가 없다는 판정이 아님. 네 대표 source pool의 전체 그림·seed별 지표·정확한 실행 조건은 [실험 상세](docs/complexity_results/README.md)에 있음.
 
-**한계와 다음 Step:** 현재 점수는 영상 면적 기준 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. 고정 camera와 기존 asset library에서 검증했으므로 unseen scene-object 일반화는 미확인임. 다음 Step은 새 물체가 들어간 scene의 독립 평가와, 세 feature를 결합할 fusion의 GT·loss·비교 조건을 정하는 것임. Complexity가 실제 탐색을 개선하는지는 이후 fusion/DRL ablation으로 판단함.
+**한계와 다음 Step:** 현재 점수는 영상 면적 기준 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. 고정 camera와 기존 asset library에서 검증했으므로 unseen scene-object 일반화는 미확인임. 다음 Step은 개수·점유율이 비슷한 더미 내부에서 근접·가림 관계에 따른 국소 구조를 구분하는 후보 정의의 반례 검증임. 이를 통과한 후 새 물체와 fusion의 GT·loss·비교 조건을 검증함. Complexity가 실제 탐색을 개선하는지는 이후 fusion/DRL ablation으로 판단함.
 
 ---
 
@@ -1439,7 +1439,7 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 | Final multi-target zero-shot benchmark | One external target complete; additional unseen instances/categories remain future validation |
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | 10% full16 baseline complete and frozen for the next module |
-| Complexity stream training | RGB-D 3-seed pilot complete: count MAE 0.6414 vs depth-only 0.8327; unseen scene-object test pending |
+| Complexity stream training | Visible-density pilot complete; local structural Complexity GT requires validation before further training |
 | Three-stream fusion | Input contract: 3 × 64 = 192 channels at 30×40; integrated forward / GT / loss / training pending |
 | Exploration policy integration | Planned |
 | Sim-to-real drawer experiment | Planned |
@@ -1528,6 +1528,7 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 - [ ] Final evaluation on untouched target instances and scales
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
 - [x] RGB-D Complexity GT, depth control, 3-seed evaluation and inference
+- [ ] Validate local Complexity definition within piles, controlling count/occupancy and texture
 - [ ] Unseen scene-object Complexity evaluation
 - [ ] Define fusion GT, loss and three-stream ablation protocol
 - [ ] Learned three-stream fusion
@@ -2494,3 +2495,5 @@ Adaptive GT
 **판단:** RGB-D Complexity pilot을 baseline으로 채택하고, 세 stream의 feature 규격을 각각 `B × 64 × 30 × 40`, fusion concat 입력을 `B × 192 × 30 × 40`으로 정리함. 전체 fusion·DRL 실행을 완료한 것은 아님. 22개 unit test와 segmentation 없는 실제 RGB-D 추론 경로를 검증함. [상세 정의·실행법·저장 지표](docs/complexity_results/README.md)를 함께 보존함.
 
 **한계와 다음 Step:** Visible count는 hidden object count나 target 존재 확률이 아니며, 동일 asset을 여러 번 배치한 데이터에는 instance label을 새로 확인해야 함. 현재 고정 camera·기존 asset library 결과를 unseen object 또는 실환경 성능으로 확대하지 않음. 다음 Step은 unseen scene-object 평가와 fusion의 GT·loss·비교 protocol 설계이며, 최종 탐색 효용은 fusion/DRL ablation으로 검증함.
+
+**2026-09-08 재검토 기록:** 물체 더미 내부의 국소 구조 차이를 구분하는 기준으로 count/occupancy GT를 재검토함. 기존 test 영상 960장에서 물체가 조금이라도 있는 유효 occupancy patch의 56.721%가 0.95 이상으로, 점유율은 넓은 단일 물체와 여러 물체의 밀집을 구분하지 못함. Count에는 내부 변화가 있으나 간격·가림·접촉 구조를 직접 감독하지 않음. 최근 5년의 Disperse-and-Pick, ARMOR, ClutterDexGrasp, Distracted Robot을 비교하고, 현재 run을 **visible-density pilot**으로 한정함. 다음 Step을 fusion 확대에서 **국소 구조 정의와 반례 검증**으로 변경함. 원래 실험·수치·checkpoint는 보존하며 새 GT나 학습을 완료했다고 보고하지 않음. [문헌과 진단 근거](docs/complexity_results/definition_review_20260908.md).

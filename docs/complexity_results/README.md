@@ -1,4 +1,8 @@
-# RGB-D Complexity pilot
+# RGB-D visible-density pilot
+
+> **2026-09-08 재검토:** 현재 결과는 visible count/occupancy 예측 pilot이다. 물체 더미 내부의
+> Complexity GT 타당성은 미확인으로, 다음 Step은 국소 구조 정의·반례 검증이다.
+> [최근 5년 문헌·GT 진단·수정 방향](definition_review_20260908.md)
 
 ## 목적과 의미
 
@@ -110,7 +114,9 @@ Bootstrap은 동일 scene key의 모든 source pools·camera와 seed 평균 pair
 이 구간은 선택된 합성 scene의 변동성을 나타내며, 세 seed로 전체 학습 변동성을 규명한 것은 아님.
 Gate는 RGB-D pilot 진행 기준이며 Complexity의 탐색 효용이나 unseen object 일반화 판정 기준은 아님.
 
-## 선행연구와 이번 구현의 구분
+## 초기 설계 당시 참고 문헌
+
+다음은 Phase 33 초기 설계의 이력이다. 현재 판단은 [최근 5년 연구 재검토](definition_review_20260908.md)를 우선한다.
 
 - [Bravo & Farid, 2008](https://farid.berkeley.edu/downloads/publications/jov07.pdf):
   여러 segmentation scale의 영역 수를 visual clutter와 연결함. 실제 instance count GT는 아님.
@@ -152,7 +158,7 @@ cache는 GitHub에 포함하지 않으며 로컬 run 아래에 보존함.
 
 ## 결과
 
-최종 실행은 `complexity_rgbd_20260907_v2`. 고정 배경의 반응을 수정한 RGB-D 모델이 사전 gate를 모두 통과하여 pilot baseline으로 채택함. 대표 추론 checkpoint는 test 성능으로 고르지 않은 기본 seed0의 `rgbd_seed0/best.pth`임.
+최종 실행은 `complexity_rgbd_20260907_v2`. 고정 배경의 반응을 수정한 RGB-D 모델이 count 예측 비교 gate를 모두 통과함. 이는 density pilot의 결과이며 구조적 Complexity GT의 승인 기준은 아님. 대표 추론 checkpoint는 test 성능으로 고르지 않은 기본 seed0의 `rgbd_seed0/best.pth`임.
 
 | 모델 | Occupied count MAE ↓ | 전체 valid count MAE ↓ | Occupancy MAE ↓ |
 |---|---:|---:|---:|
@@ -177,7 +183,7 @@ RGB-D seed0/1/2의 count MAE는 `0.63873 / 0.64152 / 0.64400`; depth-only는 `0.
 
 RTX 5090, PyTorch `2.12.0+cu130`, NumPy `2.4.6`에서 v2 feature/GT 준비 `243.4초`, cache 기반 6개 head 학습·validation 합계 `27.2초`. 준비 시간에는 GT·depth 재계산이 포함되고 모델 초기 로딩은 제외됨. 5,760장 중 RGB feature 4,800장은 v1에서 재사용함. Head parameter는 `132,475`개이며 frozen DINO는 제외함. 단일 CLI 실행은 모델 로딩을 포함해 약 `5.06초`였고 순수 frame latency benchmark는 아님.
 
-**남은 한계:** 정답은 현재 관측 가능한 asset-label 수임. 한 RGB-D에서 보이지 않는 물체 수, 실제 3D 적층, physical density를 복원하지 않음. RGB-D count prediction은 일부 경계 변화를 완만하게 표현함. 기존 asset library와 고정 camera에서 평가했으며 unseen scene-object·실환경·fusion/DRL 탐색 효용은 미확인임. 다음 Step은 독립 unseen scene-object 평가와 fusion GT/loss/ablation 설계임.
+**남은 한계:** 정답은 현재 관측 가능한 asset-label 수임. 한 RGB-D에서 보이지 않는 물체 수, 실제 3D 적층, physical density를 복원하지 않음. RGB-D count prediction은 일부 경계 변화를 완만하게 표현함. 기존 asset library와 고정 camera에서 평가했으며 unseen scene-object·실환경·fusion/DRL 탐색 효용은 미확인임. 다음 Step은 더미 내부의 국소 구조 정의와 반례 검증임. 이를 통과한 뒤 unseen scene-object와 fusion/DRL 효용을 검증함.
 
 ## 저장 근거와 정성 결과
 

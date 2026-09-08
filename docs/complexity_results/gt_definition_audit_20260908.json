@@ -1,0 +1,37 @@
+{
+  "scope": "previously inspected v2 test; descriptive GT audit, no new model evaluation",
+  "n_images": 960,
+  "fraction_positive_occupancy_patches_at_least_0_95": 0.5672108404425968,
+  "foreground_occupancy_mean": 0.7605692744255066,
+  "fixed_windows_pixels": [
+    48,
+    96,
+    160
+  ],
+  "feature_grid_shape": [
+    30,
+    40
+  ],
+  "count_48px_inside_full_occupancy_quantiles": [
+    1.0,
+    1.0,
+    2.0,
+    4.0,
+    9.0
+  ],
+  "count_96px_inside_full_occupancy_quantiles": [
+    1.0,
+    2.0,
+    5.0,
+    7.0,
+    14.0
+  ],
+  "count_160px_inside_full_occupancy_quantiles": [
+    1.0,
+    5.0,
+    8.0,
+    11.0,
+    16.0
+  ],
+  "single_view_reference_note": "counts have variation; occupancy saturation does not prove count maps constant"
+}
