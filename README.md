@@ -1359,7 +1359,7 @@ Zero-shot 평가는 학습에 없던 `packaged_food_5`와 학습에 쓰지 않�
 
 ## Complexity Stream
 
-> **Status: Density pilot preserved · observed-proximity counterexamples checked locally · Complexity GT not approved**
+> **Status: Density pilot preserved · cluttered-scene removal diagnostic completed · Complexity GT not approved**
 
 Complexity는 target identity와 무관하게 **더미 내부의 물체 간 국소 구조 차이**를 표현하려는 stream임. 아래 count/occupancy 모델은 이를 위한 초기 density pilot이며, 점유율과 개수만으로 해당 정의를 검증하지 못했음. [최근 문헌·GT 진단](docs/complexity_results/definition_review_20260908.md) 이후 Phase 34에서 다른 물체의 관측 표면까지 거리를 쓰는 후보를 비교함. 가까운 접경의 국소 반응은 확인했지만 면적 통제에 실패했고, 근접도만으로 적층·가림 전체를 설명할 수 없어 공식 GT와 새 학습으로 채택하지 않음. 같은 높이의 물체 여러 개는 depth 변화가 작을 수 있고, 비스듬한 책 한 권은 depth 변화가 클 수 있으므로 RGB와 depth를 함께 사용함. 별도 VLM은 추가하지 않음.
 
@@ -1397,7 +1397,7 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 
 왼쪽부터 scene RGB, 96px visible count GT, RGB-D prediction, absolute error, occupancy GT, direct depth occupancy, depth plane residual임. Count 그림은 GT-valid window만 표시하며, 표시 밖의 0은 물체가 없다는 판정이 아님. 네 대표 source pool의 전체 그림·seed별 지표·정확한 실행 조건은 [실험 상세](docs/complexity_results/README.md)에 있음.
 
-**한계와 다음 Step:** Density pilot의 점수는 영상 window의 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. 후속 근접도 후보도 GT label을 사용한 진단으로, RGB-D 추론 성능을 검증한 결과가 아님. 다음 Step은 투영 면적 통제를 보완하고 같은 근접도에서 방향·가림 구조가 달라지는 반례와 독립적인 국소 접근/탐색 지표를 비교하는 것임. 정의를 검증한 뒤 RGB-D 학습·unseen scene-object와 fusion 비교로 진행함. 최종 추가 효용은 S+O 대비 S+O+C의 탐색 결과로 판단함.
+**현재 판단과 다음 Step:** Density pilot의 점수는 영상 window의 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. Phase 35에서 실제 asset이 쌓인 10 layouts × 5 views의 물체 제거 효과를 확인함. 30mm 근접도의 물체별 평균은 새로 드러나는 다른 물체 면적 비율과 평균 순위 상관이 **0.078**로 약했으며, 면적·count보다 유리하지 않았음. 이 값을 Complexity GT나 제거 우선순위로 채택하지 않고 새 학습을 보류함. 이는 GT label을 사용한 정적 가시성 진단이며 RGB-D 추론 성능 또는 Complexity 전체의 무용함을 검증한 결과가 아님. 다음 Step은 실제 더미에서 **어느 물체가 다른 물체를 앞에서 가리는지에 관한 관측 방향 정보**가 면적·count 및 기존 Occlusion Stream을 넘어 추가 정보를 주는지 확인하는 것임. 정형 도형 실험 확대는 우선순위가 아니며 최종 효용은 S+O 대비 S+O+C 탐색 결과로 판단함. 아래 Phase 35에 비교 사진·정확한 표본 수·실패와 한계를 기록함.
 
 ---
 
@@ -1440,6 +1440,7 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 | Camera-pose generalization | Pending; current workspace mask is tied to the fixed 5-camera rig |
 | Occlusion stream training | 10% full16 baseline complete and frozen for the next module |
 | Complexity stream training | Visible-density pilot complete; local structural Complexity GT requires validation before further training |
+| Cluttered-scene removal diagnostic | 10 layouts/50 views replayed; object-mean proximity weakly associated with static reveal gain; no GT adoption or new training |
 | Three-stream fusion | Input contract: 3 × 64 = 192 channels at 30×40; integrated forward / GT / loss / training pending |
 | Exploration policy integration | Planned |
 | Sim-to-real drawer experiment | Planned |
@@ -2556,3 +2557,42 @@ Adaptive GT
 **실패와 판단:** 투영 물체 면적 편차 **3.1746%**가 사전 3% 기준을 넘어 면적 통제에 실패함. 연속 silhouette도 원근·옆면 노출로 1.6396% 변하므로 단순 raster 오차로 설명하지 않음. 허용치를 사후 완화하지 않았음. 또한 관측 근접도 0은 숨겨진 접촉의 부재나 장면의 단순함을 보장하지 않고, 합쳐진 instance label은 관계를 놓침. 따라서 **관측 근접도 후보로만 유지하고 전체 Complexity GT로 승인하지 않음**. 새 학습·fusion은 실행하지 않음.
 
 **다음 Step:** 실제로 면적이 같은 통제 조건을 보완하고, 근접도에 포함되지 않는 방향·가림 구조와 독립적인 국소 행동 지표를 검증함. 미검증 실험 코드는 로컬에 보존하고, Development Log에는 주요 milestone의 사진·수치 결과·실패와 한계를 함께 공개함. 결과 공개를 방법의 최종 채택으로 해석하지 않음.
+
+---
+
+### 2026-09-16 · Phase 35 — Cluttered-Scene Static Removal Diagnostic
+
+**목적:** 가까운 물체의 가장자리에 반응한 Phase 34 근접도가, 실제 더미에서 어느 물체를 치울지 판단하는 데 도움이 되는지 확인함. 책·과일·포장식품·장난감 asset이 쌓인 기존 capture를 사용하며 정형 도형을 추가하지 않음.
+
+**방법과 범위:** Pose가 저장된 추가 capture의 10 layouts × 5 cameras를 재현함. `packaged_food_1` 8 layouts와 `fruit_1` 2 layouts이며, 원본 16개에 `World1`을 더한 **17-asset 데이터**로 기존 16-only 평가와 구분함. USD의 단위·scale·하위 transform을 보존하면서 saved pose를 적용하고, 원본 depth/label과 먼저 비교함. Workspace에서 foreground IoU ≥0.95, 64px 이상 label IoU ≥0.90, 동일 label 내부 depth 오차 median ≤2mm/p95 ≤5mm 등 사전 기준을 **50/50 views 모두 통과**함. Foreground IoU 범위는 0.999235–0.999709, 평가된 label IoU 최솟값은 0.969697이었음.
+
+![Five-view original and replay geometry comparison](img/complexity_clutter/replay_five_views.png)
+
+열은 원본 RGB / 원본 label / 재현 label / depth 절대 오차임. Depth 검증은 동일 label을 1px erosion한 내부의 유효 pixel에서 수행했고, view별 p95 최댓값은 0.006437mm였음. 합성 render 간 비교이며 실제 depth sensor 정밀도나 RGB pixel 재현 정확도가 아님.
+
+각 물체를 하나씩 제거하고 매번 원래 scene으로 돌아가며 다른 물체는 고정함. 총 **770 object-view 제거 조건**에서 `새로 보인 다른 물체 pixel 수 / 제거한 물체의 원래 visible pixel 수`를 계산함. 바닥 노출은 제외하며 큰 물체에 유리한지 확인하기 위해 원시 노출 pixel 수도 별도로 비교함. 이 비율은 Complexity 정답이나 target 발견 확률이 아님.
+
+![Independent Isaac static removal before and after](img/complexity_clutter/isaac_static_removal.png)
+
+독립 Isaac RTX 검증은 사전 지정한 첫 layout의 다섯 시점과 첫 책 `Book_GetKnowPPU`의 제거 후 center에서 수행함. 그림은 원본 RGB / Isaac 제거 전 / 제거 후 / 새로 보인 다른 물체 영역임. 물리 step 없이 잔존 물체의 world transform 변화는 0이었음. Software 제거와 Isaac 제거 후 foreground IoU는 **0.999414**였음. 원본과 replay의 서랍 재질 차이가 있어 기하·label 재현만 검증함. 전체 770조건을 독립 RTX로 검증한 것은 아님.
+
+![Object-wise proximity and static removal examples](img/complexity_clutter/removal_examples.png)
+
+각 행은 첫 scene의 pose 순서상 앞 네 대상이며 결과에 맞춰 고르지 않았음. 열은 제거 대상 윤곽 / GT label+depth의 30mm 근접도 / 제거 후 label / 새 노출 영역임. 첫 책은 근접도 평균이 **0.0265**인데 제거하면 원래 visible 영역의 **76.34%**에서 다른 물체가 드러남(software 5350/7008px; Isaac 5355/7013px). 가장자리 근접도와 그 물체 아래의 노출 효과가 다를 수 있음을 보여줌. 작은 물체의 비율 1도 큰 절대 노출 면적을 뜻하지 않음.
+
+**결과:** 근접도 지원 면적 ≥80%인 715조건 중 네 점수가 모두 유효한 공통 조건은 710개/50 views임. 한 view의 depth roughness가 상수여서 최종 네 지표 공동 상관 비교는 **701조건/49 views, 10 layouts**를 사용함. 같은 view의 같은 물체 집합에서 Spearman 순위 상관을 계산한 뒤 layout 내부 view 평균, 10 layouts 동일 가중 평균 순서로 집계함. 초기 feature별 결측값 제외 집계는 공통 object/view 집계로 수정했고 독립 재계산으로 확인함.
+
+| 제거 전 물체별 점수 | 새 노출 비율과 평균 순위 상관 | 새 노출 pixel 수와 평균 순위 상관 |
+|---|---:|---:|
+| **30mm 관측 근접도 평균** | **0.078** | **0.041** |
+| 보이는 면적 | 0.387 | 0.615 |
+| 96px window 국소 개수 평균 | 0.291 | 0.156 |
+| 96px depth 평면 잔차 평균 | 0.002 | -0.149 |
+
+![Common-object comparisons across cluttered layouts](img/complexity_clutter/comparison.png)
+
+양수가 클수록 해당 점수가 높은 물체의 제거 효과도 큰 경향임. Depth 평면 잔차는 기존 empty-reference 차이 기반 cue이며 단순 raw depth variance가 아님. 그림의 산점도는 공통 710조건, 상관 패널은 유효 701조건/49 views를 사용함. 회색 선은 layout별 값, 검정 선은 평균임. 근접도의 비율 상관은 layout별 -0.297–0.535로 변동했고 면적보다 높은 layout은 2/10, count보다 높은 layout은 3/10이었음.
+
+**한계와 판단:** 두 capture run·세 generation batch와 공통 asset을 공유하므로 물체·시점을 독립 표본으로 취급하거나 유의성을 주장하지 않음. 이상적인 segmentation·pose·mesh를 쓴 정적 가시성 진단이며 실제 집기·재정착·target 발견·탐색 효율과 segmentation 없는 RGB-D 추론은 미검증임. 관측 근접도는 RGB-D만으로 추론한 출력이 아니라 GT label+depth 기반 후보임. **30mm 근접도의 물체별 평균을 제거 순위 점수나 Complexity GT로 채택·학습할 근거가 부족함.** 근접 feature 전체가 무용하다는 결론이나 면적/count가 복잡도의 정답이라는 결론으로 확대하지 않음.
+
+**다음 Step:** 실제 더미에서 관측 가능한 가림 방향 정보가 단순 면적·count보다 추가 정보를 주는지 현재 제거 평가로 확인하고, 이미 본 layout에서 맞춘 후보는 새 capture에서 재검증함. 기존 Occlusion Stream과의 역할 차이도 먼저 정리함. 새 GT 대량 생성·학습·fusion은 보류함. 코드·원시 결과·실패 실행은 로컬에 보존하고 이번 게시에는 README와 비교 그림만 포함함.
