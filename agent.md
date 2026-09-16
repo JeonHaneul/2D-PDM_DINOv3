@@ -75,6 +75,7 @@
 - `ebae00a`: 모든 stream의 입문 설명·차원·모듈 역할·수치 예·상세 Q&A 확장.
 - 2026-09-16 본 통합본: 로컬 문맥·색인·상세 보고서 갱신 및 공개. 새 학습·렌더·GT 승인·Phase 37은 없음.
 - 2026-09-17 문서 정정: 확인된 결과·평가 조건·추가 확인 범위 순서로 README와 현재 문맥을 정리함. Occlusion의 GT 생성·full16·external zero-shot 정량 평가를 완료된 성과로 명시함. 실험 수치와 과거 Phase 기록은 보존함.
+- 같은 날 모델 설명 정리: Similarity/Occlusion 구조도 뒤 설명을 실제 입력 → 숫자 표현 → 연산 → 다음 입력 순서로 연결함. Mask·channel/공간 위치·pooling·공유 FiLM·semantic query를 작은 계산 예로 설명하며 기존 실험 결과와 구분함.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -380,6 +381,12 @@ DINOv3만 사용했을 때 색, 재질, 모양 같은 appearance에는 강했지
 640×480 scene을 DINOv3 ViT-B/16에 넣으면 16×16 pixel 단위의 30×40 patch grid가 된다.
 각 patch는 768개의 latent feature를 가진다.
 
+`768×30×40`에서 공간 위치 한 곳을 읽으면 768개 숫자의 vector이고, channel 하나를 읽으면
+`30×40` 숫자 지도다. Target mask는 reference에서 물체인 pixel을 1로 표시한 별도 배열이다.
+Similarity는 RGB와 mask를 같은 bbox+padding으로 crop하며 RGB 배경을 검게 지우지 않는다.
+Target DINO의 `768×14×14`에서 mask 점유율로 공간 위치를 가중 평균하고 L2 정규화해 768-D appearance를 만든다.
+768개 channel끼리 평균하는 것이 아니라 각 channel의 공간 평균을 하나씩 계산한다.
+
 ```text
 Scene RGB B×3×480×640
   └─ frozen DINOv3 ViT-B/16, layers 2/5/8/11
@@ -401,6 +408,10 @@ SigLIP vector를 DINO vector에 원형 그대로 더하지 않는다. 네 개의
 각 DINO layer의 768-D 공간에 맞게 변환한 뒤 더한다. 이 결합은 frozen DINO output을 변조하는
 오류가 아니라, appearance vector를 semantic 방향으로 보정한 **새로운 target query**를 만드는
 의도적인 연산이다. 다만 query는 더 이상 순수 DINO feature가 아니다.
+
+각 layer의 projection은 모든 target이 공유한다. 추론에서 새 target을 넣으면 appearance와
+semantic 입력이 달라지고 같은 학습 weight가 새 hybrid query를 계산한다. 물체별 adapter를
+선택하거나 새로 학습하는 경로가 아니다.
 
 Layer별 scene–target interaction:
 
@@ -680,9 +691,17 @@ Scene RGB는 frozen DINOv3 ViT-B/16 layer 2/5/8/11을 사용한다.
 Target은 crop/mask pooling 없이 full 640×480 frame을 같은 DINOv3에 넣고, 각 layer의 patch를
 spatial average하여 네 개의 768-D appearance vector를 만든다.
 
+공간축 `30×40=1,200`개만 평균하므로 channel별 평균 768개가 남는다. 이 계산에는 배경 patch도
+포함된다. 현재 full-frame 입력에서 full16·external 평가를 완료했으며, 배경 포함의 영향은 동일
+조건의 crop/mask-pooling 비교로 확인할 수 있다. Mask의 geometry 경로는 RGB 평균의 배경을 지우지 않는다.
+
 ##### Depth branch
 
 2-channel depth 입력을 weights=None인 ResNet18로 처음부터 학습한다.
+
+전처리의 validity는 `depth_raw>0`으로 계산한다. 유효 거리 2.5m와 결측 0은 정규화 값이 모두
+0일 수 있으므로 `[정규화 depth, valid]`를 함께 입력한다. Encoder 이후의 `256×30×40`은
+각 feature 위치를 256개 숫자로 표현한다는 뜻이며, 이 256은 `16×16` pixel 수와 별개다.
 
 ```text
 ResNet layer2: 128×60×80 ─┐
@@ -708,6 +727,11 @@ DINO layer는 네 개이고 depth level은 세 개이므로 네 번째 DINO bran
 Total = 4 + 64 = 68
 ```
 
+Mask는 target pixel이 1이고 배경이 0인 배열이며 원래 RGB와 별도다. Geometry의 윤곽 64개는
+전체 `480×640` mask가 아니라 target bbox 안의 mask만 `INTER_AREA`로 `8×8` 축소한 값이다.
+예를 들어 bbox가 `80×160`이면 축소 한 칸은 `10×20` pixel에 대응하며, 이 중 50/200이 물체면
+그 칸은 0.25가 된다(설명용 예). Bbox 안에서 정규화한 윤곽과 원본 영상 대비 크기 4개를 함께 쓴다.
+
 이 vector는 target의 projected size와 coarse shape를 표현한다. 정확한 reference segmentation을
 사용한 합성 학습·외부 target 평가까지 완료했다. 실제 환경 적용에서는 target RGB로 추정한 mask가
 이 descriptor와 가림확률 예측에 미치는 영향을 확인할 필요가 있다.
@@ -732,6 +756,12 @@ feature가 다르므로 결과는 공간적으로 달라진다. 큰 book과 작�
 FiLM은 학습 때만 쓰는 보조 loss가 아니라 model forward의 일부다. 추론 때도 target geometry에서
 gamma/beta를 만들어 동일하게 적용한다.
 
+**모든 target이 하나의 GeometryFiLM 신경망을 공유한다.** 추론에서 고정되는 것은 MLP의
+학습 weight이고, target mask의 geometry가 달라지면 이 함수가 출력하는 gamma/beta가 달라진다.
+Target depth나 물체별 FiLM 선택은 필요하지 않다. 조절값의 출처는 target mask이며, 변환하는
+대상은 **scene depth feature**다. 한 경로의 `E[7,10,20]`과 `E[7,10,21]`은 같은 channel 7의
+서로 다른 두 위치이며 두 값에 같은 gamma[7], beta[7]를 적용한다.
+
 ##### Layer interaction과 MatchingBlock
 
 각 30×40 위치에서 다음을 concat한다.
@@ -754,6 +784,11 @@ Conv3×3 1,793→64 → GroupNorm(8) → ReLU
 
 네 결과 `4×64=256` channels를 concat하고 `1×1 Conv`로 64-channel `F_O`를 만든다. 마지막
 `1×1 Conv + sigmoid`가 `1×30×40` occlusion probability map을 출력한다.
+
+차원은 단계별로 구분한다. FiLM은 depth `256→256`의 값을 조절하고, 그 뒤 RGB·target·cosine을
+합쳐 `1,793` channels를 만든다. MatchingBlock 하나의 출력은 64이고 네 출력을 합친 것이
+다시 256이다. 앞의 depth 256과 뒤의 concat 256은 구성 정보가 다르다. FiLM의 2,048은
+`4경로×256 depth channels×2(gamma,beta)`의 조절값 개수이며 공간 위치 수가 아니다.
 
 Appearance cosine은 “target과 닮음”이지 “target이 가려질 수 있음” 그 자체가 아니므로 output에
 직접 더하는 shortcut은 없다. MatchingBlock의 input cue로만 사용한다.
@@ -1315,6 +1350,11 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
   가림확률은 GT 생성·full16·외부 target zero-shot 정량 평가까지 확인되었음을 명시한다.
   후속 평가가 남았다는 이유로 완료된 성과를 가능성·smoke evidence로 낮추지 않는다.
   실제 실패·현재 입력 조건·미구현 단계는 정확히 보존하고 다음 검증을 구체적으로 적는다.
+- 같은 날 추가 요청: 모델 구조도 뒤 설명은 하나의 실제 입력을 따라 한 경로·한 위치부터 연결한다.
+  차원만 나열하지 않고 channel/공간 위치, 원본 pixel/feature grid, 공유 weight/입력별 출력값을
+  구분한다. 작은 수치 예·구체적 색인·도식으로 계산을 보인 뒤 네 layer로 확장한다.
+  사용자가 제공한 Occlusion 설명 두 답변의 방식을 Similarity에도 적용하며, 기술 문체와 상세
+  설명을 유지한다. 설명은 해당 연산 본문에 두고 FAQ만 읽어야 흐름을 이해하는 구성을 피한다.
 - Bar graph만 쓰지 말고 scene RGB, target, GT, raw prediction, postprocessed prediction panel을 우선할 것
 - “target이 숨을 수 있는” 대신 “target이 가려질 수 있는” 사용
 - “다음 결정” 대신 “다음 Step” 사용
@@ -3342,6 +3382,12 @@ scene/150 views zero-shot 정량 평가까지 완료한 상태다. 과거 기본
 실험 수치·실패·과거 Phase 기록은 보존하며, 문서화 기록은
 `docs/public_agent_context_confirmed_20260917.json`에 남긴다.
 
+같은 날 사용자가 제공한 Occlusion 설명 두 답변을 바탕으로 Similarity/Occlusion의 구조도 뒤
+모델 설명을 입력 한 사례의 계산 순서로 정리했다. Channel과 공간 위치, target mask와 RGB,
+pooling, bbox 윤곽 축소, 공유 FiLM과 semantic projection의 입력·출력, 한 경로에서 네 layer로
+확장하는 과정을 코드에 대조했다. 설명용 수치와 기존 실험 결과를 구분하며 GT·학습·결과·과거
+Phase 기록은 보존했다. 기록은 `docs/public_agent_context_walkthrough_20260917.json`이다.
+
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -3924,6 +3970,12 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   작성한다. Occlusion은 adaptive GT 생성·full16 가림확률 예측·external target zero-shot 정량 평가를
   완료했다. 이를 가능성이나 smoke evidence로 낮춰 적지 않는다. 남은 검증은 구체적인 대상·조건으로
   명시하며 실제 실패·입력 제약·미구현 단계는 보존한다.
+- 같은 날 설명 방식 정정: 전체 구조도 뒤에는 실제 입력 한 사례를 따라 입력 → 숫자 표현 →
+  연산 이유 → 다음 입력의 연결을 설명한다. 먼저 한 경로·한 위치를 다룬 뒤 네 layer로 확장한다.
+  Channel과 공간 위치, 원본 pixel과 feature grid, 공유 weight와 입력별 출력값을 구분하고
+  작은 계산 예·색인·도식으로 설명한다. Tensor 차원·모듈 표만 나열하거나 FAQ에만 설명을 몰지 않는다.
+  Occlusion의 mask/geometry/FiLM과 Similarity의 mask pooling/semantic query에 같은 방식을 적용한다.
+  기존 기술 문체를 유지하되 이해를 돕는 연결 설명을 우선하며, 가상 수치와 측정 결과를 구분한다.
 - README에는 가능하면 실제 scene, GT, prediction을 함께 보여 주는 이미지를 사용한다.
 - 공개 README 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/` 세 폴더에 바로 저장한다.
   다른 repo로 README와 이미지를 복사하기 쉽도록 실험별 새 폴더나 하위 폴더를 만들지 않는다.

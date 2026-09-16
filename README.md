@@ -303,40 +303,49 @@ flowchart TB
 
 기준 코드는 `backbone.py`, `target_utils.py`, `similarity_model.py`, `train_similarity_v2.py`임. Scene와 target appearance는 같은 frozen DINOv3 backbone을 사용함. SigLIP은 target 조건을 만들 때만 사용하며, scene를 SigLIP으로 다시 인코딩하지 않음.
 
-| 단계 | Tensor 변화 | 차원과 계산의 의미 |
-|---:|---|---|
-| 1 | Scene RGB → layer별 `B×768×30×40` | `480/16=30`, `640/16=40`: 총 1,200개 위치에 768-D DINO token |
-| 2 | Target crop `B×3×224×224` → layer별 `B×768×14×14` | `224/16=14`: 196개 patch를 물체 mask의 포함 비율로 pooling |
-| 3 | Pooling → layer별 `a_t^ℓ: B×768` | Target view 하나를 나타내는 L2-normalized appearance vector |
-| 4 | SigLIP image/text 각각 `B×1152` → `s: B×1152` | 두 vector를 각각 정규화하고 평균한 뒤 다시 정규화 |
-| 5 | 독립 `Linear(1152,768)` 4개 → layer별 `s_t^ℓ: B×768` | 각 DINO layer에서 사용할 semantic condition으로 학습 변환 |
-| 6 | `q_t^ℓ=a_t^ℓ+s_t^ℓ` → `B×768` | 합산 후에는 다시 정규화하지 않는 hybrid query |
-| 7 | Query broadcast + patch cosine → `B×1537×30×40` | Raw scene `768` + raw query `768` + shifted cosine `1` |
-| 8 | MatchingBlock → 네 개의 `B×64×30×40` | Layer별 입력을 주변 문맥과 함께 해석 |
-| 9 | Concat `B×256×30×40` → fusion → `F_S: B×64×30×40` | `256=4×64`; `1×1 Conv`로 네 layer의 정보를 혼합 |
-| 10 | Head → logit `B×1×30×40` → sigmoid | 위치별 similarity score. Full-resolution 표시는 bilinear 확대 |
+**이하 설명은 Banana reference와 서랍 한 장(`B=1`)을 기준으로 함.** 먼저 DINO layer 하나에서 scene 위치 A를 어떻게 표현하고, Banana query를 어떻게 만들어 그 위치와 결합하는지 따라감. 같은 계산을 `30×40` 전체 위치에 적용한 뒤, layer `2/5/8/11`의 네 결과를 합쳐 최종 map을 만듦.
 
-#### 단일 query 처리 순서
+```text
+서랍 RGB → 위치 A의 scene vector x_A: 768개 ────────────────┐
+                                                          │
+Banana RGB + mask → 외형 a: 768개 ─┐                        │
+                                   ├→ query q: 768개 ──────┤
+Banana crop/text → 의미 s: 1152개   │                        │
+                       → projection: 768개 ─┘              │
+                                                          ↓
+                          x_A와 q의 cosine: 1개를 함께 concat
+                                                          ↓
+                             위치 A의 입력: 1537개 + 이웃 위치
+                                                          ↓
+                                      MatchingBlock → 64개
+```
 
-Banana reference와 scene 한 장(`B=1`)을 처리하는 경우의 계산 순서임. 수치 예제와 실제 unseen-target 성능은 구분함.
-
-| 순서 | 연산 | 전달되는 정보 |
-|---:|---|---|
-| 1 | Scene RGB `1×3×480×640` → DINO layers 2/5/8/11 | Target 조건이 아직 반영되지 않은 위치별 768-D feature, 총 1,200개 위치 |
-| 2 | Reference mask bbox crop → `224×224` DINO 입력 → `14×14` mask pooling | Target 포함 비율로 가중 평균한 layer별 768-D appearance |
-| 3 | Crop을 `384×384`로 resize → SigLIP image/text 인코딩 | 각 1152-D vector의 정규화·평균으로 semantic 조건 생성. Image-only에서는 text 제외 |
-| 4 | 독립 projection 4개 → 해당 layer의 appearance에 합산 | Target 입력에 따라 달라지는 네 hybrid query |
-| 5 | 모든 scene 위치에 query broadcast → cosine·raw feature concat | 위치별 1,537-channel interaction |
-| 6 | Layer별 `3×3` MatchingBlock → 네 결과 fusion | 이웃 문맥과 여러 layer를 결합한 64-channel `F_S` |
-| 7 | `1×1` head → sigmoid → 필요시 bilinear 확대 | `30×40` score map과 표시용 `480×640` map |
-
-Scene encoder의 weight는 고정하고 **query에 따라 interaction과 head 출력을 계산하는 구조**임. 이 경로로 학습에 없던 target의 관련 영역 활성화를 확인했으며, exact target과 같은-category 물체의 출력 순위는 후속 정량 평가에서 측정함. 실제 cache 범위는 아래 학습 구현에 정리함.
+Scene branch는 **어디에 어떤 관측이 있는지**, target branch는 **무엇을 찾는지**를 표현함. Banana의 이름으로 전용 head를 선택하는 경로는 없음. 같은 encoder·projection·head에 reference를 넣어 target 조건을 계산하며, 학습에 없던 Banana와 `packaged_food_5`에서도 관련 영역을 활성화하는 동작을 정성 확인함.
 
 ### 3. 내부 모듈과 선택 이유
 
 #### 1. DINOv3 — Dense scene feature와 target appearance
 
-DINOv3 ViT-B/16은 12개 transformer block과 768-D embedding을 사용함. 코드의 layer index `2, 5, 8, 11` 네 중간 출력을 `norm=True`로 받아 서로 다른 처리 단계의 정보를 유지함. Layer별로 표현하는 외형·의미 정보와 네 layer 결합의 추가 기여는 layer-wise map 분석 및 단일 layer 대조로 확인할 항목임.
+DINOv3 ViT-B/16은 RGB를 후속 계산에 사용할 feature로 변환함. **Scene에는 출력 위치가 필요하고, target에는 reference 하나를 나타내는 검색 조건이 필요함.** 같은 DINOv3를 사용하되 scene은 공간 격자를 유지하고 target은 mask로 가중 평균하는 이유임.
+
+**Scene 위치 A의 표현:** `480×640` scene을 patch 크기 16인 DINOv3에 넣으면 한 layer에서 `768×30×40` feature를 얻음. `480/16=30`, `640/16=40`이므로 공간 위치는 1,200개이며, 각 위치마다 feature 값 768개가 있음.
+
+```text
+Scene RGB: 3×480×640
+    ↓ 같은 frozen DINOv3의 한 layer 출력
+X: 768×30×40 = channel 768개 × 세로 30칸 × 가로 40칸
+
+위치 A=(10,20)를 고정하면:
+x_A = X[:,10,20] = [X[0,10,20], X[1,10,20], …, X[767,10,20]]
+      → 그 위치를 표현하는 숫자 768개
+
+channel 7을 고정하면:
+X[7,:,:] → 30×40 위치마다 숫자 하나가 있는 지도
+```
+
+위치 A와 옆 위치 B=`(10,21)`에는 각각 다른 768-D vector가 있음. 한 channel의 두 위치 값과 한 위치의 768개 channel 값을 구분함. `768`은 backbone의 embedding 폭이며 물체 수·확률 수·patch pixel 수가 아님. 좌표마다 “노란색”, “과일” 등의 이름을 수동 지정하지 않으며, 다음 head가 여러 좌표를 함께 사용함. **이 scene feature에는 아직 Banana query가 들어가지 않음.**
+
+**한 backbone의 네 출력:** DINOv3에는 12개 transformer block이 있고, 코드가 선택한 layer index `2,5,8,11`의 출력을 `norm=True`로 받음. 아래 설명의 `X`, target feature, projection은 우선 이 중 한 layer `ℓ`에 해당함. 네 layer의 결과를 합치는 과정은 MatchingBlock 뒤에서 연결함.
 
 **Multi-layer extraction:** Index `2,5,8,11`은 0-based 표기로 3·6·9·12번째 block에 해당함. 동일 입력을 순차적으로 처리하는 한 backbone에서 네 중간 출력을 추출함.
 
@@ -348,15 +357,26 @@ DINOv3 ViT-B/16은 12개 transformer block과 768-D embedding을 사용함. 코�
                                    모두 768-D, scene에서는 같은 30×40 공간 격자
 ```
 
-`768`은 backbone의 embedding 폭임. 사전학습 좌표에 “노란색”, “과일” 등의 의미를 수동 배정하지 않으며, task head가 이 좌표의 조합을 학습함.
+**Banana RGB와 target mask:** Reference RGB에는 Banana의 색·무늬와 주변 배경이 있음. Target mask는 같은 reference에서 Banana 영역을 `1`, 배경을 `0`으로 표시한 별도 2차원 배열임. `target_utils.py`는 reference segmentation과 `mapping.json`의 target 색으로 이를 구성함. Mask 자체에 Banana의 노란색이 들어 있거나 서랍 속 정답 위치가 표시된 것은 아님.
 
-**Target preprocessing:** Mask bbox의 높이·너비 각각 25%를 양쪽에 padding하고 이미지 경계에서 제한함. **RGB와 mask를 같은 영역으로 crop하며, 배경 RGB를 검게 지우지 않음.** DINO 입력 RGB는 `224×224`로 bilinear resize하고 mask는 nearest-neighbor resize함. Scene와 target RGB에는 같은 ImageNet normalization을 적용함.
+**Crop:** Mask의 bbox를 찾고 높이·너비 각각 25%를 양쪽에 padding한 뒤 이미지 경계에서 제한함. 그 좌표로 **RGB와 mask를 같은 영역에서 잘라냄.** RGB의 배경을 mask와 곱해 검게 지우는 연산은 적용하지 않음. 물체 주변으로 입력 범위를 좁힌 뒤, mask는 feature를 요약할 때 다시 사용함.
 
-가상 bbox가 가로 80px·세로 120px이면 좌우 20px·상하 30px를 더해 `120×180` crop을 얻음(이미지 경계에 걸리지 않는 경우). 이를 종횡비 유지 padding 없이 `224×224`로 직접 resize함. Mask도 같은 변환을 적용하여 target 위치를 유지함.
+설명용 Banana bbox가 가로 80px·세로 120px이면 좌우 20px·상하 30px를 더해 가로×세로 `120×180` crop을 얻음(이미지 경계에 걸리지 않는 경우). 이를 종횡비 유지 padding 없이 `224×224`로 직접 resize함. RGB는 bilinear, mask는 이진값을 유지하는 nearest-neighbor를 사용함. Scene와 target RGB에는 같은 ImageNet normalization을 적용함.
+
+```text
+Banana reference RGB + 0/1 mask
+    ↓ 같은 bbox + 25% 여백으로 crop
+RGB crop ── bilinear resize 224×224 ── DINOv3 ── T: 768×14×14
+Mask crop ─ nearest resize 224×224 ── 16×16 평균 ─ r: 14×14
+                                                       ↓
+                          T의 196개 위치를 r로 가중 평균
+                                                       ↓
+                             768개 숫자 → L2 norm → a
+```
 
 Crop 배경도 encoder의 문맥에 포함되며, 이후 mask pooling으로 target 영역의 token을 선택·가중함. 따라서 pooling한 target token에는 encoder를 거쳐 반영된 주변 배경 문맥도 남을 수 있음.
 
-Pixel mask `M`을 `16×16` average pooling하면 각 target patch가 물체를 포함하는 비율 `r_ij`가 됨. 이를 합이 1인 weight로 바꾸고 196개 patch vector를 가중 평균함.
+**Mask에서 patch weight로:** Target DINO feature는 `224/16=14`이므로 `768×14×14`이며, 196개 위치에 각각 768개 값이 있음. 별도의 pixel mask `M`을 `16×16` average pooling하여 각 patch에 Banana pixel이 얼마나 들어 있는지 계산함. 256 pixel 중 256개가 Banana이면 `r_ij=1`, 128개이면 `0.5`, 배경만 있으면 `0`임. 이 비율의 전체 합으로 나누어 합이 1인 weight `w_ij`를 만듦.
 
 $$
 r_{ij}=\frac{1}{256}\sum_{(x,y)\in\mathrm{patch}(i,j)}M(x,y),
@@ -366,9 +386,7 @@ w_{ij}=\frac{r_{ij}}{\sum_{p,q}r_{pq}},
 a_t^{\ell}=\mathrm{L2Norm}\!\left(\sum_{i,j}w_{ij}T_t^{\ell}(:,i,j)\right).
 $$
 
-예를 들어 물체가 patch의 절반을 차지하면 `r_ij=0.5`이므로 경계 patch도 포함 비율만큼 기여함. Mask가 사실상 비어 있으면 코드에서는 전체 patch의 균등 pooling으로 fallback함. 이 pooling은 target의 여러 위치를 vector 하나로 요약하여 reference 전체를 나타내는 query를 만듦. 이후 matching의 단위는 target 전체 query와 scene의 각 위치이며, 개별 target patch 간 correspondence는 별도로 계산하지 않음.
-
-**Mask-weighted pooling:** 위치별 vector를 mask 포함 비율로 가중 평균함. 196개 patch를 세 개로 단순화한 계산 예는 다음과 같음.
+**Channel을 유지한 공간 평균:** 196개 patch를 세 위치 A/B/C로 단순화한 가상 예임. 여기의 A/B/C는 target crop 안의 위치이며, 앞서 고른 scene 위치 A와는 다른 격자임.
 
 ```text
 Target patch                 A             B             C
@@ -378,7 +396,17 @@ Mask 포함 비율 r            1.0           0.5           0.0
 정규화 전 target vector = (2/3)×T_A + (1/3)×T_B + 0×T_C
 ```
 
-`T_A`, `T_B`, `T_C`는 각각 768-D vector임. 각 좌표끼리 가중 평균하므로 **공간 위치 수는 196→1로 줄고 embedding 길이 768은 유지**됨.
+`T_A`, `T_B`, `T_C`는 각각 768-D vector임. 다음 표는 그중 세 channel만 표시한 가상값임. 평균은 channel끼리가 아니라 **각 channel 안의 공간 위치들**에 적용함.
+
+| Target feature | 위치 A: weight 2/3 | 위치 B: weight 1/3 | 위치 C: weight 0 | Pooling 결과 |
+|---|---:|---:|---:|---:|
+| Channel 0 | 3 | 0 | 9 | `(2/3)×3+(1/3)×0=2` |
+| Channel 1 | 0 | 6 | 9 | `(2/3)×0+(1/3)×6=2` |
+| Channel 2 | 3 | 3 | 9 | `(2/3)×3+(1/3)×3=3` |
+
+이 세 channel의 결과는 `[2,2,3]`으로 남음. 실제는 768개 channel에서 같은 계산을 하므로 **공간 위치 수는 196→1로 줄고 embedding 길이 768은 유지**됨. 이후 768개 결과 전체를 L2 normalization하여 appearance `a_t^ℓ`를 만듦. 위 세 값만 있는 축소 예라면 길이가 `sqrt(17)`이므로 정규화 결과는 약 `[0.4851,0.4851,0.7276]`임.
+
+Mask가 사실상 비어 있으면 코드에서는 전체 patch의 균등 pooling으로 fallback함. 일반 경로에서는 이 pooling이 Banana reference 전체를 나타내는 appearance를 만들며, 이후에는 개별 target patch가 아니라 **이 appearance를 포함한 query와 scene의 각 위치**를 비교함.
 
 **L2 normalization:** Pooling한 vector의 방향을 유지하면서 길이를 1로 맞춤. `[3,4]`의 길이는 `sqrt(3²+4²)=5`이므로 결과는 `[0.6,0.8]`임. 같은 방향인 `[6,8]`도 동일하게 정규화됨.
 
@@ -391,13 +419,17 @@ L2 normalization은 음수 좌표를 유지하며, 좌표 범위를 `0–1`로 �
 
 DINO token에는 self-attention을 통한 주변·전체 문맥이 이미 반영됨. 따라서 위치가 `16×16` patch grid에 대응한다고 해서 그 token이 해당 256 pixel만 보고 만들어졌다는 뜻은 아님. Backbone은 CLS token도 반환하지만 현재 Similarity head와 target appearance pooling에서는 사용하지 않음.
 
+이 단계의 출력은 **scene의 위치별 vector `x_A: 768개`와 Banana appearance `a_t^ℓ: 768개`**임. Scene의 1,200개 위치는 그대로 두고, 다음 단계에서 Banana의 image/text 의미 조건을 appearance에 추가함.
+
 #### 2. SigLIP — Semantic conditioning과 layer-wise projection
 
-초기 DINO appearance matching과 CLS category prototype에서 외형이 다른 unseen target의 category 관계가 불안정했기 때문에, language와 정렬된 SigLIP image/text 표현을 추가함. **SigLIP은 target query에 의미 조건을 제공하는 frozen encoder**이며, similarity 정답 숫자는 별도의 GT 규칙으로 생성함. 결합 모델에서 unseen target의 같은-category 영역 활성화가 확인되었고, SigLIP의 기여량은 encoder별 통제 비교로 분석할 항목임.
+앞 단계의 `a_t^ℓ`에는 Banana reference에서 추출한 외형·문맥이 담김. 여기에 **image/text 사전학습 공간의 의미 조건**을 추가하는 경로가 SigLIP임. 초기 DINO appearance matching과 CLS category prototype에서 외형이 다른 unseen target의 category 반응이 불안정하여 도입함. SigLIP은 target query를 보완하는 frozen encoder이며, 정답 similarity 숫자는 아래 GT 규칙으로 별도 생성함.
 
 **Encoder 규격:** `google/siglip-so400m-patch14-384`의 image/text `pooler_output`은 각각 1152-D임. `patch14`는 vision patch 크기, `384`는 RGB 입력 크기이며 `SO400M`은 400-D를 의미하지 않음.
 
-동일 crop을 각 encoder 규격에 맞춰 DINO는 `224×224`, SigLIP은 `384×384`로 resize함. SigLIP RGB에는 mean/std `0.5/0.5`를 적용하고, mask로 지우지 않은 crop 전체를 입력함.
+**Image 경로:** Banana의 padded crop을 원본 crop에서 별도로 `384×384`로 resize하고 RGB mean/std `0.5/0.5`를 적용함. DINO에 넣었던 `224×224`의 feature나 appearance vector를 받는 것이 아니라, **같은 물체의 RGB crop을 SigLIP 규격으로 다시 인코딩**함. Mask로 배경을 지우지 않은 crop 전체에서 pooled image vector 1152개를 얻음. 이 출력은 target 전체의 의미 조건이며 scene의 `30×40` 위치 지도는 아님.
+
+**Text 경로:** 선택한 물체 설명을 tokenizer로 token화하고 frozen SigLIP text encoder에 넣어 pooled text vector 1152개를 얻음. Inference에서 `--label banana`를 주면 실제 문장은 `a photo of a banana`임. Text를 생략하면 image vector만으로 아래 semantic 조건을 구성함.
 
 학습에서는 target별 center reference image 한 장과 다음 형식의 text를 사용함.
 
@@ -409,6 +441,8 @@ a photo of {object_description}, a type of {category}
 
 `TARGET_LABELS`의 설명은 사람이 지정함. 설명이 없는 target은 category 문장으로 fallback함. 책 네 개처럼 같은 설명을 공유하는 경우 text는 공통 의미 조건을 제공하고, reference별 차이는 image와 DINO appearance로 전달함. 현재 학습 경로에서 category 정보는 외부 조건임.
 
+**Image/text 결합 순서:** 두 encoder의 pooled vector를 각각 L2-normalize하고, 같은 번호의 좌표끼리 평균한 뒤 전체 vector를 다시 L2-normalize함. 따라서 `1152+1152=2304`개를 이어 붙이는 계산이 아니라 **1152개 좌표의 평균 결과 하나**를 얻음. Image-only에서는 정규화된 image vector가 바로 `s`가 됨.
+
 $$
 s_{\mathrm{img}}=\mathrm{L2Norm}(\mathrm{SigLIP}_{\mathrm{image}}(I_t)),
 \qquad s_{\mathrm{text}}=\mathrm{L2Norm}(\mathrm{SigLIP}_{\mathrm{text}}(p_t)),
@@ -419,7 +453,18 @@ s=\mathrm{L2Norm}\!\left(\frac{s_{\mathrm{img}}+s_{\mathrm{text}}}{2}\right),
 \qquad q_t^{\ell}=a_t^{\ell}+s_t^{\ell}.
 $$
 
-**Learned adapter:** 네 projection은 독립적인 `Linear(1152,768)`이며 가중치를 공유하지 않음. 각 출력 좌표는 SigLIP 입력 1152개의 학습 가중합임. 별도 alignment loss 없이 최종 similarity-map MSE로 학습함.
+정규화 순서를 2-D 가상값으로 축소하면 다음과 같음. 실제 Banana feature를 측정한 값은 아니며, 실제 코드는 1152개 좌표에 같은 연산을 적용함.
+
+```text
+Image pooled [3,4] → L2 norm → [0.6,0.8]
+Text pooled  [0,2] → L2 norm → [0,1]
+                                   ↓ 좌표별 평균
+                                [0.3,0.9]
+                                   ↓ L2 norm
+                         s ≈ [0.3162,0.9487]
+```
+
+**1152→768 projection:** 이 `s`를 해당 DINO layer의 `Linear(1152,768)`에 넣음. 앞의 숫자 768개를 남기는 방식이 아니라, 입력 1152개를 가중 조합하여 새로운 숫자 768개를 만듦. Layer별 독립 projection 네 개는 서로 다른 weight를 갖지만, **같은 layer의 projection은 모든 target이 공유함.** Banana·책·새 external target별 adapter를 선택하지 않음. 별도 alignment loss 없이 최종 similarity-map MSE로 학습함.
 
 Projection은 **SigLIP의 의미 조건을 DINO query와 결합하는 학습 경로**임. 출력 차원은 구조로 맞추고, 어떤 좌표 조합을 similarity 예측에 사용할지는 최종 GT 오차를 통해 projection과 head가 함께 학습함.
 
@@ -429,7 +474,9 @@ $$
 s_{t,k}^{\ell}=\sum_{j=1}^{1152}W_{kj}^{\ell}s_j+b_k^{\ell}.
 $$
 
-각 출력은 입력 전체를 조합하므로 앞의 768개 좌표만 선택하는 절단 연산과 다름. 독립 projection은 DINO layer별로 다른 변환을 학습할 수 있게 함. 현재는 이 구조의 학습·추론을 구현했으며, 공유 projection과의 차이는 같은 조건의 ablation으로 비교할 항목임.
+출력 좌표 하나도 입력 1152개 전체의 조합임. 예를 들어 첫 출력은 `W[0,0]×s[0]+…+W[0,1151]×s[1151]+b[0]`으로 계산함. 학습 중 GT 오차에 따라 `W,b`가 바뀌고, 학습이 끝난 추론에서는 **고정된 `W,b`에 Banana의 새로운 `s`를 넣어 출력값을 계산**함.
+
+**Appearance에 합산:** 이제 `a_t^ℓ`와 projection 출력 `s_t^ℓ`가 모두 768개이므로 좌표별로 더하여 `q_t^ℓ`를 만듦. `q[k]=a[k]+s_t[k]`이며 결과도 768개임. DINO appearance를 보존한 상태에서 semantic 입력에 따른 보정값을 더하는 방식임. 이 hybrid query가 다음 단계의 scene 비교와 MatchingBlock 양쪽에 전달됨.
 
 ```text
 SigLIP image vector: 1152개 ── L2 norm ─┐
@@ -444,13 +491,17 @@ SigLIP text vector : 1152개 ── L2 norm ─┘                           │
                                  q_2             q_5             q_8             q_11
 ```
 
-Image/text 평균은 **같은 SigLIP 모델의 두 표현**을 결합함. DINO appearance와는 이후 projection·addition 단계에서 합쳐짐. Image-only와 image+text 각각의 unseen-target 추론 사례가 보존되어 있으며, text 추가 효과와 평균 방식의 기여는 같은 scene·target에서 image-only, text 조건 변화, image+text를 비교하여 측정할 항목임.
+도식의 네 갈래는 동일한 `s`에서 시작하지만 각각 해당 layer의 appearance와 결합함. 이는 DINO layer별로 다른 변환을 학습하도록 한 선택임. **결합 모델의 unseen-target 동작까지 확인했으며**, SigLIP 추가 효과, layer별 독립 projection과 공유 projection의 차이, image/text 평균 방식의 기여는 같은 scene·target 조건의 ablation으로 측정할 항목임.
 
-`s_t^ℓ`와 합산 query `q_t^ℓ`는 정규화하지 않음. Cosine 경로에서만 query의 L2 norm을 맞추고, MatchingBlock에는 raw query를 전달함. 따라서 query의 방향은 cosine에, 방향과 크기는 raw interaction 입력에 반영됨. 학습에서는 center image 하나로 semantic 조건을 고정하며, reference 시점 변경의 영향은 동일 target의 여러 camera를 비교하여 확인할 항목임.
+**합산 이후의 두 사용 경로:** `s_t^ℓ`와 `q_t^ℓ`는 합산 단계에서 재정규화하지 않음. 다음 cosine 계산에서만 query를 L2-normalize하고, MatchingBlock 입력에는 합산한 raw query를 전달함. 따라서 cosine에는 query의 방향이, raw feature 경로에는 방향과 크기가 함께 반영됨.
+
+**Reference 시점:** 학습에서는 DINO appearance용 다섯 camera 중 하나를 sample마다 선택하고, SigLIP semantic은 center image+text로 고정함. 검증에서는 DINO reference 다섯 camera를 각각 평가함. `inference_zeroshot.py`에서는 선택한 `--target_cam`을 DINO와 SigLIP 양쪽에 적용하며 기본값은 center임. 같은 target이라도 어떤 reference view와 prompt를 사용했는지에 따라 조건이 달라질 수 있으므로 비교 시 함께 기록함.
+
+이제 위치 A의 scene vector `x_A`와 Banana의 hybrid query `q_t^ℓ`가 준비됨. 두 vector 모두 768개이지만, **`x_A`는 서랍 위치 A의 관측이고 `q_t^ℓ`는 reference에서 만든 공통 검색 조건**임.
 
 #### 3. Scene–target interaction — Raw feature와 cosine cue
 
-각 layer에서 scene의 1,200개 위치마다 hybrid target query와 cosine을 계산함. Scene 전체를 scalar 하나로 압축하지 않음.
+먼저 한 layer의 scene 위치 A에서 `x_A`와 Banana query `q_t^ℓ`를 비교함. 두 vector를 각각 L2-normalize하고 같은 좌표끼리 곱한 뒤 **768개 곱을 합산하여 cosine 한 값**을 얻음. 이를 1,200개 위치에 반복하므로 결과는 위치마다 숫자 하나가 있는 `1×30×40` 지도임.
 
 $$
 c^{\ell}(u,v)=\frac{X_s^{\ell}(:,u,v)^{\mathsf T}q_t^{\ell}}
@@ -458,11 +509,13 @@ c^{\ell}(u,v)=\frac{X_s^{\ell}(:,u,v)^{\mathsf T}q_t^{\ell}}
 \qquad \widehat c^{\ell}(u,v)=\frac{c^{\ell}(u,v)+1}{2}.
 $$
 
-`c`는 `−1–1`, shifted cosine `ĉ`는 `0–1` 범위임. 이 범위 이동은 순위를 바꾸지 않으며 `ĉ` 자체를 target 존재 확률로 만들지도 않음. 각 위치에 같은 query를 broadcast하고 다음과 같이 concat함.
+`c`는 `−1–1`, shifted cosine `ĉ`는 `0–1` 범위임. `(c+1)/2`로 값을 이동하여 head의 비교 cue로 사용함. 이 계산은 순위를 유지하며 target 존재 확률을 추정하는 별도 연산은 아님.
 
 Cosine은 두 vector가 향하는 **방향**을 비교함. 2-D 설명용 예에서 target query가 `[1,0]`이면 scene vector `[1,0]`과의 cosine은 1, `[0,1]`과는 0, `[-1,0]`과는 −1임. 현재 head에 넣는 shifted cosine은 각각 `1`, `0.5`, `0`이 됨. 따라서 shifted score `0.5`는 cosine상 직교라는 뜻이지, 실제 target일 확률 50%라는 뜻이 아님.
 
-**Broadcast**는 동일 query를 모든 scene 위치에 제공하고, **concat**은 scene·query·cosine을 별도 channel로 이어 붙임. 같은 길이의 좌표끼리 합산하는 addition과 구분됨.
+**숫자 하나로 남는 정보:** Cosine은 `x_A`와 `q`의 방향 관계를 요약함. 어떤 channel 값들의 조합이 그 점수를 만들었는지나 raw vector의 크기는 cosine 한 값으로 복원할 수 없음. 예를 들어 같은 `0.9` cue가 나와도 하나는 fruit 위치, 다른 하나는 비슷한 외형의 toy 위치일 수 있음. 따라서 다음 head에 **비교값 하나와 그 비교에 사용한 두 원본 vector**를 함께 전달함. 이는 관계를 해석할 입력을 보존하는 설계이며, 실제 억제·강화 방향은 GT로 학습함.
+
+**Broadcast와 concat:** Banana query 768개를 위치 A뿐 아니라 모든 scene 위치에 동일하게 전달함. 각 위치의 관측은 다르지만 “이번 검색 조건은 Banana”라는 정보는 같기 때문임. 이를 broadcast라고 함. 그 뒤 위치별 scene 768개, query 768개, shifted cosine 1개를 이어 붙이면 `1537`개가 됨. 이 concat은 앞서 appearance와 semantic을 좌표별로 더한 addition과 다름.
 
 ```text
 설명용 3-D scene vector x = [2, 3, 4]
@@ -480,7 +533,7 @@ Z^ℓ(u,v) = Concat[raw scene feature, raw target query, shifted cosine]
 channels =              768       +       768      +       1       = 1537
 ```
 
-**결합 이유:** 서로 다른 768-D scene feature가 같은 cosine을 가질 수 있음. Raw scene·query를 함께 전달하여 head가 위치별 관측, 검색 조건, 직접 유사도를 동시에 활용하도록 함. 결합 모델에서 unseen target의 관련 영역 활성화를 확인했으며, raw feature와 cosine 각각이 관련 영역 강화·오반응 억제에 기여하는 정도는 입력별 ablation으로 분석할 항목임.
+**MatchingBlock에 전달되는 입력:** 위치 A의 `Z_A`에는 관측·검색 조건·직접 비교값이 별도 좌표로 들어 있음. Head는 이 `1537`개와 이웃 위치의 같은 형식 입력을 함께 읽음. 결합 모델에서 unseen target의 관련 영역 활성화를 확인했으며, raw feature와 cosine의 추가 기여량은 입력별 ablation으로 분석할 항목임.
 
 현재 trainer는 `category_dim=0`임. 과거 CLS category probability channel은 1537개 interaction에 포함되지 않음.
 
@@ -498,7 +551,11 @@ X(u,v)는 해당 위치의 scene feature 768개만 사용함.
 c(u,v)는 그 X(u,v)와 q로 계산한 shifted cosine cue 1개임.
 ```
 
+이 계산이 끝나면 `1537×30×40` interaction map이 준비됨. 공간 위치 수는 1,200개로 유지되고, 위치마다 다음 CNN이 사용할 숫자가 1537개씩 생긴 것임.
+
 #### 4. MatchingBlock, multi-layer fusion과 score head
+
+**한 layer의 위치별 해석:** MatchingBlock은 `Z_A`의 앞 64개 숫자를 선택하지 않음. 위치 A와 주변 8개 위치의 1537개 channel을 학습 가중치로 조합하여 새로운 64개 feature를 만듦. Cosine은 비교값을 이미 제공했고, 이 CNN은 **관측·Banana query·비교값·이웃 분포를 함께 사용해 GT relation을 예측할 표현**을 학습함.
 
 ```text
 각 layer의 Z^ℓ: B×1537×30×40
@@ -507,37 +564,47 @@ c(u,v)는 그 X(u,v)와 q로 계산한 shifted cosine cue 1개임.
     → Conv 1×1, 64→64
     → GroupNorm(8,64) → ReLU
     → F_ℓ: B×64×30×40
-
-Concat[F_2,F_5,F_8,F_11]: B×256×30×40
-    → Conv 1×1, 256→64 → GroupNorm(8,64) → ReLU
-    → F_S: B×64×30×40
-    → Conv 1×1, 64→1 → sigmoid
-    → P_S: B×1×30×40
 ```
 
-첫 `3×3 Conv`는 현재 patch와 주변 8개 grid cell의 입력을 학습 가중합하여 local 문맥을 추가함. `1×1 Conv`는 공간 위치를 유지하면서 channel을 재조합함. `GroupNorm(8,64)`은 sample 내부에서 64 channel을 8개 group으로 정규화하고, ReLU는 음수 반응을 0으로 만드는 비선형 함수임. 네 MatchingBlock은 구조만 같고 가중치는 각각 다름.
+첫 `3×3 Conv`는 위치 A와 주변 8개 grid cell의 입력을 학습 가중합하여 local 문맥을 추가함. 예를 들어 A의 cosine이 같아도 주변에 높은 값이 이어진 경우와 한 곳만 높은 경우를 다른 입력으로 처리할 수 있음. `1×1 Conv`는 각 위치의 64개 channel을 다시 조합함. `GroupNorm(8,64)`은 sample 내부에서 64 channel을 8개 group으로 정규화하고, ReLU는 음수 반응을 0으로 만드는 비선형 함수임.
 
 **CNN(Convolutional Neural Network)**은 격자 위에서 같은 학습 filter를 이동시키며 계산하는 신경망임. 여기서 `3×3`은 원본 RGB의 3 pixel이 아니라 **30×40 feature grid의 3칸×3칸**을 뜻함. 격자상으로는 원본 48×48px 폭에 대응하지만 각 DINO token 자체가 더 넓은 문맥을 포함하므로 전체 영향 범위를 48×48px로 제한했다고 해석하지 않음.
 
 첫 Conv의 output channel 하나는 한 위치에서 `1537×3×3=13,833`개 입력값에 학습 weight를 곱해 합산하고 bias를 더함. 이런 filter 64개로 64-channel 출력을 만듦. `padding=1`로 경계에 0 padding을 넣어 출력 격자 `30×40`을 유지함. 다음 `1×1 Conv`는 그 위치의 64개 channel을 다시 조합하므로 새로운 이웃 위치를 추가하지 않음. GroupNorm은 group의 channel과 공간 값들을 함께 정규화하므로 block 전체를 순수한 local filter 하나와 동일시하지 않음.
 
-| 비교 항목 | Patch-wise cosine | MatchingBlock |
-|---|---|---|
-| 역할 | Scene vector와 query의 방향 유사도 측정 | Raw 관측·query·cosine·이웃 문맥의 task feature 생성 |
-| 계산 규칙 | L2 normalization 후 내적이라는 고정 수식 | 학습되는 `3×3 Conv → GN → ReLU → 1×1 Conv → GN → ReLU` |
-| 입력 | Scene vector 768개, query 768개 | Scene 768 + query 768 + cosine 1, 주변 grid 위치 |
-| 출력 | 위치별 숫자 1개 | 위치별 숫자 64개 |
-| 위치 처리 | 현재 위치의 두 vector를 비교 | 격자를 유지하면서 3×3 이웃을 추가로 혼합 |
-| 학습 parameter | Cosine 연산 자체에는 없음. Query projection에는 gradient가 흐름 | Conv와 GroupNorm의 parameter를 학습 |
-| 수행하지 않는 것 | 물체 boundary나 관계의 이유를 명시적으로 분류하지 않음 | Target patch별 탐색, cross-attention, 독립적인 correspondence 계산이 아님 |
+이 과정을 전체 격자에 적용하면 **위치마다 숫자 64개가 있는 `F_ℓ: 64×30×40`**이 남음. `64`는 category 수나 score 종류가 아니라 `hidden_ch=64`로 정한 내부 표현 폭임. 같은 layer에서는 모든 위치·모든 target에 동일한 MatchingBlock weight를 사용함. 입력 feature와 query가 다르므로 위치·target별 출력값은 달라질 수 있음.
 
-**Cosine은 고정 비교값, MatchingBlock은 학습된 비선형 해석 경로**임. 두 경로를 결합한 현재 모델의 학습·추론 결과가 보존되어 있으며, MatchingBlock의 추가 효과는 같은 조건의 cosine-only 대조로 측정할 항목임.
+**네 layer의 결과 통합:** 지금까지의 계산을 DINO layer `2,5,8,11` 각각에서 수행함. DINO 모델 네 개를 별도로 학습하는 것이 아니라, **하나의 frozen DINOv3에서 꺼낸 네 중간 출력**을 사용함. 각 layer에는 독립적인 semantic projection과 MatchingBlock이 있으며, 구조는 같고 weight는 서로 다름.
 
-`64`는 category 수나 미리 정한 유사도 종류 수가 아니라 head의 표현 용량 `hidden_ch=64`임. Fusion 입력 `256`도 `4 layers×64 channels`에서 나온 수이며 Occlusion depth encoder의 256-D 표현과는 별개임.
+```text
+같은 Banana semantic s: 1152개
+   ├→ Projection_2  → a_2에 더함  → q_2  ─┐
+   │                 Scene X_2 ───────────┴→ interaction → MatchingBlock_2  → F_2 : 64×30×40
+   ├→ Projection_5  → a_5에 더함  → q_5  ─┐
+   │                 Scene X_5 ───────────┴→ interaction → MatchingBlock_5  → F_5 : 64×30×40
+   ├→ Projection_8  → a_8에 더함  → q_8  ─┐
+   │                 Scene X_8 ───────────┴→ interaction → MatchingBlock_8  → F_8 : 64×30×40
+   └→ Projection_11 → a_11에 더함 → q_11 ─┐
+                     Scene X_11 ──────────┴→ interaction → MatchingBlock_11 → F_11: 64×30×40
+```
 
-Patch-wise cosine은 **명시적인 위치별 비교값**을 제공하고, MatchingBlock은 **원본 feature·query·cosine과 이웃 위치를 이용한 비선형 예측**을 학습함. Target patch별 correspondence나 cross-attention 대신, feature grid의 이웃 위치를 convolution으로 함께 처리하는 구조임. CNN은 이 local 공간 연산을 구현하기 위한 선택이며, MLP도 입력 구성에 따라 공간 정보를 처리할 수 있음.
+네 출력의 **같은 위치 A**에서 64개씩 읽어 이어 붙이면 `64+64+64+64=256`개임. A의 값을 다른 위치 B와 합치는 것이 아니므로 공간 격자는 계속 `30×40`임. 다음 `1×1 Conv`가 이 256개를 가중 조합하여 64개로 줄이고, GroupNorm·ReLU를 적용한 결과가 `F_S`임.
 
-최종 score는 head의 logit에 sigmoid를 적용한 값임. **현재 출력에는 raw DINO cosine을 직접 더하는 residual shortcut이 없음.** Cosine은 위의 interaction channel로만 전달됨. Full-resolution 출력은 sigmoid 이후 bilinear interpolation(`align_corners=False`)으로 만들며, 새 경계 세부 정보를 복원하는 decoder는 아님.
+```text
+네 layer의 같은 위치 A
+F_2(A):64 + F_5(A):64 + F_8(A):64 + F_11(A):64
+                  ↓ concat
+             숫자 256개
+                  ↓ 1×1 Conv 256→64 + GroupNorm(8,64) + ReLU
+             F_S(A): 64개
+
+모든 위치에 적용하면:
+B×256×30×40 → B×64×30×40 = F_S
+```
+
+여기의 `256`은 네 layer 출력을 합친 channel 수이며 Occlusion depth encoder의 256-D 표현과는 별개임. CNN은 공간 격자를 유지하면서 이웃을 처리하기 위한 선택이며, MLP도 입력 구성에 따라 공간 정보를 처리할 수 있음. 현재 경로는 target patch별 correspondence나 cross-attention을 별도로 계산하지 않음.
+
+**64개 feature에서 score 하나로:** 마지막 `1×1` score head는 `F_S(A)`의 64개를 가중합하여 logit 하나를 만들고 sigmoid로 변환함. 이를 모든 위치에 적용한 결과가 `P_S: B×1×30×40`임. **현재 출력에는 raw DINO cosine을 직접 더하는 residual shortcut이 없음.** Cosine cue는 앞의 interaction 입력을 통해 학습된 예측에 반영됨.
 
 Logit은 아직 `0–1`로 제한하지 않은 실수 score임. 마지막 `1×1 Conv`는 위치별 `F_S`의 64개 값을 가중합하여 logit `z` 하나를 만들고, sigmoid `1/(1+exp(−z))`가 이를 bounded score로 바꿈. 예를 들어 `z=0`이면 `0.5`, `z≈1.386`이면 약 `0.8`임. 이는 함수의 계산 예이며 특정 물체에서 실제로 측정한 출력이 아님.
 
@@ -550,7 +617,26 @@ Logit은 아직 `0–1`로 제한하지 않은 실수 score임. 마지막 `1×1 
 
 `F_S`는 위치마다 숫자 64개를 유지하며, `P_S`는 이를 relation score 한 개로 읽는 readout임. **현재 구현은 relation GT로 학습한 `F_S`와 score map을 함께 반환하는 단계까지 완료함.** 후속 fusion에서 `F_S`가 제공하는 추가 정보는 score map만 사용하는 경우와 비교하여 확인할 항목임.
 
+표시용 full-resolution 출력은 sigmoid 이후 bilinear interpolation(`align_corners=False`)으로 `480×640`까지 확대함. 이는 1,200개 patch score 사이를 보간하는 단계이며 새로운 경계 관측을 추가하는 decoder는 아님. **한 위치의 `1537→64`, 네 layer의 `4×64=256→64`, 최종 `64→1`은 서로 다른 단계**임.
+
 #### 5. 학습되는 parameter와 cache
+
+**새 target에 고정 weight를 사용하는 방식:** 학습이 끝난 뒤 Banana reference를 입력하면 appearance·semantic·hybrid query를 새로 계산함. 이때 encoder·projection·MatchingBlock·fusion·head의 weight는 모두 그대로 사용함. Projection의 학습 weight와 그 projection이 특정 입력에서 계산한 출력 vector는 서로 다른 값임.
+
+```text
+같은 scene RGB → 같은 DINO scene feature X
+
+Target reference 변경
+    → 같은 encoder로 새로운 appearance a와 semantic s 계산
+    → 같은 W^ℓ,b^ℓ로 새로운 projected semantic 계산
+    → 새로운 q^ℓ = a^ℓ + W^ℓs+b^ℓ
+    → scene과의 cosine·interaction 변경
+    → 같은 MatchingBlock·fusion·head로 target-conditioned map 계산
+```
+
+**공유 범위:** DINOv3는 scene와 target에 같은 weight를 사용함. SigLIP의 vision/text는 서로 다른 encoder이지만 각각 모든 target에 공통임. Projection과 MatchingBlock은 layer별 네 개이고, **각 layer 안에서는 기존 16개 target과 새 target 모두 같은 weight**를 사용함. Target 이름에 따라 모델을 고르거나 가장 비슷한 기존 target의 query를 가져오는 구조가 아님. 이 경로로 미학습 Banana와 `packaged_food_5`의 관련 영역 활성화를 정성 확인함.
+
+**학습 중 갱신되는 부분:** Frozen DINOv3/SigLIP이 계산한 feature 위에서, projection과 matching·fusion·score head가 relation-map GT 오차를 줄이도록 학습됨. Module별 학습 parameter 수는 다음과 같음.
 
 | Module | Trainable parameters | 계산 근거 |
 |---|---:|---|
@@ -753,6 +839,8 @@ SigLIP semantic s: [s1, s2, ... , s1152]                          ├──→ q
 
 **학습 신호:** 별도의 “fruit 좌표”를 지정하지 않고 similarity-map GT와의 오차를 이용함. Same-category 영역을 과소 예측하는 경우에도 projection과 head가 함께 MSE를 줄이는 방향으로 갱신되며, DINOv3/SigLIP weight는 고정됨.
 
+**Target 간 공유:** `W^ℓ,b^ℓ`는 해당 layer의 모든 target이 공유하는 학습 parameter임. 추론에서 Banana reference를 넣으면 이 parameter를 수정하는 대신, 그 reference에서 얻은 `s`를 기존 식에 대입하여 다른 출력값을 계산함. 네 DINO layer 사이에는 독립적인 adapter가 있고, target 종류 사이에는 같은 adapter를 사용함. 따라서 새 target용 projection을 다시 만들거나 선택할 필요가 없음.
+
 **Latent-space 해석:** Vector를 고차원 공간의 한 점 또는 원점에서 향하는 화살표로 나타내면, `a^ℓ`에 `W^ℓs+b^ℓ`를 더하여 새로운 query 위치 `q^ℓ`를 만드는 연산임.
 
 ```text
@@ -854,6 +942,7 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 | 방법 | 두 vector를 정규화한 내적 | 학습되는 3×3/1×1 Conv와 정규화·비선형 함수 |
 | 위치 하나의 출력 | Score cue 1개 | Feature 64개 |
 | 주변 grid cell | Cosine 수식이 추가로 합치지 않음 | 3×3 Conv에서 명시적으로 함께 합침 |
+| 학습 parameter | Cosine 수식 자체는 고정. Query projection으로 gradient가 전달됨 | Conv weight/bias와 GroupNorm affine parameter를 학습 |
 | 다음 단계 | Raw 입력과 함께 MatchingBlock에 전달 | 다른 layer 출력과 fusion한 뒤 score head로 전달 |
 
 **공간 문맥의 차이:** 중앙 score가 같아도 이웃 분포는 다를 수 있음. 아래는 shifted cosine의 가상 예임.
@@ -881,6 +970,8 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 #### Q5. 새 target에 image-only 추론이 가능한가? Zero-shot은 무엇까지 의미하는가?
 
 **Image-only semantic 추론을 지원하며 `packaged_food_5`의 실제 결과도 보존되어 있음.** `inference_zeroshot.py`의 `--label`을 생략하면 SigLIP image만 사용함. 현재 입력은 crop·appearance pooling용 reference mask와 mapping을 포함하며, raw target RGB에서 이를 자동 생성하는 경로는 후속 구현 항목임.
+
+새 target에서는 **reference 입력과 그 입력에서 계산한 query가 바뀌고, 학습한 모델 weight는 그대로 유지**됨. Banana RGB/mask를 같은 DINOv3와 SigLIP으로 처리한 뒤, 기존 projection·MatchingBlock·head를 사용함. `--label`은 text 조건을 추가하는 옵션이며 target별 모델을 선택하는 옵션이 아님.
 
 ```text
 공통 입력: Scene RGB + Target RGB + Target mask/mapping
@@ -970,14 +1061,9 @@ Camera workspace는 고정 rig의 drawer 내부 영역임. Coverage는 GT genera
 
 #### 계산 흐름
 
-계산은 네 정보 경로를 결합하는 구조임.
+현재 scene을 숫자로 표현하는 경로와 찾을 target을 조건으로 만드는 경로를 결합함. Scene RGB는 외형·문맥, scene depth는 관측 거리 패턴을 제공함. Target RGB는 찾는 물체의 외형을 요약하고, target mask는 크기·윤곽을 계산하는 데 사용함.
 
-1. Scene RGB → 위치를 유지한 feature map.
-2. Target RGB → 물체 조건을 나타내는 평균 vector.
-3. Scene depth → 별도 CNN의 multi-scale feature.
-4. Target mask → geometry descriptor → depth feature 조절.
-
-같은 patch 위치의 scene·depth·target·cosine을 결합한 뒤 convolution으로 가림 표현을 학습함.
+**Target mask에서 조절값을 만들고, 그 값을 scene depth에서 얻은 feature에 적용함.** FiLM이 담당하는 부분은 이 연결임. 그 뒤 scene RGB·target 외형·cosine까지 함께 해석하여 가림 map을 만듦. 현재 Occlusion 입력에는 target depth·target 이름의 text·SigLIP을 사용하지 않음.
 
 ```mermaid
 flowchart TD
@@ -1011,9 +1097,11 @@ flowchart TD
     WM["고정 camera workspace"] --> MASK
 ```
 
-Scene과 target은 **동일한 frozen DINO weight를 공유함.** `2/5/8/11`은 한 backbone에서 꺼낸 네 중간 layer index이며, 별도 DINO 모델 네 개를 뜻하지 않음.
+구조도의 네 branch는 DINO layer `2/5/8/11`의 출력을 처리하는 경로임. Scene과 target은 **동일한 frozen DINO weight를 공유**하며 네 개의 backbone을 따로 학습하지 않음.
 
-ViT-B/16의 patch 크기는 `16×16px`임. 입력 `480×640`을 나누면 `30×40`, 총 1,200개 patch가 됨. 이 16은 학습 target 수 16과 무관함. DINO attention이 다른 위치의 문맥도 반영하므로 한 feature가 해당 16×16 pixel만 독립적으로 관측하는 것은 아님.
+아래 내부 설명은 **DINO layer 2를 사용하는 branch 하나**에서 시작함. Scene RGB feature와 depth feature를 준비하고, target RGB·mask에서 얻은 조건을 결합하여 위치당 64개 숫자를 만드는 과정까지 먼저 설명함. 이후 같은 계산을 네 layer로 확장하고 `F_O`, `P_O`를 만드는 전체 출력을 연결함.
+
+본문의 수치 예는 sample 한 개를 기준으로 하며 `C×H_p×W_p`는 **위치당 숫자 수(channel) × 세로 위치 수 × 가로 위치 수**임. 실제 tensor에는 맨 앞에 batch `B`가 붙음. 예를 들어 `B×768×30×40`은 사진마다 30행·40열의 위치가 있고 각 위치에 숫자 768개가 저장된다는 뜻임.
 
 #### 모듈별 역할과 연결
 
@@ -1033,89 +1121,34 @@ ViT-B/16의 patch 크기는 `16×16px`임. 입력 `480×640`을 나누면 `30×4
 
 ### 3. 내부 모듈과 선택 이유
 
-#### 1. RGB feature와 target pooling
+#### 1. Scene RGB와 위치별 feature
 
-RGB는 `[0,1]` 변환 후 ImageNet mean/std로 정규화함. DINO 입력 규격을 맞추는 전처리이며 scene별 min–max 정규화는 사용하지 않음. DINO는 evaluation mode·고정 weight·gradient 계산 없음으로 실행함.
+Scene RGB는 현재 더미의 `480×640` 컬러 사진임. 원본 pixel마다 R·G·B 세 숫자가 있고, 이를 `[0,1]`로 변환한 뒤 ImageNet mean/std로 정규화하여 DINO에 입력함. Scene별 min–max를 적용하는 방식은 아님. DINO는 evaluation mode·고정 weight·gradient 계산 없음으로 사용함.
 
-Scene은 위치 정보를 보존하기 위해 네 layer의 `B×768×30×40` map을 유지함. 위치당 768개 값은 학습된 표현으로, 각각을 색·물체 종류·높이 등의 물리량으로 지정하지 않음.
-
-Target도 같은 DINO map을 얻지만, **전체 1,200개 patch vector를 평균**하여 layer별 조건 vector 하나로 요약함.
-
-$$
-q_l=\frac{1}{H_pW_p}\sum_{u=1}^{H_p}\sum_{v=1}^{W_p}X_{t,l}(u,v)
-$$
-
-기호와 출력 규격은 다음과 같음.
-
-- `l`: 선택한 DINO layer.
-- `X_{t,l}(u,v)`: Target reference의 위치 `(u,v)`에 있는 768-D vector.
-- `H_p=30`, `W_p=40`: Patch grid의 높이·너비.
-- `q_l`: 1,200개 patch의 평균인 768-D vector. Batch 포함 shape는 `B×768`임.
-
-Backbone이 반환하는 CLS token은 이 interaction에 사용하지 않음.
-
-Target pooling에는 주변 배경 patch도 포함함. Bbox crop·224×224 확대·mask 가중 평균을 적용하지 않는 현재 Occlusion 구현으로, Similarity의 crop·mask pooling과 다름.
-
-전체 reference의 appearance를 제공하되, 평균 vector가 영상상 크기를 충분히 보존한다고 가정하지 않아 geometry 경로를 별도로 둠.
-
-다음 단계는 appearance `q_l`과 크기·윤곽 `g`를 함께 받음. 고정 reference 촬영 규격에서 이 두 조건으로 full16·외부 target의 예측을 확인함. Reference 거리·화각·배경이 변할 때의 성능은 입력 조건별로 확인할 필요가 있음.
-
-#### 2. Native 68-D geometry
-
-`extract_target_geometry()`는 mask를 **크기 관련 4개 값과 silhouette 64개 값**으로 요약함. 이 고정 길이 요약 vector가 descriptor이며, 정해진 계산식을 적용하므로 학습 weight는 없음.
-
-Reference frame의 높이·너비를 `H,W`, foreground pixel 수를 `A`로 정의함. Foreground의 최상·최하·최좌·최우 pixel을 감싸는 최소 사각형이 bbox이며 높이·너비는 `h,w`임. 첫 네 값은 다음과 같음.
-
-| Index | 계산 | 단위·범위와 해석 |
-|---|---|---|
-| `g[0]` | `A/(H×W)` | 단위 없는 면적 비율. Frame 전체 중 target의 비율 |
-| `g[1]` | `h/H` | 단위 없는 높이 비율 |
-| `g[2]` | `w/W` | 단위 없는 너비 비율 |
-| `g[3]` | `log(w/h)` | 자연로그 종횡비. 세로가 길면 음수, 같으면 0, 가로가 길면 양수 |
-
-`g[4:68]`은 bbox 안의 mask를 OpenCV `INTER_AREA`로 `8×8`로 축소한 뒤 행 순서로 펼친 64개 값임. 각 cell은 foreground가 채운 비율인 soft occupancy를 나타냄: 0은 비어 있음, 1은 채워짐, 중간값은 부분 점유임.
+DINO layer 2의 출력은 `768×30×40`임. 원본 480×640 사진을 `16×16px` patch로 처리하므로 세로 `480/16=30`, 가로 `640/16=40`, 총 1,200개 위치를 갖게 됨. **원본 pixel들로 이루어진 영상을 DINO가 처리하여 patch grid의 위치마다 숫자 768개를 만든 것**임.
 
 ```text
-Reference frame 전체: 480×640
-          │
-          ├─ foreground 면적 / 전체 면적         → 1개
-          ├─ bbox 높이 / 480, bbox 너비 / 640    → 2개
-          ├─ log(bbox 너비 / bbox 높이)          → 1개
-          │
-          └─ bbox 안의 mask → 8×8 soft grid
-                0.0  0.2  0.8  ...
-                0.1  0.9  1.0  ...
-                ... 8개 행 ...
-                         ↓ 한 줄로 펼침          → 64개
+Scene RGB: 480×640 위치, 각 pixel은 [R, G, B]
+              ↓ DINOv3: 16×16 patch와 주변 문맥을 처리
+Scene feature: 30×40 위치, 각 칸은 [x_0, x_1, …, x_767]
 
-전체 descriptor: 4 + 64 = 68개 숫자
+30행 × 40열의 위치마다 이 768개 숫자가 저장됨
+→ Scene feature map X_l: 768×30×40
 ```
 
-**계산 예:** `A=3,072px`, `h=96px`, `w=64px`인 reference의 첫 네 값은 다음과 같음.
+이 768개 축을 channel이라고 부름. 위치 하나를 고르면 768-D vector를 읽고, channel 하나를 고르면 30×40 숫자 지도 한 장을 읽게 됨. 한 위치의 768개 숫자가 서로 다른 위치 768개를 뜻하는 것은 아님. 각 channel은 학습된 표현이며 사람이 책·높이 같은 물리량을 지정한 값도 아님.
 
-```text
-면적 비율   3072 / (480×640) = 0.01
-높이 비율     96 / 480       = 0.20
-너비 비율     64 / 640       = 0.10
-log aspect   log(64/96)      ≈ -0.405
-```
+DINO attention은 다른 위치의 문맥도 반영하므로 한 feature의 정보 범위가 원본 16×16 pixel에만 제한되지는 않음. 또한 patch 크기 16은 학습 target 수 16과 별개의 설정임.
 
-가로·세로가 각각 2배인 설명용 mask는 면적이 4배가 되어 `[0.04, 0.40, 0.20, -0.405]`를 얻음. Bbox 기준 8×8 윤곽이 거의 같아도 면적·높이·너비가 크기 차이를 보존함. 이는 descriptor의 계산 예이며, 실제 모델의 2배 scale 입력 성능은 별도 scale 평가로 확인할 필요가 있음.
+이 scene map은 어느 위치를 판단하는지 보존하기 위해 평균하지 않고 유지함. 다른 선택 layer도 같은 shape를 제공하며, 우선 layer 2의 map을 뒤의 RGB-D 결합에 사용함.
 
-크기 4개와 silhouette 64개는 상호 보완적임.
+#### 2. Scene depth와 위치별 feature
 
-- 정사각형 8×8 변환에서 원래 종횡비가 변하므로 높이·너비·aspect를 별도 제공함.
-- 동일 bbox에서도 꽉 찬 사각형과 둥근 윤곽은 corner occupancy가 다를 수 있으므로 64개 cell로 거친 형태 차이를 보존함.
+Scene depth는 같은 영상 위치에서 관측한 미터 단위 거리임. 먼저 각 원본 pixel을 **정규화된 거리와 관측 유효성이라는 두 숫자**로 바꾼 뒤 ResNet에 넣음. 이 단계의 거리는 drawer 바닥에서 물체까지의 높이가 아니라 camera depth임.
 
-**Descriptor는 영상상 크기이며 centimeter 단위의 3D 크기가 아님.** 고정 거리·화각에서는 실제 크기 차이와 관련되지만, 같은 물체도 camera에 가까워지면 크게 보임. Single mask로 실제 길이·높이를 일반적으로 확정할 수 없으며 target depth·USD의 3D extent도 사용하지 않음.
+유효성 `V`는 현재 코드의 `depth>0` 판정임. 1은 기록된 값을 유효 관측으로 취급한다는 표시이며 측정 정확도를 보증하는 값은 아님. 0은 관측 거리가 없다는 뜻으로 물체가 없다는 label과 구분함.
 
-`Native 68-D`는 원래 정의의 68개 값을 모두 사용한다는 뜻임. 과거 size-only·exact-extent oracle는 일부 slot을 0 또는 다른 정보로 바꾼 실험이며 현재 전처리와 다름. FiLM은 이 native descriptor에 맞춰 학습되므로 차원 수만 유지하고 값의 의미를 바꾸면 입력 계약이 달라짐.
-
-#### 3. Depth 정규화와 validity
-
-Scene depth는 RGB 위치에 대응하는 미터 단위 관측 거리임. Drawer 바닥에서의 물체 높이를 직접 나타내지 않음. 현재 network는 3D 역투영·숨은 표면 복원 없이 영상 grid의 2-channel 입력으로 처리함.
-
-첫 channel은 고정된 `[2.5,3.5] m` 범위를 `[0,1]`로 옮긴 depth, 둘째는 `depth>0`인 곳을 1로 표시한 valid mask임.
+첫 channel에는 `[2.5,3.5] m`를 `[0,1]`로 옮긴 거리, 둘째에는 `V`를 저장함. 범위 밖 유효 거리는 가까운 끝값으로 clip하고 무효 거리의 첫 channel은 0으로 둠.
 
 $$
 V(u,v)=[D_s(u,v)>0]
@@ -1135,15 +1168,14 @@ $$
 |---|---|---|
 | 유효 `3.0m` | `[0.5,1]` | 고정 범위의 중간 거리 |
 | 유효 `2.5m` | `[0,1]` | 유효한 하한 거리 |
+| 유효 `3.5m` | `[1,1]` | 유효한 상한 거리 |
 | 무효 `0` | `[0,0]` | 관측 거리 없음 |
 
-Valid channel은 정규화값이 같은 두 0의 의미를 구별함. 결측 위치를 표시하는 전처리이며 실제 거리의 복원은 아님.
+유효 `2.5m`와 무효 `0`은 첫 channel만 보면 모두 0임. Valid를 추가하면 `[0,1]`과 `[0,0]`으로 구별됨. 따라서 원본 한 위치에 숫자 두 개가 있는 `2×480×640`을 다음 depth encoder에 전달함. 결측 거리를 새로 만들어 채우는 전처리는 아님.
 
 고정 정규화는 scene 간 거리 기준을 유지함. Scene별 최솟값·최댓값을 0·1로 바꾸면 같은 `3.0m`도 장면마다 다른 값이 되므로 현재 camera·drawer에 공통 범위를 적용함. 이 규격으로 다섯 camera 평가를 완료했으며, 새로운 camera 배치에서는 clipping 비율과 입력 분포 변화를 확인할 필요가 있음.
 
-#### 4. Multi-scale depth encoder
-
-Depth는 별도 `SceneDepthEncoder`로 처리함. Encoder는 `weights=None`인 ResNet-18이며 ImageNet weight를 가져오지 않음. 첫 convolution을 2-channel로 바꾸고 처음부터 학습하여, RGB와 수치·validity 구조가 다른 depth를 가림 GT에 맞게 변환함.
+**Depth encoder는 이 두 숫자와 주변 거리 패턴을 학습 feature로 바꿈.** `SceneDepthEncoder`는 ImageNet weight를 가져오지 않은 `weights=None` ResNet-18이며, 첫 convolution을 2-channel로 바꾸어 처음부터 학습함. RGB와 단위·validity 구조가 다른 depth를 별도 경로에서 처리하는 선택임.
 
 깊은 layer일수록 공간 해상도는 줄고 channel 수는 늘어남. Stride 8·32는 입력 영상에서 feature 위치 간격이 각각 8px·32px임을 뜻함. Convolution이 누적되므로 실제 receptive field는 이 간격보다 넓음.
 
@@ -1158,7 +1190,7 @@ Depth는 별도 `SceneDepthEncoder`로 처리함. Encoder는 `weights=None`인 R
 
 ResNet residual connection은 기존 feature에 convolution의 변화량을 더하는 경로임. 현재 depth encoder는 이 경로로 기존 표현을 수정하며 GT loss를 학습함. `ResNet-18`의 18은 architecture의 layer 명칭이며 출력 차원이 아님.
 
-RGB map과 결합하기 위해 각 scale에 독립적인 `1×1 Conv`로 256 channels를 만들고, bilinear interpolation으로 `30×40`에 정렬함.
+현재 branch는 ResNet의 `layer2` 출력을 사용함. `128×60×80`을 그대로 두면 scene RGB의 `768×30×40`과 위치 수가 다르므로, `1×1 Conv`로 표현 폭을 256으로 바꾸고 bilinear interpolation으로 위치 grid를 30×40에 맞춤. 다른 두 scale도 같은 규격으로 준비해 이후 branch에서 사용함.
 
 ```text
 128×60×80  → 1×1 Conv 128→256 → resize → 256×30×40
@@ -1168,17 +1200,319 @@ RGB map과 결합하기 위해 각 scale에 독립적인 `1×1 Conv`로 256 chan
 
 `1×1` convolution은 같은 위치의 channel을 학습하여 결합함. 그 입력에는 이전 convolution의 공간 문맥이 이미 반영돼 있음. Resize는 `align_corners=False`인 bilinear 보간이며, 15×20 feature를 확대해도 새로운 세부 관측을 추가하지 않음.
 
-세 depth map을 DINO branch `2/5/8`에 차례로 연결하고, layer 11에는 가장 깊은 세 번째 map을 재사용함. **RGB branch는 네 개, depth scale은 세 개**임. 마지막 두 branch는 같은 depth map을 받지만 FiLM·MatchingBlock parameter가 각각 달라 다른 출력을 만들 수 있음.
+이 단계가 끝나면 선택한 branch의 scene RGB와 depth를 같은 grid 위치에서 읽을 수 있음. 예를 들어 `(10,20)` 위치에 scene RGB 표현 768개와 depth 표현 256개가 준비됨. 이때 30×40 위치는 원본 pixel grid에서 줄어든 feature grid임.
 
-Multi-scale 구성은 촘촘한 변화와 넓은 더미 문맥을 함께 제공함. 256개 channel은 관측 depth에서 학습한 latent representation으로, 높이·틈새 같은 개별 물리량 대신 후속 MatchingBlock이 사용할 패턴을 표현함.
+Depth feature를 `E[c,u,v]`로 쓰면 `c`는 channel, `u,v`는 feature grid의 행·열임. 두 가지 읽는 방법은 다음과 같음.
 
-#### 5. Global FiLM
+```text
+위치 (10,20)을 고정:
+    [E[0,10,20], E[1,10,20], …, E[255,10,20]]
+    → 한 위치를 표현하는 숫자 256개
 
-**FiLM은 target geometry에 따라 depth feature를 조절함.** FiLM 이전의 depth feature는 scene이 같으면 동일하지만, 같은 더미가 작은 target과 큰 target을 가릴 수 있는 정도는 다를 수 있음. 이 조건 차이를 depth 해석에 반영하는 경로임.
+Channel 7을 고정:
+    E[7,:,:]
+    → 30행 × 40열의 숫자 지도 한 장
+```
 
-FiLM은 Feature-wise Linear Modulation임. Channel별 gain·기준값 조절에 대응하며 gamma는 곱셈, beta는 덧셈을 수행함. 물리 센서 보정이나 미터 단위 raw depth 변경이 아니라, ResNet·projection이 만든 feature를 조절하는 연산임.
+256은 depth 표현의 폭으로 정한 channel 수이며 원본 `16×16=256` pixel 수에서 유도된 값은 아님. ResNet·projection을 통과한 값은 거리 패턴의 내부 표현이므로 feature 0.6이 0.6m 또는 가림 확률 60%를 뜻하지 않음. 원본 정규화 범위가 `[0,1]`이어도 이후 feature 값은 그 범위에 제한되지 않음.
 
-**Parameter 생성.** Geometry `g: B×68`을 shared MLP에 입력함. MLP는 Linear layer와 비선형 함수를 조합해 vector를 변환하는 작은 network임.
+**여기까지의 scene RGB·depth feature에는 찾을 target이 반영되지 않음.** 같은 scene에서 작은 장난감 대신 큰 책을 찾더라도 `X_l`과 FiLM 이전 `E`는 같음. 다음 두 절에서 만드는 target 조건을 이 feature에 연결함.
+
+#### 3. Target RGB와 공간 평균
+
+Target 입력은 찾을 물체를 단독으로 촬영한 reference RGB와 같은 사진의 mask임. **RGB는 색·무늬를, mask는 target이 차지한 영역을 제공함.** 두 자료는 다음처럼 구분됨.
+
+| 자료 | Target 영역 | 배경 영역 | 현재 사용 경로 |
+|---|---|---|---|
+| Reference RGB | 원래 색·무늬 | 원래 촬영된 배경 | 전체 frame을 DINO에 입력 |
+| Binary target mask | `1` 또는 `True`, 표시 시 흰색 | `0` 또는 `False`, 표시 시 검정색 | 크기·윤곽 계산 |
+| Mask를 곱한 RGB | 원래 색·무늬 | 검정색 | 현재 Occlusion의 DINO 입력으로 사용하지 않음 |
+
+Mask는 `480×640`의 2차원 배열이며 RGB 색을 저장하지 않음. 현재 `load_target_reference()`는 별도 target segmentation에서 해당 색을 찾아 mask를 얻음. 더미 속 target의 위치가 아니라 reference 물체의 윤곽을 사용하는 것임.
+
+**Target RGB는 mask를 곱하거나 bbox crop하지 않은 원본 frame으로 처리함.** Scene과 같은 RGB 전처리·frozen DINO에 넣으면 layer 2에서 역시 `768×30×40` map이 나옴. Scene은 위치별 출력을 만들기 위해 map을 유지하지만 target은 전체 scene에 전달할 검색 조건 하나로 사용하므로 공간 위치를 평균함. 사진에 물체가 하나여서 자동으로 합쳐지는 것이 아니라 현재 모델이 선택한 연산임.
+
+공간 평균은 channel끼리 더하는 연산이 아님. Channel마다 1,200개 위치의 평균을 구하므로 출력에는 여전히 숫자 768개가 남음. 작은 계산 예에서는 이를 직접 확인할 수 있음.
+
+```text
+설명용 feature: 3 channels × 2행 × 2열
+공간 배치:  A B
+            C D
+```
+
+| Channel | 위치 A | 위치 B | 위치 C | 위치 D | 공간 평균 |
+|---|---:|---:|---:|---:|---:|
+| 1 | 1 | 3 | 5 | 7 | 4 |
+| 2 | 2 | 4 | 6 | 8 | 5 |
+| 3 | 10 | 20 | 30 | 40 | 25 |
+
+결과는 scalar 하나가 아니라 `[4,5,25]` vector임. `3×2×2 → 3×1×1`처럼 위치축만 요약되고 channel축은 유지됨. 실제 모델은 `768×30×40 → 768`이며, broadcast할 때 이 vector를 `768×1×1`로 펼침. 여기서 1×1은 원본 RGB를 pixel 하나로 축소했다는 뜻이 아니라 feature의 공간 요약을 나타냄.
+
+Layer `l`의 전체 patch 평균을 `q_l`로 정의하면 실제 계산은 다음과 같음.
+
+$$
+q_l=\frac{1}{H_pW_p}\sum_{u=1}^{H_p}\sum_{v=1}^{W_p}X_{t,l}(u,v)
+$$
+
+기호와 출력 규격은 다음과 같음.
+
+- `l`: 선택한 DINO layer.
+- `X_{t,l}(u,v)`: Target reference의 위치 `(u,v)`에 있는 768-D vector.
+- `H_p=30`, `W_p=40`: Patch grid의 높이·너비.
+- `q_l`: 1,200개 patch의 평균인 768-D vector. Batch 포함 shape는 `B×768`임.
+
+Backbone이 반환하는 CLS token은 이 interaction에 사용하지 않음.
+
+평균에는 target 주변 배경 patch도 포함함. Bbox crop·224×224 확대·mask 가중 평균을 적용하지 않으므로 Similarity의 mask pooling과 다름. 검정 배경의 RGB가 0이어도 정규화·DINO를 거친 feature까지 모두 0이 되는 것은 아님.
+
+설명용으로 전체 1,200개 위치 중 물체 쪽이 12개, 배경 쪽이 1,188개라면 두 집단 평균 `q_obj,q_bg`의 결합은 `q_l=0.01×q_obj+0.99×q_bg`임. 물체 쪽 위치 수가 적으면 공간 평균에서의 비중도 작아짐. 다만 각 DINO feature에 다른 위치의 문맥이 반영되므로 target 정보가 정확히 1%만 남는다는 뜻은 아님.
+
+현재 전체 frame 평균을 사용하는 모델에서도 full16·외부 target의 예측을 확인함. 배경 혼합이 성능에 주는 영향은 pooling 방식을 통제한 비교로 확인할 수 있음. 다음 mask 경로는 크기·윤곽을 명시적으로 보완하며, 이미 평균한 RGB vector에서 배경을 제거하는 연산은 아님.
+
+출력 `q_l`은 찾는 target의 외형 조건임. 이 vector는 뒤에서 모든 scene 위치에 전달하고 scene vector와 cosine을 계산하는 데 사용함. Reference 거리·화각·배경 변화의 영향은 현재 고정 촬영 조건의 결과를 기준으로 확인할 필요가 있음.
+
+#### 4. Target mask와 68-D geometry
+
+RGB에서 `q_l`을 얻는 동안 mask에서는 별도 함수 `extract_target_geometry()`로 `g`를 계산함. **전체 영상에서의 크기 관련 4개 값과 bbox 내부 윤곽 64개를 이어 붙인 68-D vector**임. 이 계산은 물체 종류를 조회하거나 weight를 학습하지 않고 mask의 숫자만 사용함.
+
+Reference frame의 높이·너비를 `H,W`, foreground pixel 수를 `A`로 정의함. Foreground의 최상·최하·최좌·최우 pixel을 감싸는 최소 사각형이 bbox이며 높이·너비는 `h,w`임. 첫 네 값은 다음과 같음.
+
+| Index | 계산 | 단위·범위와 해석 |
+|---|---|---|
+| `g[0]` | `A/(H×W)` | 단위 없는 면적 비율. Frame 전체 중 target의 비율 |
+| `g[1]` | `h/H` | 단위 없는 높이 비율 |
+| `g[2]` | `w/W` | 단위 없는 너비 비율 |
+| `g[3]` | `log(w/h)` | 자연로그 종횡비. 세로가 길면 음수, 같으면 0, 가로가 길면 양수 |
+
+`g[4:68]`은 **전체 frame이 아닌 bbox 내부 mask만 잘라** OpenCV `INTER_AREA`로 `8×8`에 맞춘 뒤 행 순서로 펼친 64개 값임. Crop은 이 geometry 경로에만 적용하며 앞의 target RGB 입력은 원본 frame을 유지함.
+
+예를 들어 전체 480×640 mask에서 bbox가 세로 80·가로 160이면 계산은 다음과 같음.
+
+```text
+전체 mask 480×640
+    ↓ target의 최소 bbox 안쪽 mask만 crop
+80×160 binary mask
+    ↓ INTER_AREA로 면적 기반 축소
+8×8 soft silhouette
+    ↓ 첫 행부터 순서대로 flatten
+64개 숫자
+```
+
+이 예에서 축소된 한 cell은 원본 crop의 `10×20=200` pixel에 대응함. 그 안의 target 비율을 저장하므로 이진 mask를 줄였어도 중간값을 갖는 soft occupancy가 됨.
+
+| 원본 cell 영역의 target pixel | 8×8 cell 값 | 의미 |
+|---|---:|---|
+| 0/200 | 0.00 | 비어 있음 |
+| 50/200 | 0.25 | 면적의 25% 점유 |
+| 150/200 | 0.75 | 면적의 75% 점유 |
+| 200/200 | 1.00 | 전체 점유 |
+
+위 숫자는 80×160을 8×8로 정수 배율 축소한 예임. 다른 bbox도 같은 면적 기반 resize를 사용해 항상 64개 숫자로 변환함. 네 scalar와 이 윤곽 값의 연결은 다음과 같음.
+
+```text
+Reference frame 전체: 480×640
+          │
+          ├─ foreground 면적 / 전체 면적         → 1개
+          ├─ bbox 높이 / 480, bbox 너비 / 640    → 2개
+          ├─ log(bbox 너비 / bbox 높이)          → 1개
+          │
+          └─ bbox 안의 mask → 8×8 soft grid
+                0.0  0.2  0.8  ...
+                0.1  0.9  1.0  ...
+                ... 8개 행 ...
+                         ↓ 한 줄로 펼침          → 64개
+
+전체 descriptor: 4 + 64 = 68개 숫자
+```
+
+**네 scalar의 별도 계산 예:** `A=3,072px`, `h=96px`, `w=64px`인 reference에서는 다음 값을 얻음.
+
+```text
+면적 비율   3072 / (480×640) = 0.01
+높이 비율     96 / 480       = 0.20
+너비 비율     64 / 640       = 0.10
+log aspect   log(64/96)      ≈ -0.405
+```
+
+가로·세로가 각각 2배인 설명용 mask는 면적이 4배가 되어 `[0.04, 0.40, 0.20, -0.405]`를 얻음. Bbox 기준 8×8 윤곽이 거의 같아도 면적·높이·너비가 크기 차이를 보존함. 이는 descriptor의 계산 예이며, 실제 모델의 2배 scale 입력 성능은 별도 scale 평가로 확인할 필요가 있음.
+
+크기 4개와 silhouette 64개는 상호 보완적임.
+
+- 정사각형 8×8 변환에서 원래 종횡비가 변하므로 높이·너비·aspect를 별도 제공함.
+- 동일 bbox에서도 꽉 찬 사각형과 둥근 윤곽은 corner occupancy가 다를 수 있으므로 64개 cell로 거친 형태 차이를 보존함.
+
+**Descriptor는 영상상 크기이며 centimeter 단위의 3D 크기가 아님.** 고정 거리·화각에서는 실제 크기 차이와 관련되지만, 같은 물체도 camera에 가까워지면 크게 보임. Single mask로 실제 길이·높이를 일반적으로 확정할 수 없으며 target depth·USD의 3D extent도 사용하지 않음.
+
+`Native 68-D`는 원래 정의의 68개 값을 모두 사용한다는 뜻임. 과거 size-only·exact-extent oracle는 일부 slot을 0 또는 다른 정보로 바꾼 실험이며 현재 전처리와 다름. FiLM은 이 native descriptor에 맞춰 학습되므로 차원 수만 유지하고 값의 의미를 바꾸면 입력 계약이 달라짐.
+
+이렇게 얻은 `g=[크기 관련 4개, silhouette 64개]`를 다음 FiLM MLP에 전달함. `q_l`은 RGB 외형, `g`는 mask의 크기·윤곽이므로 같은 target에서 나왔어도 사용 경로가 다름.
+
+#### 5. Target 조건으로 scene depth 조절
+
+앞 절까지 준비한 `E`는 scene depth의 표현이고 `g`는 찾는 target mask의 요약임. **FiLM은 `g`에서 조절값을 계산하여 `E`에 적용함.** Target mask를 depth로 바꾸거나 target depth를 사용하는 과정이 아님.
+
+FiLM은 Feature-wise Linear Modulation으로, channel마다 곱할 값 `gamma`와 더할 값 `beta`를 정하는 방식임. 조절 대상은 미터 단위 원본 depth가 아니라 ResNet·projection이 만든 scene feature임.
+
+```text
+Target mask → geometry g 68개 → 공유 FiLM MLP → gamma, beta
+                                                    │
+Scene depth → 정규화·valid → ResNet·projection → E ──┤
+                                                    ↓
+                                      E' = gamma × E + beta
+                                                    ↓
+                               Target 조건이 반영된 scene depth feature
+```
+
+MLP는 여러 입력 숫자를 학습 weight로 조합해 출력 숫자를 만드는 작은 network임. 현재는 **모든 target에 공통인 하나의 MLP**가 조절값을 계산함. 한 branch에서 사용할 값은 channel별 gamma 256개·beta 256개이며, 전체 네 branch의 출력을 한 번에 만드는 실제 크기는 뒤의 네 branch 절에서 연결함.
+
+Channel 수·해상도를 맞춘 `E`에 FiLM을 적용한 뒤 RGB·target·cosine과 결합함. Branch를 `l`, channel을 `c`, feature 위치를 `(u,v)`로 쓰면 계산은 다음과 같음.
+
+$$
+E'_{l,c}(u,v)=\gamma_{l,c}(g)E_{l,c}(u,v)+\beta_{l,c}(g)
+$$
+
+`E,E'`는 각각 FiLM 전·후의 256-channel depth feature임. `l`은 네 branch, `c`는 256개 channel, `(u,v)`는 30×40 grid 위치를 나타냄. MLP가 `g`에서 계산한 gamma·beta는 각각 `B×256×1×1`이며 공간축으로 broadcast됨.
+
+**계산 예:** 한 branch의 depth channel 7을 고정하고 서로 이웃한 위치 두 곳을 읽은 가상 값임. 학습된 실제 channel의 측정값은 아님.
+
+| 위치 | 읽는 원소 | Channel | 행 | 열 | 저장된 feature 값 |
+|---|---|---:|---:|---:|---:|
+| A | `E[7,10,20]` | 7 | 10 | 20 | 0.60 |
+| B | `E[7,10,21]` | 7 | 10 | 21 | 0.20 |
+
+A·B는 서로 다른 channel이 아니라 **같은 channel 지도 안의 다른 위치**임. 좌표 10·20·21과 그 위치에 저장된 값 0.60·0.20을 구분함. 같은 target에서 channel 7의 gamma·beta는 두 위치에 동일하게 적용됨.
+
+```text
+같은 scene의 한 depth feature channel
+
+                     위치 A       위치 B
+원래 feature E         0.60         0.20
+                         │            │
+Target 작은 물체 ── g ── FiLM MLP: gamma=0.50, beta=-0.10
+                         ↓            ↓
+E' = 0.50×E-0.10        0.20         0.00
+
+Target 큰 물체   ── g ── FiLM MLP: gamma=1.40, beta= 0.05
+                         ↓            ↓
+E' = 1.40×E+0.05        0.89         0.33
+
+각 E'는 이후 RGB·target·cosine과 함께 MatchingBlock으로 전달됨
+```
+
+작은 target에서 `gamma[7]=0.50,beta[7]=-0.10`이면 `E'[7,10,20]=0.20`, `E'[7,10,21]=0.00`이 됨. 다른 target의 조절값 `1.40,0.05`를 쓰면 같은 원래 scene 값에서 각각 0.89·0.33을 얻음. Target은 조절값을 바꾸고, 공간별 결과 차이는 원래 scene feature에서 유지되는 구조임.
+
+예시의 **0.89는 중간 channel 값이며 가림 확률이 아님.** 이후 convolution·sigmoid를 거쳐 map을 생성함. 큰 target의 gamma가 반드시 크거나 channel 값 증가가 최종 확률 증가로 이어지는 고정 규칙은 없음.
+
+| 조절값 | 한 channel에서의 작용 |
+|---|---|
+| `gamma=1, beta=0` | 기존 feature를 그대로 통과 |
+| `0<gamma<1, beta=0` | 기존 반응의 절댓값을 줄임 |
+| `gamma>1, beta=0` | 기존 반응의 절댓값을 키움 |
+| `gamma=0` | 기존 공간 반응 대신 beta만 남김 |
+| `gamma<0, beta=0` | 0이 아닌 기존 반응의 부호를 뒤집음 |
+| `beta>0` 또는 `<0` | 해당 channel의 기준값을 위·아래로 이동 |
+
+**Global**은 같은 channel의 30×40 전체 위치에 하나의 gamma·beta 쌍을 적용한다는 뜻임. 다른 channel은 다른 조절값을 가질 수 있으므로 channel 7의 값이 channel 8에도 그대로 쓰이는 것은 아님. FiLM 전·후 shape는 모두 `256×30×40`으로 같고 값만 바뀜. 위치별 가림 판단은 이 `E'`와 RGB·target 단서를 함께 받는 다음 모듈에서 형성됨.
+
+**학습 weight와 입력별 출력의 구분.** FiLM 함수를 `f_θ`로 쓰면 `(gamma,beta)=f_θ(g)`임. `θ(theta)`는 Linear layer의 weight·bias 전체이고 `g`는 이번 target에서 계산한 입력임.
+
+| 값 | 학습 중 | 학습 후 다른 target을 넣을 때 |
+|---|---|---|
+| MLP parameter `theta` | 최종 Occlusion loss로 갱신 | 같은 checkpoint의 값 유지 |
+| Geometry `g` | 입력 mask에서 계산 | 새 mask에서 같은 공식으로 다시 계산 |
+| Gamma·beta | 현재 `theta,g`로 계산 | 고정 `theta`와 새 `g`로 자동 계산 |
+
+고정된 함수라도 입력이 다르면 출력이 달라질 수 있음. 설명용 함수 `f(x)=2x+1`에서 계수 2와 1을 그대로 두어도 입력 2에는 5, 입력 3에는 7이 나옴. 실제 FiLM도 고정된 학습 weight에 새 geometry 68개를 넣어 조절값을 계산함. 모델은 책 전용·장난감 전용 FiLM을 선택하거나 가장 비슷한 기존 물체의 조절값을 가져오지 않음. 새 target도 RGB·mask를 제공하면 동일 전처리와 공유 MLP로 처리하므로 사용자가 gamma·beta를 직접 지정할 필요가 없음.
+
+학습 때는 최종 map의 오차를 통해 유용한 조절 규칙을 학습하고, 추론 때도 이 함수가 계속 실행됨. 실제로 같은 checkpoint로 `packaged_food_5`의 zero-shot 예측까지 확인함. 추가 target에서도 일관된 성능이 나오는지는 현재 결과를 기준으로 평가함.
+
+#### 6. 한 위치의 RGB·depth·target 결합
+
+이제 branch 하나에 scene RGB map `X_l`, 조절된 scene depth map `E'`, target appearance vector `q_l`이 준비됨. 앞의 두 map은 30×40 위치를 갖지만 `q_l`은 공간을 평균한 vector 하나임. 따라서 각 scene 위치가 같은 target 조건을 읽도록 먼저 broadcast하고, 그 위치와 target의 cosine도 계산함.
+
+**Raw broadcast:** `q_l: B×768`을 `B×768×1×1`로 보고 30×40 위치에 동일하게 전달함.
+
+```text
+Target vector q_l = [t_0, t_1, …, t_767]
+    → 위치 A에 같은 768개 전달
+    → 위치 B에 같은 768개 전달
+    → 나머지 30×40 위치에도 동일하게 전달
+```
+
+Target이 모든 위치에 존재한다는 표시가 아니라, 각 위치를 판단할 때 사용할 동일한 검색 조건임. 추가 L2 정규화를 하지 않아 vector의 방향·크기를 유지하는 raw 경로임. 위치별 결과는 서로 다른 scene RGB·depth와 결합하면서 달라짐.
+
+**Patch-wise cosine:** 같은 위치의 scene 768-D vector와 target의 768-D vector를 비교하여 외형 유사도 한 개를 계산함. 이 값은 별도 Similarity stream의 map이 아니라 Occlusion 내부에서 직접 계산하는 입력 단서임.
+
+$$
+\widehat c_l(u,v)=\frac{1}{2}\left(1+
+\frac{X_l(u,v)\cdot q_l}{\lVert X_l(u,v)\rVert_2\lVert q_l\rVert_2}
+\right)
+$$
+
+식의 기호와 계산은 다음과 같음.
+
+- `X_l(u,v)`: Scene의 위치별 vector. `q_l`: Target 평균 vector.
+- `·`: 내적. `|| ||_2`: Vector의 길이.
+- 구현: 각 vector를 L2 normalize한 뒤 원소별 곱을 합함. 정규화 epsilon으로 0에 가까운 vector를 처리함.
+- 범위 변환: `(cos+1)/2`로 `[-1,1]`을 `[0,1]`로 이동함. 출력은 `B×1×30×40`임.
+
+Cosine `0.6`은 shifted 값 `0.8`, cosine `0`은 `0.5`가 됨. 이 유사도 값은 가림 확률이 아님.
+
+예를 들어 앞의 위치 A `(10,20)`에서 scene RGB 768개, FiLM depth 256개, target vector 768개, cosine 한 개를 준비함. **Concat은 이 숫자 목록을 순서대로 이어 붙이는 연산**이며 서로 더하거나 평균하지 않음.
+
+| 묶음 | Channel 수 | MatchingBlock에 전달하는 것 |
+|---|---:|---|
+| Scene DINO | 768 | 현재 위치의 RGB 표현과 문맥 |
+| FiLM depth | 256 | Target geometry에 맞게 조절한 관측 depth 표현 |
+| Raw target | 768 | Cosine 한 값으로 압축되기 전 target vector |
+| Shifted cosine | 1 | Scene–target 외형 대응의 직접 단서 |
+| 합계 | **1,793** | 위치마다 1,793개 숫자, 전체 `B×1793×30×40` |
+
+**Raw feature는 cosine 하나로 압축되지 않은 차이를 보존함.** 서로 다른 scene patch가 같은 cosine 값을 가질 수 있으므로, 후속 network가 색·형상·문맥의 차이를 활용하도록 scene·target vector와 depth를 함께 제공함.
+
+따라서 한 위치의 입력은 `768+256+768+1=1793`개이고 전체 map은 `B×1793×30×40`임. Depth 256채널은 이 1,793개를 구성하는 한 묶음임. FiLM은 concat 이전에 이미 완료했으며, 1,793개를 FiLM으로 다시 256개로 줄이는 단계는 없음. 다음 MatchingBlock이 이 결합된 정보를 64개 표현으로 바꿈.
+
+#### 7. MatchingBlock의 위치별 해석
+
+MatchingBlock은 `1793×30×40`을 입력받아 위치마다 64개 숫자를 출력하는 작은 CNN임. 지금 설명한 branch 하나에서의 순서는 다음과 같음.
+
+```text
+B×1793×30×40
+  ↓ Conv3×3(1793→64, padding=1)
+B×64×30×40
+  ↓ GroupNorm(8 groups) → ReLU
+  ↓ Conv1×1(64→64)
+B×64×30×40
+  ↓ GroupNorm(8 groups) → ReLU
+B×64×30×40
+```
+
+첫 `3×3` convolution은 위치 A의 1,793개 숫자와 주변 8개 위치의 입력을 함께 읽어 새로운 64개 값을 계산함. 예를 들어 외형 유사도가 같아도 주변 depth가 넓은 더미인지 얇은 외곽인지에 따라 다른 표현을 만들 수 있음. 그 결합 weight를 최종 GT loss로 학습하며 `padding=1`로 30×40 위치 수를 유지함.
+
+`GroupNorm(8,64)`는 sample의 64 channels를 8개 group으로 나누어 각 group의 channel·공간 값을 정규화함. 8은 camera·object 수와 무관함. ReLU는 음수를 0으로 바꾸어 비선형성을 추가하고, `1×1` convolution은 위치별 64 channels를 다시 결합함.
+
+결과 `64×30×40`은 네 단서와 이웃 문맥을 함께 해석한 **branch 하나의 가림 관련 표현**임. Channel 수가 64라는 것은 각 위치를 나타내는 숫자가 64개라는 뜻이며, 그 자체가 확률 map은 아님. MatchingBlock은 cosine 재계산이나 두 영상의 모든 patch 조합 검색 대신 이 표현 변환을 수행함.
+
+Cosine은 MatchingBlock의 입력 cue로 사용하고 최종 logit에 직접 더하지 않음. 외형 유사도와 가림값의 관계를 RGB-D·target 문맥 안에서 학습하는 구성임. 전체 모델의 target 조건 사용은 wrong-target 평가로 확인했으며, RGB·depth 각각의 기여는 입력 경로별 비교로 확인할 필요가 있음.
+
+여기까지 한 경로의 흐름은 `depth 256 → 다른 세 묶음과 concat 1793 → MatchingBlock 출력 64`로 연결됨. Scene 위치 30×40은 유지됨. 다음에는 DINO의 나머지 선택 layer에도 같은 형식의 경로를 적용해 네 결과를 결합함.
+
+#### 8. 네 branch와 최종 출력
+
+앞 절은 DINO layer 2를 사용하는 한 branch의 계산임. 실제로는 하나의 DINO에서 layer `2/5/8/11`을 꺼내 네 branch를 구성함. 각 branch는 **자기 layer의 scene map·target 평균 vector**를 사용하며 처리 형식은 동일함.
+
+| Branch | Scene·target DINO layer | 사용하는 depth 출력 | FiLM 이후 처리 |
+|---|---|---|---|
+| 1 | 2 | ResNet layer2를 projection·resize한 map | 1793-channel concat → 독립 MatchingBlock → 64 channels |
+| 2 | 5 | ResNet layer3를 projection·resize한 map | 1793-channel concat → 독립 MatchingBlock → 64 channels |
+| 3 | 8 | ResNet layer4를 projection·resize한 map | 1793-channel concat → 독립 MatchingBlock → 64 channels |
+| 4 | 11 | 같은 ResNet layer4 map 재사용 | 1793-channel concat → 독립 MatchingBlock → 64 channels |
+
+서로 다른 depth scale은 세 개, RGB branch는 네 개임. Layer 8·11은 FiLM 이전 depth map을 공유하지만 gamma·beta 출력 묶음과 MatchingBlock weight가 달라 다른 표현을 만들 수 있음. 여러 scale은 촘촘한 거리 변화와 넓은 주변 문맥을 함께 제공함.
+
+**공유 MLP의 2,048개 출력.** 한 branch의 depth 256채널에 gamma·beta가 하나씩 필요하므로 `256×2=512`개 조절값을 사용함. 네 branch에는 `4×256×2=2048`개가 필요함. Scene 위치 수나 물체 종류 수가 아니라 조절값의 총개수임. FiLM 적용 대상이 depth 256채널이므로 `4×1793×2`로 계산하지 않음.
+
+실제 공유 MLP 하나가 geometry `g: B×68`에서 네 branch의 gamma·beta를 한 번에 계산함. `68→64`는 입력 중 64개를 골라 남기는 것이 아니라 모든 입력을 학습 weight로 조합해 새로운 중간값 64개를 만드는 연산임.
 
 $$
 a=\mathrm{ReLU}(W_1g+b_1),\qquad z=W_2a+b_2
@@ -1210,126 +1544,13 @@ Branch 하나: gamma 256개 + beta 256개
 Branch 네 개: 4 × 2 × 256 = 2,048개
 ```
 
-**적용 위치.** Depth의 channel 수·해상도를 맞춘 뒤 RGB·target·cosine과 concat하기 직전에 적용함. Sample 하나의 branch `l`, channel `c`, patch `(u,v)`에 대한 식은 다음과 같음.
-
-$$
-E'_{l,c}(u,v)=\gamma_{l,c}(g)E_{l,c}(u,v)+\beta_{l,c}(g)
-$$
-
-`E,E'`는 각각 FiLM 전·후의 256-channel depth feature임. `l`은 네 branch, `c`는 256개 channel, `(u,v)`는 30×40 grid 위치를 나타냄. MLP가 `g`에서 계산한 gamma·beta는 각각 `B×256×1×1`이며 공간축으로 broadcast됨.
-
-**계산 예.** 같은 depth feature에 서로 다른 target 조건을 적용한 가상 값임. 학습된 channel의 실제 측정치는 아님.
-
-```text
-같은 scene의 한 depth feature channel
-
-                     위치 A       위치 B
-원래 feature E         0.60         0.20
-                         │            │
-Target 작은 물체 ── g ── FiLM MLP: gamma=0.50, beta=-0.10
-                         ↓            ↓
-E' = 0.50×E-0.10        0.20         0.00
-
-Target 큰 물체   ── g ── FiLM MLP: gamma=1.40, beta= 0.05
-                         ↓            ↓
-E' = 1.40×E+0.05        0.89         0.33
-
-각 E'는 이후 RGB·target·cosine과 함께 MatchingBlock으로 전달됨
-```
-
-Target이 바뀌면 같은 scene feature에 다른 조절값을 적용할 수 있음. 한 target 안에서는 A·B에 같은 조절값을 적용해도 원래 feature 차이가 유지됨.
-
-예시의 **0.89는 중간 channel 값이며 가림 확률이 아님.** 이후 convolution·sigmoid를 거쳐 map을 생성함. 큰 target의 gamma가 반드시 크거나 channel 값 증가가 최종 확률 증가로 이어지는 고정 규칙은 없음.
-
-| 조절값 | 한 channel에서의 작용 |
-|---|---|
-| `gamma=1, beta=0` | 기존 feature를 그대로 통과 |
-| `0<gamma<1, beta=0` | 기존 반응의 절댓값을 줄임 |
-| `gamma>1, beta=0` | 기존 반응의 절댓값을 키움 |
-| `gamma=0` | 기존 공간 반응 대신 beta만 남김 |
-| `gamma<0, beta=0` | 0이 아닌 기존 반응의 부호를 뒤집음 |
-| `beta>0` 또는 `<0` | 해당 channel의 기준값을 위·아래로 이동 |
-
-**Global**은 target·branch·channel별 gamma·beta를 모든 위치에 공통 적용한다는 뜻임. Target별 spatial gate를 직접 만들지 않으며, 공간 차이는 `E(u,v)`와 후속 RGB·이웃 문맥에 남아 있음.
-
 **항등 초기화.** 마지막 `Linear(64,2048)`의 weight는 0, gamma bias는 1, beta bias는 0으로 설정함. 학습 시작에는 모든 `g`에 대해 `E'=E`이므로 임의 target 보정 없이 출발하고, GT loss의 gradient로 조절값을 학습함. FiLM은 forward의 일부이며 추론에도 적용함.
 
-#### 6. Conditioning 방식 비교
+**네 branch의 feature 통합.**
 
-Conditioning 방식은 target 정보를 쓰는 연산과 적용 위치로 구분함.
+각 MatchingBlock은 위치마다 64개 숫자를 출력함. 같은 위치에서 네 branch의 목록을 이어 붙이면 `64+64+64+64=256`개가 됨. 이때 shape는 `B×256×30×40`이며, 앞의 depth 256과는 서로 다른 표현임.
 
-| 방법 | Target 조건을 쓰는 방식 | 공간·channel에 생기는 차이 | 현재 상태 |
-|---|---|---|---|
-| Geometry 단순 concat | Geometry 숫자를 위치마다 복제해 depth feature 옆에 붙임 | 후속 network가 두 입력의 관계를 학습함. Concat 자체는 depth를 바꾸지 않음 | 현재 full16에서 FiLM 대신 비교한 최종 ablation은 없음 |
-| Global FiLM | Geometry에서 channel별 gamma·beta를 만들고 depth feature에 곱하고 더함 | Target에 따른 곱셈 상호작용을 명시하며 한 channel의 조절값은 모든 위치에 공통 | **현재 baseline** |
-| Spatial/cross-attention | Query와 key의 관계로 위치·token의 가중치를 만들어 정보를 모음 | 어떤 위치나 token을 참조할지 학습할 수 있으나 구체적 동작은 attention 설계에 따라 다름 | 현재 Occlusion head에 target–scene cross-attention은 없음 |
-| 과거 local residual gate | 위치별 gate로 target 보정의 적용 강도를 조절하고 기존 depth에 변화량을 더함 | Target 보정을 위치마다 제한하려는 목적 | 과거 연구용 mode. 현재 baseline에 적용하지 않음 |
-
-현재는 geometry와 depth의 곱셈 상호작용을 명시한 FiLM을 사용하며, 이 baseline으로 full16·외부 target의 가림 GT 예측을 확인함. 단순 concat도 후속 비선형 network에서 관계를 학습할 수 있으므로, 방식 간 우위를 판단하려면 동일 full16 조건에서 concat·attention과 비교할 필요가 있음.
-
-DINO 내부 attention과 Occlusion head의 target–scene cross-attention은 별개임. 현재 head는 layer별 평균 target vector를 scene 각 위치에 cosine·broadcast로 제공함. 과거 local gate의 식·결과는 Phase 23–30에 기록하며 현재 gamma·beta 계산에 포함하지 않음.
-
-#### 7. Target interaction
-
-각 branch는 scene RGB map과 FiLM depth map에 target appearance를 두 경로로 추가함.
-
-**Raw broadcast:** `q_l: B×768`을 `B×768×1×1`로 바꾸고 공간축을 30×40으로 확장함. 모든 위치에 같은 target 조건을 제공하며, 추가 L2 정규화 없이 vector의 방향·크기를 유지함. Broadcast 자체는 공간 차이를 만들지 않고 위치별 scene·depth와 결합하여 사용됨.
-
-**Patch-wise cosine:** 위치별 scene 768-D vector와 target 768-D vector의 외형 유사도를 한 값으로 요약함.
-
-$$
-\widehat c_l(u,v)=\frac{1}{2}\left(1+
-\frac{X_l(u,v)\cdot q_l}{\lVert X_l(u,v)\rVert_2\lVert q_l\rVert_2}
-\right)
-$$
-
-식의 기호와 계산은 다음과 같음.
-
-- `X_l(u,v)`: Scene의 위치별 vector. `q_l`: Target 평균 vector.
-- `·`: 내적. `|| ||_2`: Vector의 길이.
-- 구현: 각 vector를 L2 normalize한 뒤 원소별 곱을 합함. 정규화 epsilon으로 0에 가까운 vector를 처리함.
-- 범위 변환: `(cos+1)/2`로 `[-1,1]`을 `[0,1]`로 이동함. 출력은 `B×1×30×40`임.
-
-Cosine `0.6`은 shifted 값 `0.8`, cosine `0`은 `0.5`가 됨. 이 유사도 값은 가림 확률이 아님.
-
-Concat은 같은 위치의 channel을 아래 순서대로 이어 붙이는 연산임. 평균·합산은 수행하지 않음.
-
-| 묶음 | Channel 수 | MatchingBlock에 전달하는 것 |
-|---|---:|---|
-| Scene DINO | 768 | 현재 위치의 RGB 표현과 문맥 |
-| FiLM depth | 256 | Target geometry에 맞게 조절한 관측 depth 표현 |
-| Raw target | 768 | Cosine 한 값으로 압축되기 전 target vector |
-| Shifted cosine | 1 | Scene–target 외형 대응의 직접 단서 |
-| 합계 | **1,793** | 위치마다 1,793개 숫자, 전체 `B×1793×30×40` |
-
-**Raw feature는 cosine 하나로 압축되지 않은 차이를 보존함.** 서로 다른 scene patch가 같은 cosine 값을 가질 수 있으므로, 후속 network가 색·형상·문맥의 차이를 활용하도록 scene·target vector와 depth를 함께 제공함.
-
-#### 8. MatchingBlock
-
-네 DINO branch에 각각 독립적인 MatchingBlock을 적용함. 구조는 같고 weight는 공유하지 않음.
-
-```text
-B×1793×30×40
-  ↓ Conv3×3(1793→64, padding=1)
-B×64×30×40
-  ↓ GroupNorm(8 groups) → ReLU
-  ↓ Conv1×1(64→64)
-B×64×30×40
-  ↓ GroupNorm(8 groups) → ReLU
-B×64×30×40
-```
-
-`3×3` convolution은 현재 patch와 주변 8개 patch를 함께 처리함. 동일한 RGB 유사도라도 주변 depth가 넓은 더미인지 얇은 외곽인지 구분할 문맥을 제공하고, 활용 방식은 GT loss로 학습함. `padding=1`로 경계를 채워 30×40 grid를 유지함.
-
-`GroupNorm(8,64)`는 sample의 64 channels를 8개 group으로 나누어 각 group의 channel·공간 값을 정규화함. 8은 camera·object 수와 무관함. ReLU는 음수를 0으로 바꾸어 비선형성을 추가하고, `1×1` convolution은 위치별 64 channels를 다시 결합함.
-
-MatchingBlock은 네 입력과 이웃 문맥을 **가림 GT 예측용 64-channel 표현**으로 변환하는 CNN임. Cosine을 다시 계산하거나 두 영상의 모든 patch 조합을 검색하는 대응 알고리즘은 아님.
-
-Cosine은 MatchingBlock의 입력 cue로 사용하고 최종 logit에 직접 더하지 않음. 외형 유사도와 가림값의 관계를 RGB-D·target 문맥 안에서 학습하는 구성임. 전체 모델의 target 조건 사용은 wrong-target 평가로 확인했으며, RGB·depth 각각의 기여는 입력 경로별 비교로 확인할 필요가 있음.
-
-#### 9. Layer fusion과 출력
-
-네 `B×64×30×40` 출력을 channel축으로 concat하여 `B×256×30×40`을 얻음. 이후 `Conv1×1(256→64) → GroupNorm(8) → ReLU`로 통합한 결과가 `F_O`임. 이 256은 네 64-channel 출력의 합이며 depth feature의 256 channels와 별개임.
+이 결합값에 `Conv1×1(256→64) → GroupNorm(8) → ReLU`를 적용하여 네 layer의 정보를 64개 숫자로 통합함. 그 결과가 `F_O: B×64×30×40`임. 한 위치에서 네 branch를 함께 읽되 위치 grid는 계속 유지함.
 
 Auxiliary head `Conv1×1(64→1)`은 위치별 64 features를 학습 weight로 결합하여 logit 하나를 만들고 sigmoid로 `0–1`에 매핑함.
 
@@ -1354,6 +1575,30 @@ GT와 비교한 `P_O`의 loss로 앞단의 학습 가능한 모듈까지 갱신�
 | 합계, frozen DINO 제외 | **15,706,689** |
 
 `F_O`는 Similarity·Complexity와 결합할 수 있는 공간 규격·64-channel 폭으로 구현됨. 이를 학습시키는 `P_O`의 GT 예측 성능까지 확인했으며, 다음에는 이 feature를 결합했을 때의 map 품질과 DRL 탐색 성능을 평가함.
+
+| 반복 등장하는 숫자 | 해당 단계 | 실제 의미 |
+|---|---|---|
+| Depth의 256 | ResNet projection·FiLM | 한 branch에서 사용하는 depth feature의 channel 수 |
+| Concat의 1,793 | MatchingBlock 입력 | Scene 768 + depth 256 + target 768 + cosine 1 |
+| 네 출력의 256 | MatchingBlock 이후 fusion 입력 | 서로 다른 네 branch의 64-channel 결과를 결합한 폭 |
+| FiLM의 2,048 | 공유 MLP 출력 | 네 branch × depth 256 channels × gamma·beta 두 종류 |
+
+같은 scene에서 target만 바꾸면 `X_l`과 FiLM 이전 `E`는 유지됨. 새 target RGB에서 `q_l`, mask에서 `g`를 다시 계산하므로 broadcast·cosine과 gamma·beta가 달라질 수 있음. 이 변화가 MatchingBlock·fusion·head를 거쳐 target-conditioned `P_O`로 이어짐. 전체 target 조건을 바꿨을 때의 성능 차이는 뒤의 wrong-target 평가에서 확인함.
+
+#### 9. Conditioning 방식 비교
+
+현재 계산에서 FiLM은 geometry로 depth channel 값을 조절하고, broadcast·cosine은 RGB 외형 조건을 전달함. 다른 conditioning 방식과의 차이는 이 연산과 적용 위치를 기준으로 구분함.
+
+| 방법 | Target 조건을 쓰는 방식 | 공간·channel에 생기는 차이 | 현재 상태 |
+|---|---|---|---|
+| Geometry 단순 concat | Geometry 숫자를 위치마다 복제해 depth feature 옆에 붙임 | 후속 network가 두 입력의 관계를 학습함. Concat 자체는 depth를 바꾸지 않음 | 현재 full16에서 FiLM 대신 비교한 최종 ablation은 없음 |
+| Global FiLM | Geometry에서 channel별 gamma·beta를 만들고 depth feature에 곱하고 더함 | Target에 따른 곱셈 상호작용을 명시하며 한 channel의 조절값은 모든 위치에 공통 | **현재 baseline** |
+| Spatial/cross-attention | Query와 key의 관계로 위치·token의 가중치를 만들어 정보를 모음 | 어떤 위치나 token을 참조할지 학습할 수 있으나 구체적 동작은 attention 설계에 따라 다름 | 현재 Occlusion head에 target–scene cross-attention은 없음 |
+| 과거 local residual gate | 위치별 gate로 target 보정의 적용 강도를 조절하고 기존 depth에 변화량을 더함 | Target 보정을 위치마다 제한하려는 목적 | 과거 연구용 mode. 현재 baseline에 적용하지 않음 |
+
+현재는 geometry와 depth의 곱셈 상호작용을 명시한 FiLM을 사용하며, 이 baseline으로 full16·외부 target의 가림 GT 예측을 확인함. 단순 concat도 후속 비선형 network에서 관계를 학습할 수 있으므로, 방식 간 우위를 판단하려면 동일 full16 조건에서 concat·attention과 비교할 필요가 있음.
+
+DINO 내부 attention과 Occlusion head의 target–scene cross-attention은 별개임. 현재 head는 layer별 평균 target vector를 scene 각 위치에 cosine·broadcast로 제공함. 과거 local gate의 식·결과는 Phase 23–30에 기록하며 현재 gamma·beta 계산에 포함하지 않음.
 
 ### 4. GT 생성과 학습
 
@@ -1765,7 +2010,7 @@ Network는 **scene RGB-D와 target RGB·mask로 GT map을 근사하는 함수**�
 
 #### Q2. 실제 입력은 RGB 하나인가? Mask가 있으면 이미 target을 찾은 것 아닌가?
 
-**Scene RGB-D와 별도 target RGB·mask를 사용하며, 이 입력으로 학습·평가를 완료함.** Target mask는 reference의 단독 물체 윤곽을 나타내고 더미 안의 target 위치를 알려주지 않음. 현재 입력 계약은 RGB-only가 아니라 RGB-D와 reference 조건임.
+**Scene RGB-D와 별도 target RGB·mask를 사용하며, 이 입력으로 학습·평가를 완료함.** Mask는 reference의 target을 1, 배경을 0으로 표시한 2차원 배열로 색·무늬가 남은 masked RGB와 다름. 현재 RGB 경로에는 mask를 곱하지 않은 원본 frame을 입력하고 mask는 geometry 계산에 별도로 사용함. 더미 속 target 위치를 제공하는 입력이 아님.
 
 책의 단독 reference에서 bbox 96×64px를 계산한 뒤, 더미에서 책이 보이지 않아도 같은 reference vector·geometry를 조건으로 사용할 수 있음. 이 mask는 찾을 물체의 외형 정보를 제공하며 scene 내 위치 정답은 아님.
 
@@ -1773,7 +2018,9 @@ Network는 **scene RGB-D와 target RGB·mask로 GT map을 근사하는 함수**�
 
 #### Q3. 68-D geometry를 쓰면 target의 실제 가로·세로·높이를 아는가?
 
-**현재 68-D descriptor는 영상상 크기·윤곽이며 미터 단위 3D 치수가 아님.** 면적·bbox 비율 3개, log aspect 1개, bbox 안의 8×8 silhouette 64개임.
+**68-D는 영상상 크기 관련 4개 값과 bbox 내부 8×8 윤곽 64개의 합임.** 앞부분은 면적·높이·너비 비율 3개와 log aspect 1개, 뒷부분은 bbox mask를 `INTER_AREA`로 줄인 soft occupancy임. 전체 frame을 8×8로 축소하는 방식이나 미터 단위 3D 치수와 구분함.
+
+Bbox가 80×160이면 8×8 한 cell은 10×20=200px을 요약함. 이 구역의 target pixel이 50개면 0.25, 150개면 0.75로 저장됨. Crop·resize에서 줄어든 원본 크기 정보는 앞의 네 scalar와 함께 전달함.
 
 너비 비율 0.1은 640px frame에서 bbox 너비가 64px임을 뜻함. 같은 물체도 camera·거리에 따라 32px 또는 128px로 보일 수 있으므로 고정 촬영 규격에서만 상대 크기 단서로 해석함. 임의 실제 길이로 환산할 수 없고 동일 top-view silhouette에서도 높이는 다를 수 있음.
 
@@ -1781,9 +2028,9 @@ Network는 **scene RGB-D와 target RGB·mask로 GT map을 근사하는 함수**�
 
 #### Q4. FiLM은 target마다 별도 모델이나 gamma·beta 표를 저장하는가?
 
-**공유 MLP 하나가 geometry에서 gamma·beta를 계산함.** Target 이름으로 저장된 조절값 표를 조회하지 않으며 weight를 모든 target이 공유함.
+**공유 MLP 하나가 `(gamma,beta)=f_θ(g)`를 계산함.** `θ(theta)`는 모든 target이 공유하는 학습 weight·bias이며 추론 때 고정됨. `g`는 새 mask에서 다시 계산하는 입력이므로 같은 network에서도 출력 gamma·beta가 달라질 수 있음. Target 이름으로 별도 모델이나 조절값 표를 고르지 않음.
 
-새 mask의 68-D vector도 동일한 `68→64→2048` 함수로 계산함. 2,048개 출력은 `4 branches×2 kinds×256 channels`이며 target class 수가 아님. 계산한 조절값을 같은 forward의 depth feature에 적용함.
+새 mask도 같은 면적·bbox·silhouette 공식으로 68-D vector를 만들고 기존 `68→64→2048` MLP에 넣음. 2,048개는 `4 branches×2 kinds×256 channels`의 조절값이며 물체 class 수가 아님. 사용자가 target RGB·mask를 지정하면 gamma·beta는 자동 계산되어 scene depth feature에 적용됨.
 
 실제로 학습에서 제외한 `packaged_food_5`를 같은 MLP·checkpoint로 평가하여 가림 GT 예측을 확인함. 입력을 받을 수 있다는 구조적 설명을 넘어선 zero-shot 결과임. 기존 16개에서 학습한 함수가 다른 새 target에도 일관되게 동작하는지는 추가 target으로 확인할 필요가 있음.
 
@@ -1791,7 +2038,9 @@ Network는 **scene RGB-D와 target RGB·mask로 GT map을 근사하는 함수**�
 
 **Gamma·beta는 공간 전체에 같고, 입력 feature는 위치마다 다름.** 동일한 식으로 조절해도 공간적으로 서로 다른 출력이 남음.
 
-위치 A·B가 0.6·0.2이고 `gamma=0.5,beta=-0.1`이면 출력은 0.2·0.0임. Geometry가 바뀌면 조절값도 바뀔 수 있으며, 동일 geometry에서는 feature의 위치 차이를 유지함. MatchingBlock은 이후 위치별 RGB·주변 patch까지 결합함.
+예시의 A는 `E[7,10,20]=0.6`, B는 `E[7,10,21]=0.2`임. Channel 7을 고정한 채 다른 두 위치를 읽은 값으로, 좌표·실제 거리·서로 다른 두 channel을 뜻하지 않음. `gamma[7]=0.5,beta[7]=-0.1`을 적용하면 결과는 각각 0.2·0.0임.
+
+Target mask에서 계산한 `g`가 조절값을 정하고 변환 대상은 scene depth의 `E`임. Feature 256채널의 다른 channel에는 다른 조절값이 적용될 수 있으며, 이후 MatchingBlock이 위치별 RGB·주변 patch와 함께 해석함.
 
 이 방식으로 target에 따른 가림 map과 위치별 공간 패턴을 예측함. Global FiLM은 channel의 공통 조절을 담당하고, 위치별 보정 적용 여부를 직접 정하는 과거 local gate와 구분됨. Gamma·beta를 특정 물리량이나 target 크기에 따른 map 증가 규칙으로 정의한 것은 아님.
 
@@ -1809,7 +2058,9 @@ FiLM은 `E+((gamma−1)E+beta)`로도 표현할 수 있지만 구현은 위 chan
 
 #### Q7. Target을 평균하면 부위 정보가 없어지는데, 왜 raw vector와 cosine을 둘 다 쓰는가?
 
-**현재 target 조건은 부위별 대응이 아닌 평균 appearance vector임.** Raw vector와 cosine은 이 평균 조건을 서로 다른 정보량으로 제공함.
+**Target map의 공간축만 평균하여 channel별 값 하나씩 남긴 appearance vector를 사용함.** 예를 들어 3×2×2 feature에서 channel별 네 값이 `[1,3,5,7]`, `[2,4,6,8]`, `[10,20,30,40]`이면 출력은 `[4,5,25]`임. 실제 768×30×40에서도 같은 방식으로 768개 숫자가 남음.
+
+현재 평균은 배경 patch를 포함하며 mask pooling은 적용하지 않음. Geometry는 이 평균에서 배경을 제거하는 대신 별도 크기·윤곽 정보를 제공함. Raw vector와 cosine은 만들어진 appearance 조건을 서로 다른 정보량으로 전달함.
 
 Cosine은 위치별 scene–target 관계를 한 값으로 압축함. 서로 다른 feature도 같은 0.6 cosine을 가질 수 있으므로 raw scene·target vector를 추가해 MatchingBlock이 압축 과정에서 사라진 차이를 활용하도록 함. Depth는 관측 구조를 함께 제공함.
 
@@ -1857,6 +2108,8 @@ Full16 그림의 네 번째 열은 raw, 다섯 번째 열은 workspace-masked pr
 **확대는 표시용 보간이며 제거 action을 정하는 모델이 아님.** 감독·예측 grid는 16px 간격의 30×40임. Feature가 넓은 문맥을 포함해도 출력 위치 수가 늘어나지는 않음.
 
 인접 patch의 0.2·0.8 사이를 보간하면 중간값이 생기지만 새 물체 경계 관측이나 target 위치 정답을 얻는 것은 아님. 높은 map 영역에 여러 물체가 겹친 경우 제거할 물체·집기 방법은 별도 표현과 policy로 결정해야 함.
+
+한 branch의 depth 256채널에 FiLM을 적용하고, 다른 단서와 concat한 1,793채널을 MatchingBlock이 64채널로 바꿈. 네 결과를 합친 256채널은 fusion에서 다시 64채널 `F_O`가 되며 head가 한 channel `P_O`를 생성함. 앞·뒤의 256은 값만 같고 의미가 다른 숫자임.
 
 `F_O`는 fusion에 전달할 표현으로 구현했고 `P_O`의 가림 GT 근사 성능을 확인함. 다음에는 Similarity·Complexity를 결합한 결과를 S+O와 비교하고, DRL의 target 발견 효율이 좋아지는지 평가할 필요가 있음.
 
