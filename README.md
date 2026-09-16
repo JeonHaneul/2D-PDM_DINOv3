@@ -9,6 +9,8 @@
 
 ## Overview
 
+연구 가정·실험·실패·현재 판단을 한 파일에서 이어 읽으려면 [공개 연구 인수인계 `agent.md`](agent.md)를 참고한다. 로컬 프로젝트 문맥·근거 색인, Phase 1–36 상세 로그와 Complexity 보고서를 통합했으며 공개 자료와 로컬 보존 근거를 구분한다. [원문 Markdown](https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md)으로도 읽을 수 있다.
+
 이 연구는 서랍 속 더미에 가려진 target을 찾기 위해 **유사도·가림 가능성·장면 구조**를 서로 다른 feature로 표현하고, 이를 결합한 2D-PDM을 탐색 정책에 제공하려는 연구임. 세 stream이 각각 푸는 문제와 현재 검증 수준은 다름.
 
 | Stream | 목적 | 현재 구현과 검증 범위 |
