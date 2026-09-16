@@ -195,10 +195,10 @@ RTX 5090, PyTorch `2.12.0+cu130`, NumPy `2.4.6`에서 v2 feature/GT 준비 `243.
 
 각 panel은 scene / 96px count GT / prediction / error / occupancy GT / direct occupancy / 96px plane residual 순서임. 각 source pool의 첫 test key를 사전에 선택했으며 다섯 camera를 모두 표시함.
 
-![Book five views](../../img/complexity_model/book_1_five_views.png)
+![Book five views](../../img/complexity/book_1_five_views.png)
 
-![Fruit five views](../../img/complexity_model/fruit_1_five_views.png)
+![Fruit five views](../../img/complexity/fruit_1_five_views.png)
 
-![Packaged food five views](../../img/complexity_model/packaged_food_1_five_views.png)
+![Packaged food five views](../../img/complexity/packaged_food_1_five_views.png)
 
-![Toy five views](../../img/complexity_model/toy_1_five_views.png)
+![Toy five views](../../img/complexity/toy_1_five_views.png)

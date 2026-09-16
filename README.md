@@ -360,14 +360,14 @@ Checkpoint에는 `model_state`와 `semantic_proj_state`만 저장하고 frozen b
 
 **Unseen Banana:** 아래 세 그림의 target은 모두 banana임. 파일명에 있는 Book/Avocado/Orange는 scene pool을 나타내며 target 이름이 아님. Fruit 영역에 반응하는 사례와 함께 다른 물체 영역의 활성화도 관찰됨.
 
-![Unseen Banana query on a Book_1 scene](img/panel_Book-Book_1_scene00002_env0168_top.png)
-![Unseen Banana query on an Avocado scene](img/panel_Fruit-Avocado_scene00005_env0224_right.png)
-![Unseen Banana query on an Orange scene](img/panel_Fruit-Orange_scene00003_env0274_center.png)
+![Unseen Banana query on a Book_1 scene](img/similarity/panel_Book-Book_1_scene00002_env0168_top.png)
+![Unseen Banana query on an Avocado scene](img/similarity/panel_Fruit-Avocado_scene00005_env0224_right.png)
+![Unseen Banana query on an Orange scene](img/similarity/panel_Fruit-Orange_scene00003_env0274_center.png)
 
 **Unseen packaged_food_5:** 외형이 다른 external packaged-food query에서 같은 category 영역이 활성화된 사례임. 다음 두 그림은 각각 image-only와 image+text로 보존된 결과이지만 **scene도 서로 다르므로 paired ablation이나 text 효과의 정량 증거로 비교하지 않음.**
 
-![Historical unseen packaged_food_5 image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
-![Historical unseen packaged_food_5 image-and-text result](img/packaged_food_5_zeroshot_v2.png)
+![Historical unseen packaged_food_5 image-only result](img/similarity/packaged_food_5_zeroshot_nolabel_2.png)
+![Historical unseen packaged_food_5 image-and-text result](img/similarity/packaged_food_5_zeroshot_v2.png)
 
 현재 필요한 검증은 여러 external target을 이용한 object-held-out 정량 평가와 DINO-only/SigLIP-only, image-only/image+text, prompt swap의 통제 비교임. Category-held-out 일반화는 이보다 별도 범위의 주장임. 현재의 frozen encoder 입력 가능성과 위 정성 사례만으로 head의 일반적인 zero-shot 성능까지 확정하지 않음.
 
@@ -755,7 +755,7 @@ Wrong target에서 MAE가 커지고 겹침이 줄어 전체 모델이 target con
 
 아래는 현재 epoch-3 checkpoint의 **`book_1`, test key `scene00010_env0279`** 결과임. 평가 코드가 test inventory의 마지막 key를 선택한 사례이며, 평균 성능이나 가장 좋은 사례를 뜻하지 않음. 행은 center/top/left/right/bottom, 열은 `공통 target RGB → scene RGB → adaptive GT → raw prediction → workspace-masked prediction` 순서임.
 
-![Full16 book_1 scene-heldout predictions on five cameras](img/occlusion_model/full16_book_1_five_cameras.png)
+![Full16 book_1 scene-heldout predictions on five cameras](img/occlusion/full16_book_1_five_cameras.png)
 
 GT와 prediction 모두 고정 `0–1` 범위의 Turbo colormap을 사용함. 낮은 값은 어두운 보라·파랑, 높은 값은 노랑·빨강으로 표시하며 장면별 min–max 확대는 하지 않음. Raw prediction은 중앙의 가림 후보뿐 아니라 서랍 외곽에도 강하게 반응함. Workspace mask가 외곽 값을 제거하지만, 중앙 반응의 크기·강도 차이까지 해결하는 것은 아님. GT의 coverage 밖 어두운 영역은 저장용 0도 포함하므로 모두 확률 0의 확정 정답으로 읽지 않음.
 
@@ -779,7 +779,7 @@ GT와 prediction 모두 고정 `0–1` 범위의 Turbo colormap을 사용함. �
 
 아래 그림은 같은 epoch-3 checkpoint의 external target과 test key `scene00010_env0279` 사례임. 위 seen-target 그림과 열·행·색 범위가 같음. 외부 target의 GT 공간 패턴을 대체로 따라가지만 raw 외곽 activation은 여전히 남아 있어, network 예측과 workspace 후처리를 나누어 봐야 함.
 
-![External packaged_food_5 predictions on five cameras](img/occlusion_model/zero_shot_packaged_food_5_test30.png)
+![External packaged_food_5 predictions on five cameras](img/occlusion/zero_shot_packaged_food_5_test30.png)
 
 이 결과는 **고정 five-camera rig, native scale, 정확한 합성 target mask에서의 외부 target 1개 평가**임. 여러 unseen target, 임의 reference 거리·화각, target mask 오차, 새로운 scene camera, sim-to-real, scale 일반화와 DRL 탐색 개선까지 검증한 결과로 확대하지 않음.
 
@@ -1005,7 +1005,7 @@ Frozen RGB feature를 cache하고 작은 head를 AdamW로 학습한다. RGB-D/de
 
 Phase 33의 count MAE는 세 window에서 유효한 occupied 위치의 오차를 계산하고 영상·scale·seed를 평균한 **가시 segmentation label-group 개수 단위**다. RGB-D는 5/5 camera에서 개선됐으며, 12개 test scene-key cluster를 함께 재표집한 개선량 95% 구간은 `[0.1790,0.2054]` 그룹이었다. RGB-D occupancy MAE는 `0.00854`, depth-only learned head는 `0.01524`, 직접 depth occupancy는 `0.00981`이다. 수치상 이득이 있어도 occupancy가 넓은 단일 물체와 다물체 밀집을 구분하지 못한다는 한계는 남는다.
 
-![RGB-D density pilot in five views](img/complexity_model/book_1_five_views.png)
+![RGB-D density pilot in five views](img/complexity/book_1_five_views.png)
 
 열은 scene RGB / 96px count GT / RGB-D prediction / 절대 오차 / occupancy GT / 직접 depth occupancy / depth plane residual이다. Count의 GT-valid window만 표시하므로 표시 밖의 0을 물체가 없다는 판정으로 읽지 않는다. Empty-reference 수정과 평가 조건은 [Phase 33](#2026-09-07--phase-33--rgb-d-complexity-pilot)에 있다.
 
@@ -1013,7 +1013,7 @@ Phase 34–35는 **GT label을 계산 입력으로 쓴 teacher 진단**이다. P
 
 Phase 36은 all16 seen assets, 사전 선택한 train/val/test `8/4/8 scene keys ×16 pools ×5 views`에서 A 진단만 수행했다. GT가 patch의 ≥90%, workspace·valid depth가 각각 ≥95%인 위치에 한정하고, positive/negative의 정확한 XY offset·anchor category·depth 차이 구간을 맞췄다. GT/category는 감독·표집 전용이다. 주 평가의 **80,024 pairs/604 views/8 scene keys**에서 view별 AUROC → key별 pool/view 평균 → 8 keys 동일 평균 → 3 seeds 평균을 사용했다. 전체 test는 150,690 pairs/640 views이며 pair와 view를 독립 scene 수로 세지 않는다.
 
-![Frozen-feature visible-asset correspondence](img/complexity_representation/comparison.png)
+![Frozen-feature visible-asset correspondence](img/complexity/representation_comparison.png)
 
 Test의 알려진 foreground 128,380 patches 중 적격은 54,429개, **42.40%**였다. Unknown/색 충돌은 이 분모에서 제외된다. 경계·작은 물체·심한 가림의 상당 부분과 동일 asset 복제 구분을 평가하지 않았으므로, 이 높은 AUROC를 전체 영상의 instance segmentation 정확도로 해석하지 않는다. 자료와 큰 오차 pair 그림은 [Phase 36](#2026-09-16--phase-36--frozen-dino-visible-asset-representation-probe)에 있다.
 
@@ -1194,8 +1194,8 @@ SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차
 
 **결과:** 학습에 포함되지 않은 packaged-food target에서 same-category 영역 활성화 확인.
 
-![Unseen packaged-food target: image-only result](img/packaged_food_5_zeroshot_nolabel_2.png)
-![Unseen packaged-food target: image-and-text result](img/packaged_food_5_zeroshot_v2.png)
+![Unseen packaged-food target: image-only result](img/similarity/packaged_food_5_zeroshot_nolabel_2.png)
+![Unseen packaged-food target: image-and-text result](img/similarity/packaged_food_5_zeroshot_v2.png)
 
 **의미와 범위:** 학습에 없던 packaged-food target의 정성 사례에서 같은 category 영역이 활성화되는 것을 관찰함. 이는 SigLIP 의미 정보의 가능성을 보여주는 사례이며, 여러 unseen instance에 대한 정량 zero-shot 성능은 최종 benchmark에서 별도로 확인해야 함.
 
@@ -1293,11 +1293,11 @@ Legacy GT와 probability GT를 동시에 출력하여 기존 방식 재현 여�
 
 Visible-target 규칙이 적용된 사례:
 
-![Mesh-based occlusion GT — visible-target rule ON](img/occlusion_gt/legacy_probability_visible_on.png)
+![Mesh-based occlusion GT — visible-target rule ON](img/occlusion/legacy_probability_visible_on.png)
 
 Visibility threshold 바로 아래에서 후처리가 적용되지 않은 사례:
 
-![Mesh-based occlusion GT — boundary below 0.3](img/occlusion_gt/legacy_probability_boundary_below.png)
+![Mesh-based occlusion GT — boundary below 0.3](img/occlusion/legacy_probability_boundary_below.png)
 
 **다음 Step:** 검증 스크립트를 target-independent하게 정리한 뒤 `book_1`과 `toy_3`을 각각 5–10 scene에서 확인함. 두 target이 통과하면 GT 검증을 종료하고, corrected probability GT를 사용하는 scale `1.0` Occlusion Dataset과 학습 baseline을 구현함.
 
@@ -1477,7 +1477,7 @@ MatchingBlock input = [scene patch, FiLM depth, r(x), shifted cosine]
 
 초기 state SHA와 sample-order SHA는 fresh raw 기준과 일치했고, parameter `15,706,689`개와 `5,408` update를 동일하게 유지함.
 
-![Target interaction ablation](img/occlusion_model/target_interaction_ablation.png)
+![Target interaction ablation](img/occlusion/target_interaction_ablation.png)
 
 | Seed-0 fixed-update metric | Raw broadcast | No broadcast | Channel relation |
 |---|---:|---:|---:|
@@ -1511,7 +1511,7 @@ r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
 
 `m_l`은 학습 target의 실제 coverage 영역에서 계산한 layer별 `‖q_l‖` 중앙값이며, 추론 시 다시 계산하지 않는 고정값임.
 
-![Train-only relation magnitude diagnostic](img/occlusion_model/relation_magnitude_probe_train_only.png)
+![Train-only relation magnitude diagnostic](img/occlusion/relation_magnitude_probe_train_only.png)
 
 | Train-only diagnostic | Result |
 |---|---:|
@@ -1538,7 +1538,7 @@ r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
 r_l(x) = sqrt(C) × q_l(x) / (m_l + epsilon)
 ```
 
-![Four-way target conditioning ablation](img/occlusion_model/target_interaction_ablation_v2.png)
+![Four-way target conditioning ablation](img/occlusion/target_interaction_ablation_v2.png)
 
 | Seed-0 fixed-update metric | Raw broadcast | No broadcast | Normalized relation | Magnitude-calibrated relation |
 |---|---:|---:|---:|---:|
@@ -1568,7 +1568,7 @@ kappa = mask_area / (2*pi*(lambda_max + lambda_min))
 
 이 단계는 full model 학습이 아니라 descriptor가 다음 학습 후보로서 가치가 있는지 저렴하게 확인하는 train-only screening임. 학습 10 target·36 scene·3 scale·5 camera만 사용하고, target 하나를 donor에서 완전히 제외한 leave-one-target-out 비교를 수행함. Held-out 4 target과 validation scene은 사용하지 않았으며, shape를 같은 category의 다른 target과 바꾸는 64개 대조 조건도 같이 계산함.
 
-![Compact physical shape2 gate](img/occlusion_model/compact_physical_shape2_probe.png)
+![Compact physical shape2 gate](img/occlusion/compact_physical_shape2_probe.png)
 
 | Train-only gate | Result | Required |
 |---|---:|---:|
@@ -1598,7 +1598,7 @@ extent3(s) = s × [min(dx, dy), max(dx, dy), dz]
 
 같은 category의 다른 target extent를 넣는 64개 wrong-extent 대조 조건도 함께 계산함.
 
-![Target physical descriptor gates](img/occlusion_model/target_physical_descriptor_gates.png)
+![Target physical descriptor gates](img/occlusion/target_physical_descriptor_gates.png)
 
 | Train-only diagnostic | 2D shape | Exact 3D extent |
 |---|---:|---:|
@@ -1644,7 +1644,7 @@ Held-out target의 scale-response 방향은 `8/8` target-scale과 `40/40` camera
 
 **원인 분리:** 같은 checkpoint에서 scene RGB-D·target RGB·2D 크기·camera·scale·GT를 고정하고, exact extent 세 값만 같은 category의 다른 target 값으로 교체함. 모델 재학습은 수행하지 않음.
 
-![Exact 3D extent controlled diagnostic](img/occlusion_model/exact_extent_controlled_diagnostic.png)
+![Exact 3D extent controlled diagnostic](img/occlusion/exact_extent_controlled_diagnostic.png)
 
 | Frozen intervention, held-out target | Correct extent − wrong extent | 결과 |
 |---|---:|---|
@@ -1677,7 +1677,7 @@ D'(x,y) = D(x,y) + 0.25 × g(x,y) × learned_correction(x,y)
 
 아래 MAE는 예측 map과 GT의 평균 절대 차이이며 `0`에 가까울수록 좋음. `Coverage`는 target이 물체 더미에 의해 가려질 수 있는 영역의 정확도, `Impossible-to-occupy workspace`는 target이 가려질 후보가 없는 위치의 잘못된 활성화, `Whole workspace`는 두 영역을 함께 평가함.
 
-![Local bounded extent seed-0 result](img/occlusion_model/local_bounded_extent_seed0.png)
+![Local bounded extent seed-0 result](img/occlusion/local_bounded_extent_seed0.png)
 
 | 전체 14 target | Raw size-only | Exact extent + global FiLM | Exact extent + local bounded |
 |---|---:|---:|---:|
@@ -1693,7 +1693,7 @@ Local 방식은 global FiLM의 평균 leakage를 줄이고 raw보다도 세 영�
 
 **Frozen 후속 진단:** 재학습 없이 scene RGB-D·target appearance·GT를 고정하고 extent만 교체함. Held-out 평균에서 correct extent는 wrong extent보다 coverage MAE를 `0.03267` 낮추고 scale-response를 `0.12590` 높였지만, impossible-workspace MAE는 `0.02811` 높였음. 즉 3D 크기 정보는 실제로 사용되지만 유용한 영역과 잘못된 영역을 동시에 활성화함.
 
-![Local gate and axis diagnosis](img/occlusion_model/local_gate_axis_diagnostic.png)
+![Local gate and axis diagnosis](img/occlusion/local_gate_axis_diagnostic.png)
 
 Gate가 위치를 실제로 거르는지 확인하기 위해 target이 도달 가능한 patch와 불가능한 patch를 분리함. 네 held-out target의 평균 gate는 가능한 영역 `0.974–0.988`, 불가능한 영역도 `0.943–0.972`였음. `0`이면 닫힘, `1`이면 완전히 열림이므로 두 영역에서 거의 항상 열린 상태임. 따라서 residual 크기는 제한됐지만, 공간을 선택하는 gate는 충분히 작동하지 않았음.
 
@@ -1722,7 +1722,7 @@ D'(x,y) = D(x,y) + 0.25 × g(x,y) × size_correction(x,y)
 
 이는 표준 cosine이 아니라 **regularized cosine-like confidence**임. Target 보정 벡터가 커지는 것만으로 gate가 `1`에 붙지 않도록 채널 수 `C=256`을 분모에 포함함. `sqrt(C)`는 256개 채널의 평균 크기가 약 `1`일 때를 기준으로 삼는 고정값이며, held-out 결과를 보고 조정한 hyperparameter가 아님. Seed·초기 가중치·sample 순서·loss·`5,408` update는 이전 실험과 같고, automated assertions로 초기 상태와 sample 순서도 확인하여 gate 계산만 비교함.
 
-![Regularized local-confidence gate result](img/occlusion_model/confidence_cosine_gate_seed0.png)
+![Regularized local-confidence gate result](img/occlusion/confidence_cosine_gate_seed0.png)
 
 | 전체 14 target | Raw size-only | Local sigmoid | Local confidence | 해석 |
 |---|---:|---:|---:|---|
@@ -1754,7 +1754,7 @@ Target이 물체 더미에 의해 가려질 수 있는 순수 patch → gate를 
 
 두 영역의 patch 수가 달라도 한쪽이 loss를 지배하지 않도록 각각 평균한 뒤 `1:1`로 합침. `0.05`는 결과를 보고 고른 값이 아니라 실험 전에 고정했으며, validation과 checkpoint 선택은 기존 probability-map loss만 사용함. Seed·초기 state·sample 순서·`5,408` update와 exact-extent oracle 입력도 이전 실험과 같게 유지함.
 
-![Strict gate-localization supervision result](img/occlusion_model/gate_supervision_seed0.png)
+![Strict gate-localization supervision result](img/occlusion/gate_supervision_seed0.png)
 
 | 전체 14 target | Raw size-only | Gate supervision | 의미 |
 |---|---:|---:|---|
@@ -1791,7 +1791,7 @@ D'(x,y) = D(x,y) + 0.25 × g_F(x,y) × height-aware correction
 
 Footprint는 target이 영상에서 차지하는 크기와 바닥 방향 길이를 나타내므로 gate의 위치를 정함. 높이는 gate를 새로 열 수 없고, footprint gate가 허용한 위치 안에서만 depth 보정량에 관여함. 새 network를 추가하면 모델 크기 차이가 결과에 섞이므로 기존 `GeometryFiLM` 하나를 세 번 공유해 footprint·height·zero 입력을 분리함. 그 결과 파라미터 수, state key, 초기 가중치, 첫 epoch sample 순서와 총 `5,408` update는 Phase 25와 동일함. 자동 테스트로 높이를 바꿔도 gate가 bitwise 동일하고, footprint를 바꾸면 gate가 변하며, 사용하지 않는 62개 칸은 출력에 영향을 주지 않음을 확인함.
 
-![Footprint gate and height-conditioned residual result](img/occlusion_model/footprint_height_split_seed0.png)
+![Footprint gate and height-conditioned residual result](img/occlusion/footprint_height_split_seed0.png)
 
 | 전체 14 target | Raw size-only | Phase 25 | Phase 26 | 의미 |
 |---|---:|---:|---:|---|
@@ -2009,7 +2009,7 @@ Adaptive GT
 
 아래 그림은 실제 scene, 두 GT, frozen model 예측을 함께 나타냄. 첫째 줄에서 adaptive GT가 fixed GT보다 넓게 이어지고, 둘째 줄에서 같은 예측을 fixed GT와 비교할 때 오른쪽 경계가 큰 오차로 나타나는 것을 확인할 수 있음. 셋째 줄의 초록색은 두 GT가 모두 다루는 영역, 빨간색은 adaptive GT에서 새로 포함된 영역임.
 
-![Peach fixed-grid and adaptive-grid GT comparison](img/occlusion_model/adaptive_gt_coverage_peach.png)
+![Peach fixed-grid and adaptive-grid GT comparison](img/occlusion/adaptive_gt_coverage_peach.png)
 
 이 결과는 **Peach에서 기존 고정 pose 범위가 정상적인 예측 일부를 오류처럼 보이게 만들었다는 가설을 지지함**. 반면 모든 target의 zero-shot 성능이나 Occlusion Stream의 최종 구조가 검증된 것은 아님. Target 입력을 더 복잡하게 바꾼 조건도 기존 입력 대비 MAE `0.00029`, soft-IoU `0.00020`만 개선했고 8-scene bootstrap 구간이 0을 포함했으므로, 현재 단계에서는 모델 구조를 더 확장하지 않음.
 
@@ -2032,7 +2032,7 @@ Adaptive GT
 
 처음에는 잘못된 `packaged_food_1` reference가 올바른 `packaged_food_5`보다 근소하게 좋은 결과를 보여 target conditioning이 약한 것으로 보였음. 그러나 두 target의 GT map을 직접 비교하자 `Pearson r=0.990`, patch MAE `0.0120`으로 물리적으로 가려질 수 있는 분포 자체가 거의 같았음. 따라서 이 pair는 wrong-target 검증력이 낮다고 판단하고, GT가 실제로 다른 `book_1`, `fruit_1`, `toy_1`을 추가 대조군으로 사용함. 세 대조군 모두 올바른 reference보다 성능이 분명히 낮았음.
 
-![External zero-shot occlusion result](img/occlusion_model/zero_shot_packaged_food_5_test30.png)
+![External zero-shot occlusion result](img/occlusion/zero_shot_packaged_food_5_test30.png)
 
 **판단:** Occlusion Stream의 core baseline은 다음 모듈로 넘어갈 수준의 결과를 보임. 전체 데이터 재학습과 추가 구조 실험은 보류하고 현재 checkpoint를 baseline으로 고정함. 이번 external 평가는 합성 target mask를 사용했으므로, 실환경 target RGB에서 mask를 안정적으로 얻는 전처리는 별도 후속 검증으로 남김.
 
@@ -2050,7 +2050,7 @@ Adaptive GT
 
 **결과:** 기존 16개 source pool·5개 camera를 유지한 `3,840/960/960` train/validation/test sample에서 seed 0/1/2를 비교함. Occupied-window count MAE는 depth-only `0.8327` → RGB-D `0.6414`로 **22.97% 감소**했고 5/5 camera에서 개선됨. 12 scene-key cluster의 paired bootstrap 개선량 95% 구간은 `[0.1790, 0.2054]`개임. Training camera-position 평균 baseline `1.2445`도 넘어서 사전 진행 기준을 모두 통과함. RGB-D occupancy MAE는 `0.00854`, direct depth는 `0.00981`임.
 
-![Phase 33 Complexity result](img/complexity_model/fruit_1_five_views.png)
+![Phase 33 Complexity result](img/complexity/fruit_1_five_views.png)
 
 **판단:** RGB-D Complexity pilot을 baseline으로 채택하고, 세 stream의 feature 규격을 각각 `B × 64 × 30 × 40`, fusion concat 입력을 `B × 192 × 30 × 40`으로 정리함. 전체 fusion·DRL 실행을 완료한 것은 아님. 22개 unit test와 segmentation 없는 실제 RGB-D 추론 경로를 검증함. [상세 정의·실행법·저장 지표](docs/complexity_results/README.md)를 함께 보존함.
 
@@ -2068,13 +2068,13 @@ Adaptive GT
 
 **통제 장면 비교:** 아래 행은 위부터 box 간격 0/2/10/40mm임. 물체 수와 3D 크기는 같지만 투영 면적까지 같은 조건은 아니며, 해당 통제 실패는 아래 표에 기록함.
 
-![Phase 34 controlled box-gap comparison](img/complexity_relation/controlled_0.png)
+![Phase 34 controlled box-gap comparison](img/complexity/controlled_0.png)
 
 모든 비교 그림의 열은 왼쪽부터 **scene RGB / 기존 96px window의 count GT÷16 / 기존 occupancy GT / r=30mm 관측 표면 근접도 / 16px patch 내 유효 foreground 근접도 평균**임. 마지막 두 열은 GT label과 depth로 계산한 진단값이며, 학습 모델 prediction이나 승인된 Complexity GT가 아님. 표면은 stride 2로 샘플링한 240×320, 마지막 열은 30×40 patch map임. 근접도의 단위는 다른 물체별 `max(0, 1−거리/반경)`를 더한 거리 가중 개수임. 기존 두 GT의 색 범위는 0–1, 근접도는 0–2로 고정함(2 초과는 같은 최고색이며 계산값은 자르지 않음). Scene별 min–max는 사용하지 않음. 근접도 열의 회색은 배경 또는 유효성 제외 영역으로, 값 0인 보라색 물체 표면과 구분함. 기존 GT와 근접도의 유효 영역은 서로 다름.
 
 **원본 합성 장면의 내부 차이:** `book_1`의 동일 scene을 center/left/right/top/bottom 순서로 표시함. 넓은 물체 면적이 밝은 occupancy와 달리, 근접도는 다른 물체와 가까운 일부 표면에 반응함. 시점마다 보이는 표면이 다르므로 동일 3D 표면의 시점 불변성이나 숨겨진 접촉을 검증한 그림은 아님.
 
-![Phase 34 original book source pool in five views](img/complexity_relation/real_book_1_five_views.png)
+![Phase 34 original book source pool in five views](img/complexity/real_book_1_five_views.png)
 
 | 점검 / 범위 | 저장 결과 | 해석 |
 |---|---|---|
@@ -2092,23 +2092,23 @@ Adaptive GT
 
 충분한 간격(80mm), 단독 평판, 기울어진 판, 구:
 
-![Phase 34 isolated surface counterexamples](img/complexity_relation/controlled_1.png)
+![Phase 34 isolated surface counterexamples](img/complexity/controlled_1.png)
 
 단독 물체의 무늬 변경, 깊이로 분리된 투영 겹침, 숨겨진 물체 추가 전·후:
 
-![Phase 34 texture and hidden-object counterexamples](img/complexity_relation/controlled_2.png)
+![Phase 34 texture and hidden-object counterexamples](img/complexity/controlled_2.png)
 
 영상에서는 인접하지만 3D로 충분히 떨어진 물체:
 
-![Phase 34 projected adjacency with metric separation](img/complexity_relation/controlled_3.png)
+![Phase 34 projected adjacency with metric separation](img/complexity/controlled_3.png)
 
 아래 파일명의 `real`은 원본 Isaac 합성 dataset을 뜻하며 실제 로봇 촬영을 뜻하지 않음. 각 그림은 동일 scene의 center/left/right/top/bottom 시점임.
 
-![Phase 34 original fruit source pool in five views](img/complexity_relation/real_fruit_1_five_views.png)
+![Phase 34 original fruit source pool in five views](img/complexity/real_fruit_1_five_views.png)
 
-![Phase 34 original packaged-food source pool in five views](img/complexity_relation/real_packaged_food_1_five_views.png)
+![Phase 34 original packaged-food source pool in five views](img/complexity/real_packaged_food_1_five_views.png)
 
-![Phase 34 original toy source pool in five views](img/complexity_relation/real_toy_1_five_views.png)
+![Phase 34 original toy source pool in five views](img/complexity/real_toy_1_five_views.png)
 
 </details>
 
@@ -2124,17 +2124,17 @@ Adaptive GT
 
 **방법과 범위:** Pose가 저장된 추가 capture의 10 layouts × 5 cameras를 재현함. `packaged_food_1` 8 layouts와 `fruit_1` 2 layouts이며, 원본 16개에 `World1`을 더한 **17-asset 데이터**로 기존 16-only 평가와 구분함. USD의 단위·scale·하위 transform을 보존하면서 saved pose를 적용하고, 원본 depth/label과 먼저 비교함. Workspace에서 foreground IoU ≥0.95, 64px 이상 label IoU ≥0.90, 동일 label 내부 depth 오차 median ≤2mm/p95 ≤5mm 등 사전 기준을 **50/50 views 모두 통과**함. Foreground IoU 범위는 0.999235–0.999709, 평가된 label IoU 최솟값은 0.969697이었음.
 
-![Five-view original and replay geometry comparison](img/complexity_clutter/replay_five_views.png)
+![Five-view original and replay geometry comparison](img/complexity/replay_five_views.png)
 
 열은 원본 RGB / 원본 label / 재현 label / depth 절대 오차임. Depth 검증은 동일 label을 1px erosion한 내부의 유효 pixel에서 수행했고, view별 p95 최댓값은 0.006437mm였음. 합성 render 간 비교이며 실제 depth sensor 정밀도나 RGB pixel 재현 정확도가 아님.
 
 각 물체를 하나씩 제거하고 매번 원래 scene으로 돌아가며 다른 물체는 고정함. 총 **770 object-view 제거 조건**에서 `새로 보인 다른 물체 pixel 수 / 제거한 물체의 원래 visible pixel 수`를 계산함. 바닥 노출은 제외하며 큰 물체에 유리한지 확인하기 위해 원시 노출 pixel 수도 별도로 비교함. 이 비율은 Complexity 정답이나 target 발견 확률이 아님.
 
-![Independent Isaac static removal before and after](img/complexity_clutter/isaac_static_removal.png)
+![Independent Isaac static removal before and after](img/complexity/isaac_static_removal.png)
 
 독립 Isaac RTX 검증은 사전 지정한 첫 layout의 다섯 시점과 첫 책 `Book_GetKnowPPU`의 제거 후 center에서 수행함. 그림은 원본 RGB / Isaac 제거 전 / 제거 후 / 새로 보인 다른 물체 영역임. 물리 step 없이 잔존 물체의 world transform 변화는 0이었음. Software 제거와 Isaac 제거 후 foreground IoU는 **0.999414**였음. 원본과 replay의 서랍 재질 차이가 있어 기하·label 재현만 검증함. 전체 770조건을 독립 RTX로 검증한 것은 아님.
 
-![Object-wise proximity and static removal examples](img/complexity_clutter/removal_examples.png)
+![Object-wise proximity and static removal examples](img/complexity/removal_examples.png)
 
 각 행은 첫 scene의 pose 순서상 앞 네 대상이며 결과에 맞춰 고르지 않았음. 열은 제거 대상 윤곽 / GT label+depth의 30mm 근접도 / 제거 후 label / 새 노출 영역임. 첫 책은 근접도 평균이 **0.0265**인데 제거하면 원래 visible 영역의 **76.34%**에서 다른 물체가 드러남(software 5350/7008px; Isaac 5355/7013px). 가장자리 근접도와 그 물체 아래의 노출 효과가 다를 수 있음을 보여줌. 작은 물체의 비율 1도 큰 절대 노출 면적을 뜻하지 않음.
 
@@ -2147,7 +2147,7 @@ Adaptive GT
 | 96px window 국소 개수 평균 | 0.291 | 0.156 |
 | 96px depth 평면 잔차 평균 | 0.002 | -0.149 |
 
-![Common-object comparisons across cluttered layouts](img/complexity_clutter/comparison.png)
+![Common-object comparisons across cluttered layouts](img/complexity/clutter_comparison.png)
 
 양수가 클수록 해당 점수가 높은 물체의 제거 효과도 큰 경향임. Depth 평면 잔차는 기존 empty-reference 차이 기반 cue이며 단순 raw depth variance가 아님. 그림의 산점도는 공통 710조건, 상관 패널은 유효 701조건/49 views를 사용함. 회색 선은 layout별 값, 검정 선은 평균임. 근접도의 비율 상관은 layout별 -0.297–0.535로 변동했고 면적보다 높은 layout은 2/10, count보다 높은 layout은 3/10이었음.
 
@@ -2179,11 +2179,11 @@ Frozen DINO 두 feature의 차이·곱, RGB-D에서 계산한 depth descriptor, 
 | DINO cosine, 학습 없음 | 0.925424 | 0.974662 |
 | Depth 차이, 학습 없음 | 0.535946 | 0.538848 |
 
-![Frozen-feature correspondence comparison](img/complexity_representation/comparison.png)
+![Frozen-feature correspondence comparison](img/complexity/representation_comparison.png)
 
 DINO+depth는 depth보다 same-category AUROC가 +0.225025 높았고 8/8 keys에서 개선됨. DINO+depth와 DINO의 차이는 -0.000045로 이 과제에서 depth 추가 효과는 확인하지 못함. Pair 표집 조건과 GT→입력 누출 여부를 독립 검토하고 일부 지표를 재계산하여 저장값과 일치함을 확인함.
 
-![Pure-patch correspondence examples and highest-error pairs](img/complexity_representation/failure_examples.png)
+![Pure-patch correspondence examples and highest-error pairs](img/complexity/failure_examples.png)
 
 왼쪽은 RGB, 가운데는 같은 asset pair, 오른쪽은 같은 카테고리의 다른 asset pair임. 사전 첫 test key의 book/fruit/packaged-food/toy 첫 pool과 center camera를 고정하고 각 영상·label에서 오차가 가장 큰 pair를 표시함. 따라서 대표 평균 성능을 보여 주는 표본은 아니며, 고른 pair가 모두 오분류인 것도 아님. 청록·자홍 사각형은 두 patch이고 `same-label score`는 세 seed의 평균 logit에 sigmoid를 적용한 값임. 실제 분포에서 보정된 확률로 해석하지 않음.
 
