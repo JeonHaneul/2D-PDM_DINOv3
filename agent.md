@@ -1,6 +1,6 @@
 # 2D-PDM 연구 문맥·가정·실험 통합 기록
 
-> 기준일: 2026-09-16 (Asia/Seoul) · 연구 이력: Phase 1–36 · 현재 마지막 실험: Phase 36 A
+> 문서 기준일: 2026-09-17 (Asia/Seoul) · 연구 이력: Phase 1–36 · 현재 마지막 실험: Phase 36 A
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 최신 상세 모델 설명: README의 세 stream 본문. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
@@ -12,16 +12,16 @@
 
 처음에는 아래 현재 상태와 A를 읽고, “왜 이 방법을 쓰게 되었는가”는 B의 해당 Phase와 C의 상세 보고서를 읽는다. D는 근거 파일 위치를 찾기 위한 색인이다. 본문에 있는 과거 계획을 완료된 실험으로 읽지 않는다. 현재 상태를 바꾸지 않은 문서 정리·이미지 이동은 새 연구 Phase가 아니다.
 
-| 주제 | 완료·확인한 것 | 남은 것·현재 해석 |
+| 주제 | 완료·확인한 것 | 추가 확인·구현할 내용 |
 |---|---|---|
 | Similarity | Frozen DINOv3 + SigLIP, layer별 projection, no-shortcut MatchingBlock; 미학습 target의 zero-shot 동작 정성 확인 | 공식 final checkpoint manifest 지정, 여러 미학습 target의 정량 성능 평가 |
-| Occlusion GT | Target/yaw별 adaptive pose, 70% 이상 가림 판정, 16×3,000×5 = 240,000 maps | 실제 clutter 충돌·지지·안정성을 포함한 physics posterior가 아님 |
-| Occlusion 학습 | Native68 global FiLM + raw target broadcast, full16 epoch 3; scene-heldout MAE 0.013997 | Coverage 내부 raw patch 평가. Coverage 밖 반응까지 보장하지 않음 |
-| Occlusion 외부 평가 | `packaged_food_5`, 30 scene keys/150 views, MAE 0.017998 | 외부 target 하나·고정 합성 rig·정확한 reference mask; 최신 full16 standalone CLI 없음 |
-| Complexity density | RGB-D count MAE 0.641416 vs depth-only 0.832717; 상대 22.973% 감소 | 가시 label-group 개수 예측이며 최종 구조적 Complexity GT가 아님 |
-| Complexity 근접도·제거 | Phase 34 면적 통제 실패; Phase 35 근접도 평균과 정적 노출 비율 Spearman 0.078295 | 해당 물체 평균을 선택 점수·GT로 채택하지 않음 |
-| Complexity 표현 A | Same-category 가시 asset 대응 DINO+position AUROC 0.998953 | GT가 고른 순수 patch 진단. 적격 coverage 42.40%, 경계·다중 물체 관계 미검증 |
-| B/C 및 최종 결합 | 계획과 일부 준비 코드만 있음 | 추가 모델 설치·추론·B/C 비교 결과 없음. 최종 Complexity GT, three-stream fusion, DRL 통합 미완료 |
+| Occlusion GT | Target/yaw별 adaptive pose, 70% 이상 가림 판정, 16×3,000×5 = 240,000 maps 생성 | 새로운 target·관측 조건의 geometry/coverage; 실제 배치 가능성까지 다룰 경우 충돌·지지·안정성 |
+| Occlusion 학습 | Native68 global FiLM + raw target broadcast, full16 epoch 3; scene-heldout coverage 내부 MAE 0.013997로 가림확률 예측 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
+| Occlusion 외부 평가 | 미학습 `packaged_food_5`의 zero-shot 정량 평가 완료; 30 scene keys/150 views, coverage 내부 MAE 0.017998 | 여러 external targets·실제 RGB-D·추정 mask로 평가 확대, full16 독립 CLI 구현 |
+| Complexity density | RGB-D count MAE 0.641416 vs depth-only 0.832717; 상대 22.973% 개선 확인 | Visible-density 결과를 바탕으로 구조적 Complexity의 정의·GT 구체화 |
+| Complexity 근접도·제거 | 면적 통제 실패와 근접도 평균의 약한 제거 효과 상관(Spearman 0.078295) 확인; 해당 평균은 GT로 채택하지 않음 | 경계·물체 간 관계를 구분하는 표현과 평가 검토 |
+| Complexity 표현 A | GT로 고른 순수 patch(적격 coverage 42.40%)에서 same-category 가시 asset 대응 확인; DINO+position AUROC 0.998953 | 경계·분리된 조각·다중 물체 관계로 평가 확장 |
+| B/C 및 최종 결합 | 비교 계획과 일부 준비 코드, stream별 feature 규격 정리 | 필요한 능력을 특정한 뒤 B/C 실행·비교; 최종 Complexity GT·fusion·DRL은 후속 구현 단계 |
 
 현재 다음 Step은 **실제 asset이 쌓인 장면에서 경계·분리된 조각의 소속·다중 물체 관계 중 기존 표현이 놓치는 능력과 관측 가능한 정답을 먼저 특정하는 것**이다. 이를 확인한 뒤 같은 region 조건에서 사전학습 표현의 추가 효과를 비교한다. 근접도→방향→최소 제거 횟수처럼 scalar 정의를 계속 대체하라는 요청이 아니다.
 
@@ -74,6 +74,7 @@
 - `35de3f1`: 기존 이미지 45개를 `img/similarity/`, `img/occlusion/`, `img/complexity/`로 이동; byte 보존.
 - `ebae00a`: 모든 stream의 입문 설명·차원·모듈 역할·수치 예·상세 Q&A 확장.
 - 2026-09-16 본 통합본: 로컬 문맥·색인·상세 보고서 갱신 및 공개. 새 학습·렌더·GT 승인·Phase 37은 없음.
+- 2026-09-17 문서 정정: 확인된 결과·평가 조건·추가 확인 범위 순서로 README와 현재 문맥을 정리함. Occlusion의 GT 생성·full16·external zero-shot 정량 평가를 완료된 성과로 명시함. 실험 수치와 과거 Phase 기록은 보존함.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -86,7 +87,7 @@
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 갱신: 2026-09-16 (Asia/Seoul), Phase 36 가시 asset 대응 A probe 완료; B/C 미실행·도입 보류
+> 마지막 문서 갱신: 2026-09-17 (Asia/Seoul); 마지막 실험: Phase 36 가시 asset 대응 A probe 완료, B/C 미실행·도입 보류
 > Similarity/Occlusion의 기존 교차검증 기준일: 2026-08-28
 > 대상: `<DEV_ROOT>`
 > 목적: 이전 대화를 보지 못한 agent가 현재 코드와 데이터로 연구를 안전하게 이어가기 위한 문서
@@ -153,8 +154,8 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 |---|---|---|
 | Similarity Stream | DINOv3 + SigLIP, no-shortcut 구현; 미학습 target의 zero-shot 동작 정성 확인 | 여러 미학습 target의 정량 평가와 재현성 metadata 보강 |
 | Occlusion GT | 16 targets × 3,000 scenes × 5 cameras = 240,000 maps 생성 완료 | 현재 GT를 보존하고 필요할 때만 추가 external target 생성 |
-| Occlusion model | Adaptive GT 기반 full16 10% baseline 학습·평가 완료 | 구조 확장보다 baseline 동결이 현재 판단 |
-| External occlusion check | `packaged_food_5` 30 scenes × 5 views 평가 완료 | 여러 external target과 실제 RGB mask는 후속 검증 |
+| Occlusion model | Adaptive GT 기반 full16 10% 학습·평가 완료; scene-heldout coverage 내부 MAE 0.013997 | 검증된 baseline을 유지하며 관측 조건 변화의 영향 확인 |
+| External occlusion check | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인; 30 scenes × 5 views, MAE 0.017998 | 여러 external target과 실제 RGB mask로 평가 확대 |
 | Complexity Stream | Phase 36 A만 완료: 순수 patch 가시 asset 대응은 거의 포화; B/C 미실행·GT 미승인 | **경계·다중 물체 관계의 구체적 누락 능력을 먼저 분리한 뒤 사전학습 표현 보완 검토** |
 | Three-stream fusion | 미구현 | Complexity GT 타당성 검증 후 GT·평가와 ablation 설계 |
 | DRL integration | 미구현 | 2D-PDM fusion 이후 구현 |
@@ -165,7 +166,7 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
    보였음.
 2. Target 크기와 회전각에 맞춘 adaptive GT로 이 문제를 수정함.
 3. 복잡한 oracle/local-gate 모델 대신 단순한 `raw target broadcast + global FiLM` baseline을
-   다시 학습했을 때 scene-heldout와 외부 target smoke test에서 충분히 좋은 결과를 얻음.
+   다시 학습했을 때 scene-heldout 가림확률 예측과 외부 target의 zero-shot 성능을 정량 확인함.
 4. 이후 Phase 33에서 Complexity RGB-D pilot을 구현하고 depth-only보다 count MAE가 22.97%
    낮음을 확인함. 2026-09-08 재검토에서 이를 visible-density 예측 결과로 한정함.
    Phase 34에서 표면 근접도의 국소 반응을 확인했지만, 면적 통제 실패와 숨겨진 구조 한계가
@@ -190,13 +191,15 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 활성화하는 zero-shot 동작을 정성적으로 확인했다(2번). Fruit와 packaged-food category는 학습에
 포함된 seen-category/unseen-instance 조건이다. 여러 미학습 target의 평균 성능과 실패 조건을
 측정하는 정량 object-heldout 평가가 후속 작업이다.
-현재 Occlusion은 합성 환경의 `packaged_food_5` 한 개로 2번의 smoke evidence를 얻었지만,
-geometry에 합성 segmentation mask를 사용했으므로 3번은 아직 증명하지 않았다.
-Complexity Phase 33은 기존 asset library의 scene-heldout pilot이며, 학습하지 않은 scene 물체에 대한
-일반화나 arbitrary camera/sim-to-real 결과는 아직 없다.
+현재 Occlusion은 학습하지 않은 `packaged_food_5`를 추가 학습 없이 입력하여 30 scene keys/150 views에서
+가림확률 예측을 정량 확인했다(2번, coverage 내부 MAE 0.017998). 이 평가는 고정 합성 rig와
+정확한 reference mask를 사용했다. 후속으로 여러 external target·추정 mask·실제 RGB-D 조건의
+성능을 확인한다(3번).
+Complexity Phase 33은 기존 asset library의 scene-heldout 평가에서 RGB-D의 density 예측 개선을
+확인했다. 학습하지 않은 scene 물체와 camera 변화·sim-to-real은 평가를 확장할 범위다.
 
-Frozen backbone을 쓴다는 사실만으로 zero-shot이 자동 보장되지 않는다. 그 위의 학습 가능한 head가
-16개 target을 외울 수 있으므로, 외부 asset으로 target-heldout 평가가 반드시 필요하다.
+Frozen encoder는 새 target의 feature 계산을 담당하고, 학습된 head의 zero-shot 동작은 외부
+target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlusion의 정량 결과가 이에 해당한다.
 
 ---
 
@@ -480,7 +483,7 @@ GT를 우선 읽으며 기존 Similarity GT의 충돌 영향은 소급 정량 au
 - Checkpoint에는 head와 semantic projection state만 있어 정확한 run 재현 metadata가 부족하다.
 - Reported accuracy/IoU는 `|pred-GT| < 13/255` tolerance를 사용한 프로젝트 전용 지표다.
 
-#### 6.6 현재 결과와 한계
+#### 6.6 확인된 결과와 후속 평가
 
 현재 architecture와 호환되는 가장 강한 명확한 no-shortcut 후보는
 `outputs/multi_target_20260728_114403_siglip/similarity_head_best.pt`이다. Log에
@@ -705,9 +708,9 @@ DINO layer는 네 개이고 depth level은 세 개이므로 네 번째 DINO bran
 Total = 4 + 64 = 68
 ```
 
-이 vector는 category label이 아니라 target의 projected size와 coarse shape를 표현한다. 합성 학습에서는
-정확한 segmentation을 사용한다. 실제 환경에서는 target RGB에서 mask를 얻어야 하므로 아직 완전한
-RGB-only deployment가 아니다.
+이 vector는 target의 projected size와 coarse shape를 표현한다. 정확한 reference segmentation을
+사용한 합성 학습·외부 target 평가까지 완료했다. 실제 환경 적용에서는 target RGB로 추정한 mask가
+이 descriptor와 가림확률 예측에 미치는 영향을 확인할 필요가 있다.
 
 ##### FiLM이 하는 일
 
@@ -865,38 +868,38 @@ control로 구분력이 낮다. Shape/size가 다른 book, fruit, toy controls�
 `outputs/occlusion_full16_20260828_114243/external_evaluations/packaged_food_5/`
 `prediction_panels/external_packaged_food_5_all_5_cameras.png`
 
-#### 7.11 현재 결과의 과학적 한계
+#### 7.11 확인된 결과와 추가 평가
 
-현재 결과를 “실환경 zero-shot 완료”라고 부르면 안 된다.
+Occlusion은 adaptive GT 240,000 maps 생성, full16의 scene-heldout 가림확률 예측, target 조건 활용,
+미학습 `packaged_food_5`의 zero-shot 정량 평가까지 확인했다. Coverage 내부 MAE는 full16
+0.013997, external target 0.017998이다. 현재 baseline을 유지하며 다음 조건으로 평가를 확장한다.
 
-- External target은 `packaged_food_5` 한 개뿐이다.
-- Scene distribution은 기존 `packaged_food_1` simulation scenes다.
-- 다섯 view는 같은 scene의 correlated cameras다.
-- Geometry는 exact synthetic segmentation mask에서 얻었다.
-- Target reference는 고정 center/top-down view다.
-- Scene rig도 고정된 다섯 camera calibration이다.
-- Arbitrary target camera/FOV, arbitrary scene camera, sim-to-real은 평가하지 않았다.
-- Native scale 1.0 production GT만 사용했으며 scale generalization benchmark가 아니다.
-- Full 240,000 GT 중 10%로만 학습했다.
-- Seed 0 한 번이다.
-- GT에는 clutter collision/support/stability가 없다.
+| 항목 | 현재 평가 조건·확인 범위 | 추가로 확인할 내용 |
+|---|---|---|
+| External target | `packaged_food_5`, 기존 `packaged_food_1` 합성 scene 30개·150 views | 여러 미학습 target과 새로운 scene 분포의 성능 |
+| Reference | Exact synthetic segmentation mask, 고정 center/top-down view | RGB에서 추정한 mask와 target camera/FOV 변화의 영향 |
+| Scene camera | 고정 calibration의 다섯 camera; 같은 scene의 correlated views로 집계 | Camera 위치·FOV 변화와 실제 RGB-D 관측에서의 성능 |
+| 학습 설정 | Native scale 1.0, 전체 240,000 GT 중 10%, seed 0 | 다른 scale·데이터 비율·seed에서의 안정성 |
+| GT와 평가 영역 | Pose별 가시성 가림 비율과 coverage 내부 raw prediction | Coverage 밖 출력; 실제 배치 가능성까지 다룰 경우 clutter collision/support/stability |
 
-Target RGB에서 fixed empty-background subtraction을 시험했을 때 bbox height/width 평균 절대 오차는
-약 3.36%/3.54%, silhouette IoU mean/median은 약 0.891/0.934였지만 worst `book_4` IoU는 0.482,
-area error는 -51.7%였다. Bbox size는 유망하지만 full silhouette 64-D를 그대로 대체하기에는 아직
-불안정하다.
+Reference mask 추정의 예비 진단도 완료했다. Fixed empty-background subtraction에서 bbox
+height/width 평균 절대 오차 약 3.36%/3.54%, silhouette IoU mean/median 약 0.891/0.934를 확인했다.
+`book_4`는 IoU 0.482, area error -51.7%로 오차가 컸다. 후속으로 이 사례의 윤곽 오차를 개선하고,
+추정 mask로 만든 64-D silhouette를 사용했을 때 가림확률 성능이 유지되는지 확인할 필요가 있다.
 
-#### 7.12 매우 중요한 inference 코드 불일치
+#### 7.12 현재 추론 경로와 배포 CLI
 
-Root의 `inference_occlusion.py`와 `occlusion_target_input.py`는 latest full16 `best.pth`용이 아니다.
-이 파일은 이전 `A_XYZ_RING` exact-extent 실험 checkpoint를 위해 다음을 요구한다.
+Latest full16 `best.pth`는 현재 train/evaluation pipeline에서 scene-heldout·external 추론을 완료했다.
+One center RGB+mask 입력의 독립 배포 CLI는 후속 구현 항목이다.
+Root의 `inference_occlusion.py`와 `occlusion_target_input.py`는 이전 `A_XYZ_RING` exact-extent
+실험 checkpoint용으로, 다음 입력을 요구한다.
 
 - White/magenta dual-background 6-view target capture
 - Metric 3D extent estimator
 - Geometry의 특정 3개 slot만 활성화하는 별도 checkpoint contract
 
-따라서 current full16 checkpoint에 이 script를 연결하면 안 된다. Latest full16은 train/evaluation
-pipeline은 있지만, one center RGB+mask를 받는 standalone deployment CLI는 아직 없다.
+Current full16 재현에는 해당 run의 evaluation pipeline을 사용한다. 독립 CLI 구현 시에는
+RGB+mask 입력과 native 68-D descriptor를 사용하도록 위 legacy script의 입력 계약과 구분한다.
 
 #### 7.13 Occlusion 개발 이력과 핵심 교훈
 
@@ -933,14 +936,13 @@ pipeline은 있지만, one center RGB+mask를 받는 standalone deployment CLI�
 
 ### 8. Complexity Stream과 최종 fusion
 
-> **2026-09-16 현재 판단:** 점유율은 물체 영역 보조 정보이며 국소 복잡도 정답이 아니다.
-> Count/N-area도 단독 GT로 확정하지 않는다. 현재 V2는 density pilot으로 보존한다.
-> Phase 34 반례 진단 (C2. 관측 근접도 진단)에서 근접도는
-> 일부 접경에 국소화됐지만 면적 통제에 실패했다. 이후 Phase 35의 실제 cluttered scene에서도
-> 물체 평균 근접도와 정적 제거 효과의 상관이 약했다. 구조적 GT는 계속 미승인이다.
-> Phase 36에서는 frozen feature의 A readout 진단만 학습·평가했다. B/C·fusion은 미실행이며,
-> 순수 patch 대응의 높은 성능을 물체 경계·다중 물체 관계 이해로 확대하지 않는다.
-> 아래 09-07 실험은 이력으로 읽고 현재 상태는 8.8절을 따른다.
+> **현재 확인 결과:** V2에서 RGB-D의 visible-density 예측 개선을, Phase 36 A에서 순수 patch의
+> 가시 asset 대응 정보를 확인했다. Phase 34는 근접도의 국소 반응과 면적 통제 실패를,
+> Phase 35는 물체 평균 근접도와 정적 제거 효과의 약한 상관을 확인했다.
+> 이 결과를 바탕으로 count/occupancy는 density pilot으로, 근접도는 진단 이력으로 보존한다.
+> 구조적 Complexity GT는 후속 정의·검증 단계다. 다음은 경계·분리된 조각·다중 물체 관계를
+> 구분하는 능력을 평가하고 필요한 표현 보완을 확인하는 것이다. B/C·fusion은 후속 실행 항목이며
+> 아래 09-07 실험은 이력, 현재 판단과 계획은 8.8절에서 확인한다.
 
 #### 8.1 Phase 33: RGB-D visible-clutter pilot (2026-09-07)
 
@@ -1309,6 +1311,10 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 - 단순히 model 이름이나 64-D/68-D를 쓰지 말고 각 차원이 무엇인지 설명할 것
 - FiLM, MatchingBlock처럼 낯선 module은 간단한 수식과 쉬운 예를 함께 제시할 것
 - 숫자를 단독으로 쓰지 말고 비교 기준과 해석을 붙일 것
+- 2026-09-17 정정: 전반적으로 **확인된 결과 → 평가 조건 → 추가 확인할 범위** 순서로 서술한다.
+  가림확률은 GT 생성·full16·외부 target zero-shot 정량 평가까지 확인되었음을 명시한다.
+  후속 평가가 남았다는 이유로 완료된 성과를 가능성·smoke evidence로 낮추지 않는다.
+  실제 실패·현재 입력 조건·미구현 단계는 정확히 보존하고 다음 검증을 구체적으로 적는다.
 - Bar graph만 쓰지 말고 scene RGB, target, GT, raw prediction, postprocessed prediction panel을 우선할 것
 - “target이 숨을 수 있는” 대신 “target이 가려질 수 있는” 사용
 - “다음 결정” 대신 “다음 Step” 사용
@@ -1407,15 +1413,15 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 
 ### 전체 연구 흐름
 
-이 표는 아래 상세 이력을 현재 관점에서 연결한 색인임. 중간 모델의 성공을 현재 모델의 직접 비교 결과로 해석하지 않음.
+이 표는 아래 상세 이력을 현재 관점에서 연결한 색인임. 각 중간 실험의 확인 결과와 현재 채택한 모델을 구분해 정리함.
 
 | 단계 | 핵심 문제와 시도 | 현재까지의 결론 | 상세 기록 |
 |---|---|---|---|
 | Similarity 의미 보완 | DINO 외형 대응 → CLS category prototype → SigLIP 의미 결합 → cosine shortcut 점검 | DINO+SigLIP의 shortcut 없는 head; zero-shot 동작 정성 확인, 여러 target의 정량 평가 남음 | Phase 1–4 |
 | Occlusion GT 계산 | 촬영 기반 GT를 mesh depth와 pose별 가림 비율 계산으로 전환 | GPU probability GT 생성과 렌더링 정합을 확인 | Phase 5–8 |
-| Target conditioning 진단 | 공정한 split에서 외형·크기·shape와 global/local 조절을 비교 | Target geometry의 역할과 각 실험의 한계를 확인; oracle gate는 현재 baseline이 아님 | Phase 9–30 |
-| Occlusion 기준 모델 확정 | Fixed grid의 target별 pose 누락을 확인하고 adaptive GT로 수정 | Full16 native68 global FiLM baseline과 external target 1개 평가 완료 | Phase 31–32 |
-| Complexity 정의 점검 | Count/occupancy → 관측 근접도 → 실제 더미의 정적 제거 효과 | Density 학습은 가능하지만 해당 scalar를 구조적 Complexity GT로 채택할 근거는 부족 | Phase 33–35 |
+| Target conditioning 진단 | 공정한 split에서 외형·크기·shape와 global/local 조절을 비교 | Raw target 경로의 필요성과 geometry 적용 방식의 성능 차이를 확인; current baseline은 global FiLM/raw broadcast | Phase 9–30 |
+| Occlusion 기준 모델 확정 | Fixed grid의 target별 pose 누락을 확인하고 adaptive GT로 수정 | Full16 가림확률 예측과 external target 1개의 zero-shot 성능을 정량 확인 | Phase 31–32 |
+| Complexity 정의 점검 | Count/occupancy → 관측 근접도 → 실제 더미의 정적 제거 효과 | RGB-D density 예측 개선 확인; 근접도 평균은 제거 효과와 상관이 약해 GT로 채택하지 않고 관계 표현 검증으로 진행 | Phase 33–35 |
 | Complexity 표현 진단 | 기존 feature의 정보 부족과 학습 목표의 한계를 구분 | DINO의 순수 patch 대응은 거의 포화; 다음은 경계·관계 능력과 보완 표현의 검증 | Phase 36 |
 
 ### 지표와 범위 읽는 법
@@ -3202,7 +3208,7 @@ latency/peak VRAM이다. 실제 모델 출력·속도·메모리는 아직 측�
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서·공개 경로 갱신: 2026-09-16 (Asia/Seoul); archive inventory 수량은 이전 점검 기록
+> 마지막 문서 갱신: 2026-09-17 (Asia/Seoul); 공개 이미지 경로·archive inventory는 이전 점검 기록
 > 목적: 새 agent가 요약된 결론뿐 아니라 그 결론의 코드, 수치, 이미지와 이전 실험을 직접 추적하도록 안내
 
 ### 1. 이 문서가 보장하는 범위
@@ -3328,6 +3334,13 @@ README 한 파일만 게시하고 Phase 1–36은 byte 단위로 보존했으며
 기존 기술 문체와 모듈명 중심 제목, 짧은 문단·비교표를 사용하며 세 stream의 수식·수치·그림과
 상세 FAQ는 보존했다. Development Log는 변경하지 않았다. 이 선호는 AGENTS/Context와 공개
 `agent.md`에도 반영하며 문체 갱신 기록은 `docs/public_agent_context_style_20260916.json`에 남긴다.
+
+2026-09-17에는 README 전반과 현재 handoff를 확인된 결과 → 평가 조건 → 추가 확인 범위 순서로
+정리했다. Occlusion은 adaptive GT 생성, full16 가림확률 예측, 외부 `packaged_food_5`의 30개
+scene/150 views zero-shot 정량 평가까지 완료한 상태다. 과거 기본 metric JSON에 남은
+“smoke / one scene” 요약보다 실제 inventory와 wrong-control 평가 범위를 우선한다.
+실험 수치·실패·과거 Phase 기록은 보존하며, 문서화 기록은
+`docs/public_agent_context_confirmed_20260917.json`에 남긴다.
 
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
@@ -3907,6 +3920,10 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 - 이미 확인한 결과를 먼저 명시하고 후속 평가와 구분한다. Similarity의 Banana/packaged_food_5
   결과는 unseen-instance zero-shot 동작의 정성 확인이다. 여러 target의 정량 benchmark가 남았다는
   이유로 이 결과를 encoder 입력 가능성이나 zero-shot 미확인 상태로 낮춰 설명하지 않는다.
+- 2026-09-17 추가 정정: 모든 stream 설명은 확인된 결과 → 평가 조건 → 추가 확인할 범위 순서로
+  작성한다. Occlusion은 adaptive GT 생성·full16 가림확률 예측·external target zero-shot 정량 평가를
+  완료했다. 이를 가능성이나 smoke evidence로 낮춰 적지 않는다. 남은 검증은 구체적인 대상·조건으로
+  명시하며 실제 실패·입력 제약·미구현 단계는 보존한다.
 - README에는 가능하면 실제 scene, GT, prediction을 함께 보여 주는 이미지를 사용한다.
 - 공개 README 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/` 세 폴더에 바로 저장한다.
   다른 repo로 README와 이미지를 복사하기 쉽도록 실험별 새 폴더나 하위 폴더를 만들지 않는다.
