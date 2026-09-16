@@ -645,7 +645,7 @@ MatchingBlock은 cosine을 다시 계산하지 않으며, target patch–scene p
 
 ## Occlusion Stream
 
-> **Status: 16개 학습 target의 adaptive probability GT 240,000장 생성 완료 · 전체 scene의 10%를 사용한 baseline 학습 완료 · 학습하지 않은 `packaged_food_5`를 학습에 쓰지 않은 30개 scene × 5개 camera에서 평가 완료 · Density pilot 완료 · 다음 Step은 국소 Complexity GT 재검증**
+> **Status: 16개 학습 target의 adaptive probability GT 240,000장 생성 완료 · 전체 scene의 10%를 사용한 baseline 학습 완료 · 학습하지 않은 `packaged_food_5`를 학습에 쓰지 않은 30개 scene × 5개 camera에서 평가 완료 · Density pilot·가시 asset 대응 진단 완료 · Complexity의 물체·공간 표현 검토 중**
 >
 > 현재 baseline은 한 장의 center/top-down target RGB와 mask에서 appearance 및 68-D geometry를 만들고, 모든 scene camera에 같은 target reference를 사용함. 외부 target 평가는 합성 segmentation mask를 사용했으므로 **모델의 zero-shot 가능성은 확인했지만, 실환경 RGB에서 mask를 얻는 과정까지 검증한 결과는 아님**.
 
@@ -1359,15 +1359,15 @@ Zero-shot 평가는 학습에 없던 `packaged_food_5`와 학습에 쓰지 않�
 
 ## Complexity Stream
 
-> **Status: Density pilot preserved · cluttered-scene removal diagnostic completed · Complexity GT not approved**
+> **Status: Density pilot preserved · frozen-DINO visible-asset probe completed · object/spatial representation under investigation · Complexity GT not approved**
 
 Complexity는 target identity와 무관하게 **더미 내부의 물체 간 국소 구조 차이**를 표현하려는 stream임. 아래 count/occupancy 모델은 이를 위한 초기 density pilot이며, 점유율과 개수만으로 해당 정의를 검증하지 못했음. [최근 문헌·GT 진단](docs/complexity_results/definition_review_20260908.md) 이후 Phase 34에서 다른 물체의 관측 표면까지 거리를 쓰는 후보를 비교함. 가까운 접경의 국소 반응은 확인했지만 면적 통제에 실패했고, 근접도만으로 적층·가림 전체를 설명할 수 없어 공식 GT와 새 학습으로 채택하지 않음. 같은 높이의 물체 여러 개는 depth 변화가 작을 수 있고, 비스듬한 책 한 권은 depth 변화가 클 수 있으므로 RGB와 depth를 함께 사용함. 별도 VLM은 추가하지 않음.
 
-추론에는 **scene RGB + metric depth + 고정 camera의 workspace/empty-drawer reference**를 사용함. Segmentation은 학습 정답 생성과 평가에만 필요함. RGB-D 한 장으로 보이지 않는 물체 수나 실제 적층 수를 알아낸다는 가정은 하지 않음.
+아래 density pilot의 추론에는 **scene RGB + metric depth + 고정 camera의 workspace/empty-drawer reference**를 사용함. 이 모델에서 segmentation은 학습 정답 생성과 평가에만 필요함. Phase 34–35의 근접도 진단은 GT label을 계산 입력으로 사용한 별도 실험임. RGB-D 한 장으로 보이지 않는 물체 수나 실제 적층 수를 알아낸다는 가정은 하지 않음.
 
 | 구성 | 구현과 의미 |
 |---|---|
-| Visible count GT | 원본 segmentation에서 48/96/160px window와 교차하는 visible asset-label 수를 세고 고정값 16으로 나눔. 현재 generator는 asset당 한 물체를 배치함 |
+| Visible count GT | 원본 segmentation에서 48/96/160px window와 교차하는 가시 label-group 수를 세고 고정값 16으로 나눔. Asset당 한 물체를 배치하지만 서로 다른 asset의 label 색 충돌이 있어 실제 물체 수와 일치하지 않을 수 있음 |
 | Occupancy GT | 16×16 patch의 알려진 workspace 중 물체 pixel의 면적 비율 |
 | RGB branch | Frozen DINOv3 ViT-B/16 layer11의 dense feature로 물체의 외형·문맥을 사용 |
 | Depth branch | Depth 평균·foreground 비율·valid 비율 + 세 window의 평면 잔차 RMS·gradient variation = 9 channels |
@@ -1391,13 +1391,15 @@ Depth + fixed reference → geometry9 → conv64┘                         ├�
 | **RGB-D learned head** | **0.6414** | **0.00854** |
 | Direct depth foreground | 해당 없음 | 0.00981 |
 
-Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이며 세 window와 세 seed를 평균함. RGB-D는 depth-only 대비 **22.97% 개선**, 모든 5개 camera에서 개선됨. 12개 test scene-key cluster를 함께 재표집한 개선량 95% bootstrap 구간은 `[0.1790, 0.2054]`개임. 사전 count 예측 기준 네 항목을 통과함. 이 기준은 RGB 입력의 count 예측 효과에 관한 것이며, 구조적 Complexity의 타당성이나 탐색 효용을 검증하지 않음.
+Count MAE는 GT count>0인 유효 window의 **가시 segmentation label-group 개수 단위** 오차이며 세 window와 세 seed를 평균함. RGB-D는 depth-only 대비 **22.97% 개선**, 모든 5개 camera에서 개선됨. 12개 test scene-key cluster를 함께 재표집한 개선량 95% bootstrap 구간은 `[0.1790, 0.2054]`개임. 사전 count 예측 기준 네 항목을 통과함. 이 기준은 RGB 입력의 count 예측 효과에 관한 것이며, 구조적 Complexity의 타당성이나 탐색 효용을 검증하지 않음. Phase 36에서 확인한 색 충돌은 이 과거 GT·수치에 소급 수정하지 않았고, 새 대응 진단에서만 해당 영역을 unknown으로 제외함.
 
 ![Complexity RGB-D five-view result](img/complexity_model/book_1_five_views.png)
 
 왼쪽부터 scene RGB, 96px visible count GT, RGB-D prediction, absolute error, occupancy GT, direct depth occupancy, depth plane residual임. Count 그림은 GT-valid window만 표시하며, 표시 밖의 0은 물체가 없다는 판정이 아님. 네 대표 source pool의 전체 그림·seed별 지표·정확한 실행 조건은 [실험 상세](docs/complexity_results/README.md)에 있음.
 
-**현재 판단과 다음 Step:** Density pilot의 점수는 영상 window의 visible count이며 물리적 면적당 밀도·숨겨진 개수·target 확률이 아님. Phase 35에서 실제 asset이 쌓인 10 layouts × 5 views의 물체 제거 효과를 확인함. 30mm 근접도의 물체별 평균은 새로 드러나는 다른 물체 면적 비율과 평균 순위 상관이 **0.078**로 약했으며, 면적·count보다 유리하지 않았음. 이 값을 Complexity GT나 제거 우선순위로 채택하지 않고 새 학습을 보류함. 이는 GT label을 사용한 정적 가시성 진단이며 RGB-D 추론 성능 또는 Complexity 전체의 무용함을 검증한 결과가 아님. 다음 Step은 실제 더미에서 **어느 물체가 다른 물체를 앞에서 가리는지에 관한 관측 방향 정보**가 면적·count 및 기존 Occlusion Stream을 넘어 추가 정보를 주는지 확인하는 것임. 정형 도형 실험 확대는 우선순위가 아니며 최종 효용은 S+O 대비 S+O+C 탐색 결과로 판단함. 아래 Phase 35에 비교 사진·정확한 표본 수·실패와 한계를 기록함.
+**현재 판단:** Density pilot은 visible count 예측이며 구조적 Complexity GT는 아직 승인하지 않음. Phase 35의 물체 평균 근접도도 정적 제거 효과와 상관이 약했음. 이후 연구 방향은 Similarity에 SigLIP 의미 표현을 보완한 것처럼 **기존 RGB-D 표현에서 부족한 물체·공간 정보를 먼저 진단하고 사전학습 표현의 추가 가치를 확인하는 것**으로 정리함. Phase 36에서는 기존 DINO feature에 작은 분류기를 학습하면 알려진 asset의 내부 patch가 같은 물체에 속하는지 잘 구분됨을 확인함(same-category AUROC **0.998953**). 이는 물체 관계나 복잡도 자체를 해결한 결과가 아님.
+
+**다음 Step:** 이 내부 patch 진단은 거의 포화되어 추가 모델 비교에 적합하지 않음. 실제 더미의 경계·분리된 가시 조각의 소속·다중 물체 관계 중 기존 표현이 놓치는 능력을 구체적으로 확인하고, 그 평가에서 RGB 기반 물체 묶음과 추가 공간 표현을 비교함. SAM/VLM의 효과는 아직 측정하지 않았으며 새 scalar나 제거 횟수를 GT로 채택하지 않음. 최종 효용은 S+O 대비 S+O+C 탐색 결과로 검증해야 함. 아래 Phase 35–36에 사진·결과·한계를 기록함.
 
 ---
 
@@ -1441,6 +1443,7 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 | Occlusion stream training | 10% full16 baseline complete and frozen for the next module |
 | Complexity stream training | Visible-density pilot complete; local structural Complexity GT requires validation before further training |
 | Cluttered-scene removal diagnostic | 10 layouts/50 views replayed; object-mean proximity weakly associated with static reveal gain; no GT adoption or new training |
+| Frozen-DINO representation probe | Seen-asset pure-patch correspondence near ceiling; boundary/relational ability and added SAM/spatial-model benefit remain untested |
 | Three-stream fusion | Input contract: 3 × 64 = 192 channels at 30×40; integrated forward / GT / loss / training pending |
 | Exploration policy integration | Planned |
 | Sim-to-real drawer experiment | Planned |
@@ -1530,6 +1533,8 @@ Count MAE는 GT count>0인 유효 window의 **물체 개수 단위** 오차이�
 - [ ] Camera-pose augmentation and calibration-derived workspace masks
 - [x] RGB-D visible-density pilot GT, depth control, 3-seed evaluation and inference
 - [x] Local observed-surface proximity diagnostic; area-control criterion failed, GT remains unapproved
+- [x] Frozen-DINO visible-asset correspondence probe with depth/position controls and three seeds
+- [ ] Identify missing boundary/relational capabilities before comparing added object/spatial representations
 - [ ] Validate local Complexity definition within piles, controlling count/occupancy and texture
 - [ ] Unseen scene-object Complexity evaluation
 - [ ] Define fusion GT, loss and three-stream ablation protocol
@@ -2596,3 +2601,39 @@ Adaptive GT
 **한계와 판단:** 두 capture run·세 generation batch와 공통 asset을 공유하므로 물체·시점을 독립 표본으로 취급하거나 유의성을 주장하지 않음. 이상적인 segmentation·pose·mesh를 쓴 정적 가시성 진단이며 실제 집기·재정착·target 발견·탐색 효율과 segmentation 없는 RGB-D 추론은 미검증임. 관측 근접도는 RGB-D만으로 추론한 출력이 아니라 GT label+depth 기반 후보임. **30mm 근접도의 물체별 평균을 제거 순위 점수나 Complexity GT로 채택·학습할 근거가 부족함.** 근접 feature 전체가 무용하다는 결론이나 면적/count가 복잡도의 정답이라는 결론으로 확대하지 않음.
 
 **다음 Step:** 실제 더미에서 관측 가능한 가림 방향 정보가 단순 면적·count보다 추가 정보를 주는지 현재 제거 평가로 확인하고, 이미 본 layout에서 맞춘 후보는 새 capture에서 재검증함. 기존 Occlusion Stream과의 역할 차이도 먼저 정리함. 새 GT 대량 생성·학습·fusion은 보류함. 코드·원시 결과·실패 실행은 로컬에 보존하고 이번 게시에는 README와 비교 그림만 포함함.
+
+
+---
+
+### 2026-09-16 · Phase 36 — Frozen-DINO Visible-Asset Representation Probe
+
+**목적:** Similarity는 DINO의 외형 표현에 SigLIP의 의미 표현을 보완했음. Complexity도 새 점수를 계속 바꾸기보다 기존 RGB-D 표현에 무엇이 부족한지 먼저 확인해야 함. 따라서 `A: 기존 DINO+depth → B: RGB로 예측한 물체 묶음 추가 → C: 공간 사전학습 표현 추가` 비교를 계획하고, 이번에는 **A의 기초 진단만 수행함**. Phase 35 끝의 방향 정보 제안은 당시 후속 가설이며 현재 채택한 GT가 아님.
+
+**방법과 이유:** 실제 asset이 쌓인 영상에서 두 16×16 patch가 같은 가시 asset에 속하는지 분류함. 기존 16개 source pool을 모두 유지하고 train/val/test는 8/4/8 scene keys × 16 pools × 5 cameras, 즉 **640/320/640 views**로 구성함. 같은 scene key의 모든 pool·camera를 같은 split에 둠. Test 8 keys는 Complexity V1/V2에 사용한 24개를 제외한 원본 test pool에서 사전 선택했으며, asset 자체는 학습에서 본 조건임.
+
+Patch의 ≥90%가 같은 알려진 asset이고 workspace와 유효 depth가 각각 ≥95%인 경우만 사용함. Mapping에서 서로 다른 asset이 같은 색을 공유하는 영역은 unknown으로 제외함. 같은 asset의 pair와 다른 asset의 pair를 **정확한 XY offset, anchor category, depth 차이 구간**별로 맞추고, 같은 카테고리의 다른 asset을 구분하는 조건을 주 평가로 삼음. GT segmentation/category는 감독·표집·평가에만 사용하며 분류기 입력에는 넣지 않음. 따라서 GT가 지정한 순수 patch에서의 분류 진단이며 전체 영상 segmentation 성능은 아님.
+
+Frozen DINO 두 feature의 차이·곱, RGB-D에서 계산한 depth descriptor, 위치를 작은 `1622→64→16→1` 분류기에 입력함. Position / depth+position / DINO+position / DINO+depth+position은 같은 구조·초기값·sample 순서로 seed 0/1/2를 비교하며 사용하지 않는 branch는 train-only normalization 뒤 0으로 둠. Validation으로 checkpoint를 고정한 후 test를 평가함. DINO cosine와 depth 차이는 학습 없는 비교군임.
+
+**결과:** Test 전체는 150,690 pairs/640 views이고, 주 평가인 same-category 조건은 **80,024 pairs(양성·음성 각각 40,012), 604 views, 8 scene-key 묶음**임. 나머지 36 views에는 해당 matched pair가 없음. 아래 AUROC는 view별 계산 → key별 pool/view 평균 → 8 keys 동일 평균 → 세 seed 평균임. 1에 가까울수록 잘 구분한다는 뜻이며 정확도나 Complexity 점수가 아님.
+
+| 방법 | 같은 카테고리 내 AUROC | 다른 카테고리 간 AUROC |
+|---|---:|---:|
+| 위치만 | 0.608809 | 0.530252 |
+| Depth + 위치 | 0.773882 | 0.873615 |
+| DINO + 위치 | **0.998953** | 0.999664 |
+| DINO + depth + 위치 | 0.998908 | **0.999673** |
+| DINO cosine, 학습 없음 | 0.925424 | 0.974662 |
+| Depth 차이, 학습 없음 | 0.535946 | 0.538848 |
+
+![Frozen-feature correspondence comparison](img/complexity_representation/comparison.png)
+
+DINO+depth는 depth보다 same-category AUROC가 +0.225025 높았고 8/8 keys에서 개선됨. DINO+depth와 DINO의 차이는 -0.000045로 이 과제에서 depth 추가 효과는 확인하지 못함. Pair 표집 조건과 GT→입력 누출 여부를 독립 검토하고 일부 지표를 재계산하여 저장값과 일치함을 확인함.
+
+![Pure-patch correspondence examples and highest-error pairs](img/complexity_representation/failure_examples.png)
+
+왼쪽은 RGB, 가운데는 같은 asset pair, 오른쪽은 같은 카테고리의 다른 asset pair임. 사전 첫 test key의 book/fruit/packaged-food/toy 첫 pool과 center camera를 고정하고 각 영상·label에서 오차가 가장 큰 pair를 표시함. 따라서 대표 평균 성능을 보여 주는 표본은 아니며, 고른 pair가 모두 오분류인 것도 아님. 청록·자홍 사각형은 두 patch이고 `same-label score`는 세 seed의 평균 logit에 sigmoid를 적용한 값임. 실제 분포에서 보정된 확률로 해석하지 않음.
+
+**한계와 판단:** 알려진 foreground가 걸친 test patch 128,380개 중 조건을 만족한 것은 54,429개(**42.40%**)임. 이 분모는 unknown/색 충돌 영역을 제외하며 전체 물체 면적 coverage가 아님. 경계·작은 물체·심한 가림은 상당 부분 제외되고 같은 asset의 복제 instance를 구분하는 문제도 평가하지 않음. Pair와 view는 서로 상관되어 있으므로 80,024개를 독립 scene 수로 해석하지 않음. **기존 표현에서 알려진 asset 내부의 대응 정보를 읽을 수 있다는 근거이며, 복잡도 이해·전체 segmentation·새 물체 일반화의 증거는 아님.**
+
+**다음 Step:** 현재 순수 patch 지표는 거의 포화되어 B/C의 추가 효과를 판별하기 어려움. 물체 내부 구분을 위한 모델 추가는 보류하고, 실제 더미의 경계·분리된 조각의 소속·다중 물체 관계 중 어떤 능력이 부족한지 평가부터 고정함. 관측 가능한 관계 label의 품질을 확인한 뒤 같은 평가·region 조건에서 물체 묶음과 공간 표현의 추가 가치를 비교함. SAM/VLM이 불필요하다는 결론은 아니며 **B/C 모델 실행·새 Complexity GT 채택·fusion은 미완료**임. 이번 공개는 README와 두 비교 그림으로 한정하고 실험 코드·checkpoint·원시 자료는 로컬에 보존함.
