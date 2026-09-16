@@ -13,9 +13,9 @@
 
 | Stream | 목적 | 현재 구현과 검증 범위 |
 |---|---|---|
-| [Similarity](#similarity-stream) | Target과 외형·의미가 관련된 가시 영역 찾기 | DINOv3 + SigLIP 구현, unseen target 정성 결과; 정량 일반화 평가 남음 |
-| [Occlusion](#occlusion-stream) | 해당 target이 가려질 수 있는 위치 추론 | Adaptive GT로 full16 baseline 학습, 외부 target 1개 평가 |
-| [Complexity](#complexity-stream) | 더미 내부 물체 간 구조 차이 표현 | Density pilot과 표현 진단 완료; 최종 구조·GT는 미확정 |
+| Similarity | Target과 외형·의미가 관련된 가시 영역 찾기 | DINOv3 + SigLIP 구현, unseen target 정성 결과; 정량 일반화 평가 남음 |
+| Occlusion | 해당 target이 가려질 수 있는 위치 추론 | Adaptive GT로 full16 baseline 학습, 외부 target 1개 평가 |
+| Complexity | 더미 내부 물체 간 구조 차이 표현 | Density pilot과 표현 진단 완료; 최종 구조·GT는 미확정 |
 
 ```mermaid
 flowchart LR
@@ -44,7 +44,7 @@ flowchart LR
 
 세 stream은 각각 별도 GT로 학습함. **Three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 통합은 아직 미구현**임. 현재 각 stream의 보조 출력을 최종 target 존재 확률로 해석하지 않음.
 
-각 본문은 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](#development-log), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함. 외부 공유용 [원문 Markdown](https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md)도 제공함.
+각 본문은 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 Development Log, 실행 문맥과 상세 근거 색인은 `agent.md`에 보존함.
 
 ### 입력과 감독 정보
 
@@ -201,7 +201,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 
 ### 1. 목적과 입출력
 
-Similarity stream은 **target 자체와 의미적으로 관련된 가시 영역**을 표현함. DINOv3의 위치별 visual feature에 target appearance와 SigLIP image/text semantics를 결합하여 위치별 similarity score를 학습함. Target이 더미 뒤에서 가려질 수 있는 위치는 [Occlusion Stream](#occlusion-stream)이 담당함.
+Similarity stream은 **target 자체와 의미적으로 관련된 가시 영역**을 표현함. DINOv3의 위치별 visual feature에 target appearance와 SigLIP image/text semantics를 결합하여 위치별 similarity score를 학습함. Target이 더미 뒤에서 가려질 수 있는 위치는 Occlusion Stream이 담당함.
 
 #### 검색 조건과 표현 범위
 
@@ -224,7 +224,7 @@ Banana는 기존 16개 training target에 포함되지 않은 external query임.
 
 #### Target representation
 
-공통 표기와 연산은 [Feature와 Tensor 규격](#feature와-tensor-규격), [주요 연산](#주요-연산)에 정리함. Similarity의 target 표현은 다음 네 항목으로 구분함.
+공통 표기와 연산은 Feature와 Tensor 규격, 주요 연산에 정리함. Similarity의 target 표현은 다음 네 항목으로 구분함.
 
 | 표현 | 구성 | 역할 |
 |---|---|---|
@@ -301,7 +301,7 @@ flowchart TB
     PS --> UP["필요시 bilinear interpolation<br/>B × 1 × 480 × 640"]
 ```
 
-기준 코드는 [backbone.py](backbone.py), [target_utils.py](target_utils.py), [similarity_model.py](similarity_model.py), [train_similarity_v2.py](train_similarity_v2.py)임. Scene와 target appearance는 같은 frozen DINOv3 backbone을 사용함. SigLIP은 target 조건을 만들 때만 사용하며, scene를 SigLIP으로 다시 인코딩하지 않음.
+기준 코드는 `backbone.py`, `target_utils.py`, `similarity_model.py`, `train_similarity_v2.py`임. Scene와 target appearance는 같은 frozen DINOv3 backbone을 사용함. SigLIP은 target 조건을 만들 때만 사용하며, scene를 SigLIP으로 다시 인코딩하지 않음.
 
 | 단계 | Tensor 변화 | 차원과 계산의 의미 |
 |---:|---|---|
@@ -591,7 +591,7 @@ flowchart LR
 
 #### Relation score GT와 loss
 
-[gt_similarity.py](gt_similarity.py)는 scene segmentation의 asset mapping과 category를 사용하여 다음 GT를 구성함. 이 category 관계는 연구에서 정한 supervision이며, SigLIP이 자동으로 정한 similarity 정답이 아님.
+`gt_similarity.py`는 scene segmentation의 asset mapping과 category를 사용하여 다음 GT를 구성함. 이 category 관계는 연구에서 정한 supervision이며, SigLIP이 자동으로 정한 similarity 정답이 아님.
 
 | Target–scene 관계 | Pixel GT score |
 |---|---:|
@@ -697,7 +697,7 @@ GT category score는 loss·평가용이며 inference query나 scene feature에 �
 | Balanced tolerance accuracy | GT-positive와 GT-negative의 tolerance accuracy 평균 | 배경 비중의 영향을 줄인 보조 지표 |
 | Tolerance IoU-like | `close ∩ GT-positive` 수 / `GT-positive ∪ predicted-positive` 수 | 일반 binary-mask IoU와 다른 프로젝트 전용 지표 |
 
-Positive 기준은 `GT>0.1`, `prediction>0.1`임. `0.2`인 다른 category 물체도 positive에 포함되므로 이 IoU-like 값을 exact target 위치 IoU라고 부르지 않음. 구체적 계산은 [train_common.py](train_common.py)의 `batch_accuracy_counts()`와 `accuracy_scores_from_counts()`를 따름.
+Positive 기준은 `GT>0.1`, `prediction>0.1`임. `0.2`인 다른 category 물체도 positive에 포함되므로 이 IoU-like 값을 exact target 위치 IoU라고 부르지 않음. 구체적 계산은 `train_common.py`의 `batch_accuracy_counts()`와 `accuracy_scores_from_counts()`를 따름.
 
 보존된 no-shortcut 후보 `multi_target_20260728_114403_siglip/similarity_head_best.pt`는 현재 head/projection 구조와 호환됨. 해당 `train_log.txt`의 **마지막 best 저장 epoch 21**에는 validation MSE `0.00027`, tolerance IoU-like `0.8588`이 기록돼 있음. 이는 같은 asset library의 scene validation 기록이며 external target 정량 성능이 아님. MSE는 log의 반올림 값이고, best 저장 규칙은 5% 개선 기준이므로 저장된 best를 모든 epoch의 정확한 최소 MSE와 동일시하지 않음.
 
@@ -724,10 +724,10 @@ Checkpoint에는 `model_state`와 `semantic_proj_state`만 저장하고 frozen b
 
 | 단계 | 가정과 시도 | 관측된 한계·변화 |
 |---|---|---|
-| [Phase 1: DINO appearance](#2026-07-21--phase-1--dinov3-appearance-matching) | Frozen patch feature와 target appearance의 비교로 유사도 지도를 학습 | 색·재질·형상에 반응했지만 해당 구성에서는 category 관계가 충분하지 않았음. DINO 전체에 의미 정보가 없다는 증명은 아님 |
-| [Phase 2: CLS prototype](#2026-07-27--phase-2--cls-prototype-category-conditioning) | Target CLS를 category별로 평균하고 category prior를 interaction에 추가 | 기존 물체 표현의 평균만으로 외형 차이가 큰 unseen target을 안정적으로 설명하지 못해 language-aligned 의미 표현을 검토 |
-| [Phase 3: SigLIP 결합](#2026-07-28--phase-3--dinov3--siglip-semantic-fusion) | Target image/text semantics를 layer별 projection으로 appearance query에 합산 | Unseen packaged-food에서 same-category 정성 활성화 관찰. Projection·image·text 각각의 기여와 정량 일반화는 추가 검증 필요 |
-| [Phase 4: shortcut 제거](#2026-07-2829--phase-4--exact-instance-shortcut-evaluation) | Exact instance를 더 높이려 raw DINO cosine을 output logit에 직접 추가하고 여러 matching 변형 진단 | 비교한 설정에서 exact-vs-same-category 분리가 거의 개선되지 않고 competitor도 활성화됨. 출력 shortcut을 제거하고 learned interaction head 유지 |
+| Phase 1: DINO appearance | Frozen patch feature와 target appearance의 비교로 유사도 지도를 학습 | 색·재질·형상에 반응했지만 해당 구성에서는 category 관계가 충분하지 않았음. DINO 전체에 의미 정보가 없다는 증명은 아님 |
+| Phase 2: CLS prototype | Target CLS를 category별로 평균하고 category prior를 interaction에 추가 | 기존 물체 표현의 평균만으로 외형 차이가 큰 unseen target을 안정적으로 설명하지 못해 language-aligned 의미 표현을 검토 |
+| Phase 3: SigLIP 결합 | Target image/text semantics를 layer별 projection으로 appearance query에 합산 | Unseen packaged-food에서 same-category 정성 활성화 관찰. Projection·image·text 각각의 기여와 정량 일반화는 추가 검증 필요 |
+| Phase 4: shortcut 제거 | Exact instance를 더 높이려 raw DINO cosine을 output logit에 직접 추가하고 여러 matching 변형 진단 | 비교한 설정에서 exact-vs-same-category 분리가 거의 개선되지 않고 competitor도 활성화됨. 출력 shortcut을 제거하고 learned interaction head 유지 |
 
 세부 설정과 실패 사례는 위 Development Log에 보존함. 현재 구조는 이 관측을 반영한 구현 선택이며, 정확한 instance 우선순위와 모든 semantic 관계를 해결했다는 결론은 아님.
 
@@ -880,7 +880,7 @@ RGB의 red·green·blue와 달리 encoder 좌표는 사전 정의된 물리량�
 
 #### Q5. 새 target에 image-only 추론이 가능한가? Zero-shot은 무엇까지 의미하는가?
 
-**Image-only semantic 추론은 지원함.** [inference_zeroshot.py](inference_zeroshot.py)의 `--label`을 생략하면 SigLIP image만 사용함. Crop·appearance pooling에 reference mask와 mapping이 필요하므로 raw target RGB만 받는 배포 입력과는 다름.
+**Image-only semantic 추론은 지원함.** `inference_zeroshot.py`의 `--label`을 생략하면 SigLIP image만 사용함. Crop·appearance pooling에 reference mask와 mapping이 필요하므로 raw target RGB만 받는 배포 입력과는 다름.
 
 ```text
 공통 입력: Scene RGB + Target RGB + Target mask/mapping
@@ -1265,7 +1265,7 @@ Conditioning 방식은 target 정보를 쓰는 연산과 적용 위치로 구분
 
 단순 concat도 후속 비선형 network를 통해 복잡한 관계를 학습할 수 있음. FiLM은 geometry와 depth의 곱셈 상호작용을 명시한 설계 선택이며, 현재 full16에서 concat·attention 대비 우월성을 별도로 입증하지 않음.
 
-DINO 내부 attention과 Occlusion head의 target–scene cross-attention은 별개임. 현재 head는 layer별 평균 target vector를 scene 각 위치에 cosine·broadcast로 제공함. 과거 local gate의 식·결과는 [Phase 23–30](#2026-08-24--phase-23--local-bounded-extent-interaction)에 기록하며 현재 gamma·beta 계산에 포함하지 않음.
+DINO 내부 attention과 Occlusion head의 target–scene cross-attention은 별개임. 현재 head는 layer별 평균 target vector를 scene 각 위치에 cosine·broadcast로 제공함. 과거 local gate의 식·결과는 Phase 23–30에 기록하며 현재 gamma·beta 계산에 포함하지 않음.
 
 #### 7. Target interaction
 
@@ -1423,7 +1423,7 @@ Candidate pose는 위치 `(x,y,z)`와 yaw를 정한 가상 target 배치임. 이
 - Rendering mesh: 50k faces를 넘으면 약 10k faces로 단순화하여 GPU rasterization에 사용함. 단순화된 bbox로 후보 범위를 넓히지 않음.
 - Pose depth: Batch로 생성하여 여러 scene depth와 비교하고 누적값만 저장함. 모든 pose의 RGB·depth를 개별 파일로 저장하지 않음.
 
-Mesh 단위·camera depth 대응·단순화의 판정 안정성은 [Phase 6–8](#2026-08-0406--phase-6--mesh-depth-validation-and-gt-refinement)에 기록함. **유효 pose는 drawer XY containment와 camera 투영의 현재 규칙을 통과한 후보임.** Clutter 충돌·지지·낙하 안정성·숨은 scene geometry까지 검사한 실제 배치 가능성 정답은 아님.
+Mesh 단위·camera depth 대응·단순화의 판정 안정성은 Phase 6–8에 기록함. **유효 pose는 drawer XY containment와 camera 투영의 현재 규칙을 통과한 후보임.** Clutter 충돌·지지·낙하 안정성·숨은 scene geometry까지 검사한 실제 배치 가능성 정답은 아님.
 
 #### 3. Corrected occlusion ratio
 
@@ -1635,11 +1635,11 @@ Adaptive GT에서 native 68-D·raw broadcast·global FiLM baseline을 재학습�
 
 | 설계 쟁점 | 확인한 사실과 현재 선택 | 상세 이력 |
 |---|---|---|
-| GT 밝기 기준의 일관성 | Corrected footprint의 `N_occ/N_all`을 공통 정의로 사용하고 scene별 min–max·visible overlay를 분리함 | [Phase 7](#2026-08-06--phase-7--gpu-rasterization-corrected-ratio-and-capture-reliability), [Phase 8](#2026-08-07--phase-8--mesh-based-legacy-and-probability-gt-generation) |
-| Raw target vector의 필요성 | 당시 통제 실험에서 제거 시 악화됐고 재현 검사에서도 확인하여 raw broadcast 유지 | [Phase 15](#2026-08-21--phase-15--target-conditioning-path-diagnosis), [Phase 16](#2026-08-21--phase-16--fresh-paired-reproducibility-gate) |
-| Exact extent·local gate의 추가 효과 | 상한선과 공간 적용 문제를 진단했으나 입력 계약 차이·trade-off가 남음. 현재 full16에 합치지 않음 | [Phase 21](#2026-08-22--phase-21--exact-3d-extent-diagnostic)–[Phase 30](#2026-08-25--phase-30--five-camera-development-heldout-oracle-check) |
-| Coverage 밖 활성화의 원인 | Peach의 fixed grid가 후보를 누락함을 확인하여 adaptive grid로 변경 | [Phase 31](#2026-08-27--phase-31--target-specific-gt-coverage-check) |
-| Adaptive GT 이후 모델 선택 | Native 68-D·global FiLM으로 full16과 외부 1-target 결과를 확인해 baseline 보존 | [Phase 32](#2026-08-28--phase-32--full16-baseline-and-external-zero-shot-evaluation) |
+| GT 밝기 기준의 일관성 | Corrected footprint의 `N_occ/N_all`을 공통 정의로 사용하고 scene별 min–max·visible overlay를 분리함 | Phase 7, Phase 8 |
+| Raw target vector의 필요성 | 당시 통제 실험에서 제거 시 악화됐고 재현 검사에서도 확인하여 raw broadcast 유지 | Phase 15, Phase 16 |
+| Exact extent·local gate의 추가 효과 | 상한선과 공간 적용 문제를 진단했으나 입력 계약 차이·trade-off가 남음. 현재 full16에 합치지 않음 | Phase 21–Phase 30 |
+| Coverage 밖 활성화의 원인 | Peach의 fixed grid가 후보를 누락함을 확인하여 adaptive grid로 변경 | Phase 31 |
+| Adaptive GT 이후 모델 선택 | Native 68-D·global FiLM으로 full16과 외부 1-target 결과를 확인해 baseline 보존 | Phase 32 |
 
 과거 fixed grid·14-target split·multi-scale oracle·local residual gate는 당시 가설을 검사한 이력임. 본문의 현재 방법은 **16-target adaptive/native-geometry/global-FiLM baseline**이며, 다른 GT·split에서 얻은 과거 수치를 같은 모델의 성능표로 합치지 않음.
 
@@ -1721,7 +1721,7 @@ External 범위는 target identity임. Scene의 물체·환경 분포와 camera 
 | Wrong `toy_1` | 0.028164 | 0.736090 | 0.574839 |
 | Wrong `packaged_food_1` | 0.015996 | 0.825885 | 0.725331 |
 
-크기·형태가 다른 세 wrong-target 대조군은 correct보다 MAE가 높고 map 겹침이 낮았음. 다만 **`packaged_food_1`은 일부 수치에서 correct보다 근소하게 우수했음.** 두 target의 GT가 매우 유사하여 조건 구별을 평가하는 정보가 적은 pair임. Correct가 모든 wrong input보다 우수하다는 결과는 아니며 세부 해석은 [Phase 32](#2026-08-28--phase-32--full16-baseline-and-external-zero-shot-evaluation)에 기록함.
+크기·형태가 다른 세 wrong-target 대조군은 correct보다 MAE가 높고 map 겹침이 낮았음. 다만 **`packaged_food_1`은 일부 수치에서 correct보다 근소하게 우수했음.** 두 target의 GT가 매우 유사하여 조건 구별을 평가하는 정보가 적은 pair임. Correct가 모든 wrong input보다 우수하다는 결과는 아니며 세부 해석은 Phase 32에 기록함.
 
 | Camera | center | top | left | right | bottom |
 |---|---:|---:|---:|---:|---:|
@@ -2252,7 +2252,7 @@ Count score에 16을 곱한 값은 연속적인 가시 label-group 개수 추정
 
 Hash 검사는 학습에 사용한 weight/reference와 다른 파일의 혼입을 확인하는 절차임. 동일 해상도 또는 동일 파일이라는 사실만으로 새 camera의 실제 정합을 보장하지 않음.
 
-구현: [`complexity_cues.py`](complexity_cues.py), [`complexity_model.py`](complexity_model.py), [`run_complexity_pilot.py`](run_complexity_pilot.py), [`inference_complexity.py`](inference_complexity.py). 실행법은 [density pilot 문서](docs/complexity_results/README.md)에 정리함.
+구현: `complexity_cues.py`, `complexity_model.py`, `run_complexity_pilot.py`, `inference_complexity.py`. 실행법은 density pilot 문서 (`docs/complexity_results/README.md`)에 정리함.
 
 ### 5. 핵심 설계 과정과 검증 결과
 
@@ -2273,7 +2273,7 @@ Occupancy MAE는 RGB-D `0.00854`, depth-only learned head `0.01524`, 직접 dept
 
 ![RGB-D density pilot in five views](img/complexity/book_1_five_views.png)
 
-열은 scene RGB / 96px count GT / RGB-D prediction / 절대 오차 / occupancy GT / 직접 depth occupancy / depth plane residual임. Count는 GT-valid window만 표시하므로 표시 밖의 0을 물체 부재로 해석하지 않음. Empty-reference 수정과 평가 조건은 [Phase 33](#2026-09-07--phase-33--rgb-d-complexity-pilot)에 정리함.
+열은 scene RGB / 96px count GT / RGB-D prediction / 절대 오차 / occupancy GT / 직접 depth occupancy / depth plane residual임. Count는 GT-valid window만 표시하므로 표시 밖의 0을 물체 부재로 해석하지 않음. Empty-reference 수정과 평가 조건은 Phase 33에 정리함.
 
 #### Phase 34–35: 근접도 teacher와 정적 제거
 
@@ -2281,7 +2281,7 @@ Occupancy MAE는 RGB-D `0.00854`, depth-only learned head `0.01524`, 직접 dept
 
 Phase 35는 pose가 보존된 추가 capture를 사용함. 원본 16개에 `World1`을 더한 17-asset 데이터로 `260714_data`와 별도임. 50/50 views의 원본 label/depth 정합을 확인한 뒤 다른 물체를 고정하고 하나만 제거하여 새로 보이는 다른 물체 면적을 측정함.
 
-이 결과는 실제 grasp 가능성·재정착·target 발견·행동 성공률을 포함하지 않음. 제한된 정적 노출 효과와도 물체 평균 근접도의 상관이 약하여 선택 점수로 채택하지 않았으며, 모든 근접 feature의 무용함으로 확대하지 않음. 사진·통제 실패·공통 표본 집계는 [Phase 34](#2026-09-08--phase-34--observed-surface-proximity-diagnostic), [Phase 35](#2026-09-16--phase-35--cluttered-scene-static-removal-diagnostic)에 정리함.
+이 결과는 실제 grasp 가능성·재정착·target 발견·행동 성공률을 포함하지 않음. 제한된 정적 노출 효과와도 물체 평균 근접도의 상관이 약하여 선택 점수로 채택하지 않았으며, 모든 근접 feature의 무용함으로 확대하지 않음. 사진·통제 실패·공통 표본 집계는 Phase 34, Phase 35에 정리함.
 
 #### Phase 36 A probe: 평가 과제와 pair 구성
 
@@ -2336,7 +2336,7 @@ AUROC는 positive가 negative보다 높은 score를 받는 순위 판별 지표�
 
 ![Frozen-feature visible-asset correspondence](img/complexity/representation_comparison.png)
 
-경계·작은 물체·심한 가림의 상당 부분, 동일 asset 복제, unseen asset 일반화는 이 평가의 범위 밖임. 순수 patch 대응이 거의 포화되어 B/C의 추가 효과를 이 과제로 판별하기 어려우므로 도입을 보류함. 자료와 큰 오차 pair 그림은 [Phase 36](#2026-09-16--phase-36--frozen-dino-visible-asset-representation-probe)에 정리함.
+경계·작은 물체·심한 가림의 상당 부분, 동일 asset 복제, unseen asset 일반화는 이 평가의 범위 밖임. 순수 patch 대응이 거의 포화되어 B/C의 추가 효과를 이 과제로 판별하기 어려우므로 도입을 보류함. 자료와 큰 오차 pair 그림은 Phase 36에 정리함.
 
 ### 6. 질문과 답변
 
@@ -3451,11 +3451,11 @@ Adaptive GT
 
 ![Phase 33 Complexity result](img/complexity/fruit_1_five_views.png)
 
-**판단:** RGB-D Complexity pilot을 baseline으로 채택하고, 세 stream의 feature 규격을 각각 `B × 64 × 30 × 40`, fusion concat 입력을 `B × 192 × 30 × 40`으로 정리함. 전체 fusion·DRL 실행을 완료한 것은 아님. 22개 unit test와 segmentation 없는 실제 RGB-D 추론 경로를 검증함. [상세 정의·실행법·저장 지표](docs/complexity_results/README.md)를 함께 보존함.
+**판단:** RGB-D Complexity pilot을 baseline으로 채택하고, 세 stream의 feature 규격을 각각 `B × 64 × 30 × 40`, fusion concat 입력을 `B × 192 × 30 × 40`으로 정리함. 전체 fusion·DRL 실행을 완료한 것은 아님. 22개 unit test와 segmentation 없는 실제 RGB-D 추론 경로를 검증함. 상세 정의·실행법·저장 지표 (`docs/complexity_results/README.md`)를 함께 보존함.
 
 **한계와 다음 Step:** Visible count는 hidden object count나 target 존재 확률이 아니며, 동일 asset을 여러 번 배치한 데이터에는 instance label을 새로 확인해야 함. 현재 고정 camera·기존 asset library 결과를 unseen object 또는 실환경 성능으로 확대하지 않음. 다음 Step은 unseen scene-object 평가와 fusion의 GT·loss·비교 protocol 설계이며, 최종 탐색 효용은 fusion/DRL ablation으로 검증함.
 
-**2026-09-08 재검토 기록:** 물체 더미 내부의 국소 구조 차이를 구분하는 기준으로 count/occupancy GT를 재검토함. 기존 test 영상 960장에서 물체가 조금이라도 있는 유효 occupancy patch의 56.721%가 0.95 이상으로, 점유율은 넓은 단일 물체와 여러 물체의 밀집을 구분하지 못함. Count에는 내부 변화가 있으나 간격·가림·접촉 구조를 직접 감독하지 않음. 최근 5년의 Disperse-and-Pick, ARMOR, ClutterDexGrasp, Distracted Robot을 비교하고, 현재 run을 **visible-density pilot**으로 한정함. 다음 Step을 fusion 확대에서 **국소 구조 정의와 반례 검증**으로 변경함. 원래 실험·수치·checkpoint는 보존하며 새 GT나 학습을 완료했다고 보고하지 않음. [문헌과 진단 근거](docs/complexity_results/definition_review_20260908.md).
+**2026-09-08 재검토 기록:** 물체 더미 내부의 국소 구조 차이를 구분하는 기준으로 count/occupancy GT를 재검토함. 기존 test 영상 960장에서 물체가 조금이라도 있는 유효 occupancy patch의 56.721%가 0.95 이상으로, 점유율은 넓은 단일 물체와 여러 물체의 밀집을 구분하지 못함. Count에는 내부 변화가 있으나 간격·가림·접촉 구조를 직접 감독하지 않음. 최근 5년의 Disperse-and-Pick, ARMOR, ClutterDexGrasp, Distracted Robot을 비교하고, 현재 run을 **visible-density pilot**으로 한정함. 다음 Step을 fusion 확대에서 **국소 구조 정의와 반례 검증**으로 변경함. 원래 실험·수치·checkpoint는 보존하며 새 GT나 학습을 완료했다고 보고하지 않음. 문헌과 진단 근거 (`docs/complexity_results/definition_review_20260908.md`).
 
 ---
 

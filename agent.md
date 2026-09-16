@@ -6,7 +6,7 @@
 
 이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–36 Development Log, Complexity의 가정·실험·후속 계획 보고서 6개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
-[GitHub 문서](https://github.com/JeonHaneul/2D-PDM_DINOv3/blob/main/agent.md) · [원문 Markdown](https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md) · [모델별 상세 README](README.md)
+모델별 상세 설명: `README.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
 ## 읽는 순서와 현재 상태
 
@@ -27,22 +27,22 @@
 
 | 이 문서의 위치 | 내용 |
 |---|---|
-| [A. 현재 프로젝트 문맥](#project-context) | 목표, 데이터, 세 stream의 입력·모델·GT·loss, 결과, 한계, 실행 규약 |
-| [B. Phase 1–36 전체 상세 로그](#development-history) | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
-| [C1. 정의 재검토](#definition-review) | Count/occupancy/면적·depth 반례, 당시 최근 5년 문헌, 후보 가정 |
-| [C2. 관측 근접도](#proximity-diagnostic) | 거리 수식, GT teacher 조건, 통제 실패, 가시 표면의 한계 |
-| [C3. 정적 제거](#static-removal) | 실제 asset 재현, Isaac 초기 실패, 공통 표본 상관과 한계 |
-| [C4. 표현 A 완료](#representation-probe) | Pair 구성, split·선택 조건, 모델·지표, 높은 AUROC의 해석 범위 |
-| [C5. B/C 계획](#representation-plan) | Region grouping과 공간 표현의 효과를 분리하는 미실행 계획 |
-| [C6. 실행 가능성 조사](#spatial-feasibility) | 후보 모델·환경·용량·준비 상태; 실행 성공 기록과 구분 |
-| [D. 근거와 이미지 색인](#evidence-index) | Current/legacy 구분, JSON·log·checkpoint·그림 위치, 기록 공백 |
-| [E. 인수인계·작업 규칙](#agent-guidelines) | Source of truth, split·문서화·사용자 방향·게시 범위 |
+| A. 현재 프로젝트 문맥 | 목표, 데이터, 세 stream의 입력·모델·GT·loss, 결과, 한계, 실행 규약 |
+| B. Phase 1–36 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
+| C1. 정의 재검토 | Count/occupancy/면적·depth 반례, 당시 최근 5년 문헌, 후보 가정 |
+| C2. 관측 근접도 | 거리 수식, GT teacher 조건, 통제 실패, 가시 표면의 한계 |
+| C3. 정적 제거 | 실제 asset 재현, Isaac 초기 실패, 공통 표본 상관과 한계 |
+| C4. 표현 A 완료 | Pair 구성, split·선택 조건, 모델·지표, 높은 AUROC의 해석 범위 |
+| C5. B/C 계획 | Region grouping과 공간 표현의 효과를 분리하는 미실행 계획 |
+| C6. 실행 가능성 조사 | 후보 모델·환경·용량·준비 상태; 실행 성공 기록과 구분 |
+| D. 근거와 이미지 색인 | Current/legacy 구분, JSON·log·checkpoint·그림 위치, 기록 공백 |
+| E. 인수인계·작업 규칙 | Source of truth, split·문서화·사용자 방향·게시 범위 |
 
 ## 근거의 접근 범위와 경로 읽는 법
 
 **PUBLIC**은 이 repo에서 열리는 README·이 문서·`img/` 그림과 일부 `docs/complexity_results/` 자료다. **LOCAL**은 연구 PC에 보존한 현재 실행 코드, run JSON·checkpoint·원시 데이터 등으로 공개 원문이 포함되지 않은 자료다. **HISTORICAL/RECONSTRUCTED**는 당시 결과·부분 자료를 보존하거나 사후 정리한 이력이다. **PLANNED**는 아직 실행하지 않은 가설이다. 공개 여부와 실험의 타당성은 다른 문제다.
 
-이 문서가 로컬 보고서의 **내용**을 포함하더라도 그 안에서 언급한 모든 원시 파일까지 공개한 것은 아니다. `outputs/`, `experiments/`, `legacy/`, 원본 데이터·model weight 경로는 별도 PUBLIC 링크가 없는 한 LOCAL 근거 식별자다. 코드 이름만 적힌 항목도 공개 clone과 로컬 개발판이 다를 수 있다. 공개 clone의 코드만으로 최신 모든 결과를 재현할 수 있다고 가정하지 않는다.
+이 문서가 로컬 보고서의 **내용**을 포함하더라도 그 안에서 언급한 모든 원시 파일까지 공개한 것은 아니다. `outputs/`, `experiments/`, `legacy/`, 원본 데이터·model weight 경로는 PUBLIC 자료로 별도 명시하지 않은 한 LOCAL 근거 식별자다. 코드 이름만 적힌 항목도 공개 clone과 로컬 개발판이 다를 수 있다. 공개 clone의 코드만으로 최신 모든 결과를 재현할 수 있다고 가정하지 않는다.
 
 `docs/`도 일부 자료만 공개되어 있다. 특히 `docs/readme_stream_restructure_20260916.json`, `docs/readme_stream_expansion_20260916.json`, `docs/image_path_migration_20260916.json`, 통합본 builder·publication manifest는 **LOCAL 관리 자료**다. C의 보고서들은 이 파일에 내용을 포함했으며, 같은 이름의 개별 파일이 공개 repo에도 있다는 뜻은 아니다.
 
@@ -59,12 +59,12 @@
 
 현재 코드와 **해당 run 시점**의 protocol/metadata/metric이 가장 직접적인 근거다. 그 다음은 현재 문맥의 해석, 공개 README, 과거 기록 순서로 읽는다. 숫자를 비교할 때 sample 수·seen/unseen·split·camera correlation·metric 집계·coverage를 함께 확인한다. 과거 성공한 oracle 입력과 현재 실제 입력을 섞지 않는다.
 
-### 바로 열 수 있는 주요 공개 근거
+### 주요 공개 근거
 
-- [Similarity 상세 설명·Q&A](README.md#similarity-stream), [Occlusion 상세 설명·Q&A](README.md#occlusion-stream), [Complexity 상세 설명·Q&A](README.md#complexity-stream)
-- [Complexity V2 protocol 공개본](docs/complexity_results/protocol_public.json), [test 결과](docs/complexity_results/summary.json), [정의 기술 통계](docs/complexity_results/gt_definition_audit_20260908.json)
-- [Full16 book_1 패널](img/occlusion/full16_book_1_five_cameras.png), [외부 packaged_food_5 패널](img/occlusion/zero_shot_packaged_food_5_test30.png)
-- [정적 제거 비교](img/complexity/clutter_comparison.png), [표현 A 비교](img/complexity/representation_comparison.png), [표현 A 큰 오차 예](img/complexity/failure_examples.png)
+- Similarity 상세 설명·Q&A (`README.md#similarity-stream`), Occlusion 상세 설명·Q&A (`README.md#occlusion-stream`), Complexity 상세 설명·Q&A (`README.md#complexity-stream`)
+- Complexity V2 protocol 공개본 (`docs/complexity_results/protocol_public.json`), test 결과 (`docs/complexity_results/summary.json`), 정의 기술 통계 (`docs/complexity_results/gt_definition_audit_20260908.json`)
+- Full16 book_1 패널 (`img/occlusion/full16_book_1_five_cameras.png`), 외부 packaged_food_5 패널 (`img/occlusion/zero_shot_packaged_food_5_test30.png`)
+- 정적 제거 비교 (`img/complexity/clutter_comparison.png`), 표현 A 비교 (`img/complexity/representation_comparison.png`), 표현 A 큰 오차 예 (`img/complexity/failure_examples.png`)
 
 ### 문서 갱신 이력
 
@@ -107,10 +107,10 @@ GitHub root의 `agent.md`로 통합한다. 공개본은 외부 GPT의 연구 질
 
 > **Phase 35 이후 사용자 정정:** 우선순위는 새 scalar 정의가 아니라, Similarity의 SigLIP 결합처럼
 > 물체·공간 관계 표현을 보완하는 것이다. DINO 자체의 정보 부족과 count 학습 목표의 한계를
-> 먼저 구분한다. [Phase 36 A 진단](#representation-probe)에서
+> 먼저 구분한다. Phase 36 A 진단 (C4. 표현 A 완료 보고서)에서
 > 순수 patch의 가시 asset 대응은 DINO+position AUROC 0.998953으로 거의 포화됐다.
 > 다음은 경계·분리된 조각·다중 물체 관계의 구체적 누락 능력을 먼저 분리하는 것이다.
-> [B/C 후속 계획](#representation-plan)은 미실행이다.
+> B/C 후속 계획 (C5. B/C 계획)은 미실행이다.
 > 아래에 남은 가림 방향/제거 횟수 제안은 당시 이력이며 새 GT·모델은 채택하지 않았다.
 
 
@@ -931,7 +931,7 @@ pipeline은 있지만, one center RGB+mask를 받는 standalone deployment CLI�
 
 > **2026-09-16 현재 판단:** 점유율은 물체 영역 보조 정보이며 국소 복잡도 정답이 아니다.
 > Count/N-area도 단독 GT로 확정하지 않는다. 현재 V2는 density pilot으로 보존한다.
-> [Phase 34 반례 진단](#proximity-diagnostic)에서 근접도는
+> Phase 34 반례 진단 (C2. 관측 근접도 진단)에서 근접도는
 > 일부 접경에 국소화됐지만 면적 통제에 실패했다. 이후 Phase 35의 실제 cluttered scene에서도
 > 물체 평균 근접도와 정적 제거 효과의 상관이 약했다. 구조적 GT는 계속 미승인이다.
 > Phase 36에서는 frozen feature의 A readout 진단만 학습·평가했다. B/C·fusion은 미실행이며,
@@ -1065,7 +1065,7 @@ RGB-D 학생 모델 학습이나 최종 GT 생성은 아니다.
 원근/옆면 노출로 1.6396% 변하므로 단순 raster 문제로 설명하지 않는다. 원본 80영상에서 양수
 영역은 유효 foreground의 중앙값 24.0%였으나 복잡도 정확도 지표가 아니다.
 GT 미승인, 새 학습·fusion 미실행. 상세 결과·한계·재실행은
-[로컬 Phase 34 기록](#proximity-diagnostic)을 읽는다.
+로컬 Phase 34 기록 (C2. 관측 근접도 진단)을 읽는다.
 
 #### 8.7 Phase 35: 실제 cluttered scene의 정적 물체 제거 (2026-09-16)
 
@@ -1086,7 +1086,7 @@ Complexity 정답으로 채택하지 않는다. 근접 feature 전체 또는 Com
 근거는 `outputs/complexity_clutter_replay_20260916_v1/analysis_common_objects_v1/results.json`이다.
 원시 `summary.json/associations`는 feature별 결측값을 따로 제외하여 직접 비교에 사용하지 않는다.
 독립 Isaac 기록은 `outputs/complexity_isaac_spotcheck_20260916_v4/`이며 초기 v1–v3 실패도 보존했다.
-[상세 방법·결과·한계·실행법](#static-removal)을 함께 읽는다.
+상세 방법·결과·한계·실행법 (C3. 정적 제거 진단)을 함께 읽는다.
 당시 다음 Step으로 관측 가림 방향 정보의 추가 가치를 제안했다. 이후 사용자 정정에 따라
 표현의 누락 능력 진단으로 우선순위를 변경했으며 현재 진행은 아래 8.8절을 따른다.
 
@@ -1121,8 +1121,8 @@ Test의 알려진 foreground 128,380 patches 중 적격은 54,429개(**42.40%**)
 
 근거: `outputs/complexity_representation_probe_20260916_v1/{results,coverage_summary}.json`,
 `experiments/complexity_definition/representation_probe_split_20260916.json`,
-[상세 결과와 실행 상태](#representation-probe),
-[남은 B/C 계획](#representation-plan).
+상세 결과와 실행 상태 (C4. 표현 A 완료 보고서),
+남은 B/C 계획 (C5. B/C 계획).
 코드·readout checkpoint·원시 NPZ는 로컬 보존한다. 공개 README·그림의 게시 상태는 Git에서 확인한다.
 
 ### 9. 실행 환경과 기본 명령
@@ -1292,11 +1292,13 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 - 이후 문체 정정: 입문 강의식 제목·대화형 도입·장황한 반복은 피하고 이전 README의
   `~함/~임/~아님` 기술 문체를 유지한다. 명확한 모듈·연산명으로 제목을 정하고 긴 문단은
   핵심 설명·비교표·수식으로 정리한다. 수치·차원·계산 이유·상세 FAQ의 깊이를 줄이라는 뜻은 아니다.
+- 추가 요청: README·공개 `agent.md`·답변의 하이퍼링크는 최대한 줄인다. 섹션명·파일명·경로로
+  참조하고, 필요한 외부 출처 주소는 inline code로 보존한다. 그림 표시용 Markdown은 유지한다.
 - 최신 요청: 로컬 handoff와 로그 색인을 현재까지 갱신하고 GitHub `agent.md` 하나로 연구 문맥을
   공개한다. 외부 GPT가 목표·가정·실험·결과·한계·다음 Step을 읽을 수 있도록 상세 기록을 포함한다.
   공개 문서와 로컬 원시 artifact의 접근 가능성을 구분하고, 이후 주요 milestone마다 함께 갱신한다.
   로컬 `python docs/build_public_agent_context.py`로 통합본을 재생성할 수 있다. 먼저 원본 문서와
-  README의 완료 상태를 갱신한 뒤 실행하고, 생성된 `agent.md`의 링크·과거/현재 구분·공개 범위를
+  README의 완료 상태를 갱신한 뒤 실행하고, 생성된 `agent.md`의 참조 경로·과거/현재 구분·공개 범위를
   확인한다. 이 builder와 publication manifest는 로컬 관리 파일이며 실험 코드 게시 대상이 아니다.
 - 목적 → 방법 → 왜 이 방법인가 → 결과 → 한계 → 다음 Step 흐름을 지킬 것
 - “수렴하는 경향을 보였습니다”보다 “수렴하는 경향을 보임” 같은 간결한 문체 선호
@@ -2352,11 +2354,11 @@ Adaptive GT
 
 ![Phase 33 Complexity result](img/complexity/fruit_1_five_views.png)
 
-**판단:** RGB-D Complexity pilot을 baseline으로 채택하고, 세 stream의 feature 규격을 각각 `B × 64 × 30 × 40`, fusion concat 입력을 `B × 192 × 30 × 40`으로 정리함. 전체 fusion·DRL 실행을 완료한 것은 아님. 22개 unit test와 segmentation 없는 실제 RGB-D 추론 경로를 검증함. [상세 정의·실행법·저장 지표](docs/complexity_results/README.md)를 함께 보존함.
+**판단:** RGB-D Complexity pilot을 baseline으로 채택하고, 세 stream의 feature 규격을 각각 `B × 64 × 30 × 40`, fusion concat 입력을 `B × 192 × 30 × 40`으로 정리함. 전체 fusion·DRL 실행을 완료한 것은 아님. 22개 unit test와 segmentation 없는 실제 RGB-D 추론 경로를 검증함. 상세 정의·실행법·저장 지표 (`docs/complexity_results/README.md`)를 함께 보존함.
 
 **한계와 다음 Step:** Visible count는 hidden object count나 target 존재 확률이 아니며, 동일 asset을 여러 번 배치한 데이터에는 instance label을 새로 확인해야 함. 현재 고정 camera·기존 asset library 결과를 unseen object 또는 실환경 성능으로 확대하지 않음. 다음 Step은 unseen scene-object 평가와 fusion의 GT·loss·비교 protocol 설계이며, 최종 탐색 효용은 fusion/DRL ablation으로 검증함.
 
-**2026-09-08 재검토 기록:** 물체 더미 내부의 국소 구조 차이를 구분하는 기준으로 count/occupancy GT를 재검토함. 기존 test 영상 960장에서 물체가 조금이라도 있는 유효 occupancy patch의 56.721%가 0.95 이상으로, 점유율은 넓은 단일 물체와 여러 물체의 밀집을 구분하지 못함. Count에는 내부 변화가 있으나 간격·가림·접촉 구조를 직접 감독하지 않음. 최근 5년의 Disperse-and-Pick, ARMOR, ClutterDexGrasp, Distracted Robot을 비교하고, 현재 run을 **visible-density pilot**으로 한정함. 다음 Step을 fusion 확대에서 **국소 구조 정의와 반례 검증**으로 변경함. 원래 실험·수치·checkpoint는 보존하며 새 GT나 학습을 완료했다고 보고하지 않음. [문헌과 진단 근거](docs/complexity_results/definition_review_20260908.md).
+**2026-09-08 재검토 기록:** 물체 더미 내부의 국소 구조 차이를 구분하는 기준으로 count/occupancy GT를 재검토함. 기존 test 영상 960장에서 물체가 조금이라도 있는 유효 occupancy patch의 56.721%가 0.95 이상으로, 점유율은 넓은 단일 물체와 여러 물체의 밀집을 구분하지 못함. Count에는 내부 변화가 있으나 간격·가림·접촉 구조를 직접 감독하지 않음. 최근 5년의 Disperse-and-Pick, ARMOR, ClutterDexGrasp, Distracted Robot을 비교하고, 현재 run을 **visible-density pilot**으로 한정함. 다음 Step을 fusion 확대에서 **국소 구조 정의와 반례 검증**으로 변경함. 원래 실험·수치·checkpoint는 보존하며 새 GT나 학습을 완료했다고 보고하지 않음. 문헌과 진단 근거 (`docs/complexity_results/definition_review_20260908.md`).
 
 ---
 
@@ -2536,7 +2538,7 @@ DINO+depth는 depth보다 same-category AUROC가 +0.225025 높았고 8/8 keys에
   Empty-reference 보정은 빈 서랍의 고정 구조 문제를 해결했지만, 이것으로 물체 간 복잡도가
   검증되는 것은 아니다.
 
-[GT 기술 통계](docs/complexity_results/gt_definition_audit_20260908.json): 기존에 평가한 v2 test 영상 960장의 유효
+GT 기술 통계 (`docs/complexity_results/gt_definition_audit_20260908.json`): 기존에 평가한 v2 test 영상 960장의 유효
 occupancy patch 중 `occupancy>0`인 위치를 모아 보면, **56.721%가 occupancy≥0.95**다.
 이는 해당 foreground patch 집합에 대한 비율이며, 전체 영상 pixel 비율이나 scene별 평균이 아니다.
 같은 foreground 안에서도 count는 변하며, 96px GT의 10/50/90 percentile은 2/5/7개다
@@ -2554,19 +2556,19 @@ occupancy patch 중 `occupancy>0`인 위치를 모아 보면, **56.721%가 occup
 RGB의 색·대비·방향 feature의 국소 변동으로 pixel별 Feature Congestion map을 계산한다.
 장면 전체 평균과 grasp 후보 주변의 local score를 구분하며, local ROI 지름은 영상에 투영한
 그리퍼 opening 크기다. 점수에 따라 grasp와 push를 선택한다. 정답 segmentation의 count를
-복잡도로 정의하는 방식이 아니다. [저자 공개 논문 §III-A](https://arxiv.org/html/2312.12637v1#S3.SS1)
+복잡도로 정의하는 방식이 아니다. 저자 공개 논문 §III-A (`https://arxiv.org/html/2312.12637v1#S3.SS1`)
 
 우리에 대한 시사점: 실제 행동과 연결된 크기의 국소 영역을 평가하는 선례다. 색·텍스처에 대한
 반응이 물체 간 구조와 일치하는지는 별도로 확인해야 한다. 본 프로젝트에는 비교 baseline
 후보로 적합하며, 바로 GT로 사용할 충분한 근거는 아니다. 학회 연도는 2022이며 arXiv 업로드는
-2023이다. [저자 publication 목록](https://www.cse.iitk.ac.in/users/praj/)
+2023이다. 저자 publication 목록 (`https://www.cse.iitk.ac.in/users/praj/`)
 
 ##### ARMOR — Autonomous Robots 2025 및 저자 공개 workshop 논문
 
 Pixel 위치에서 각 물체의 크기 s_i와 거리 d_i에 따른 기여를 더하는 `sum_i s_i/d_i` 형태의
 clutter map을 사용한다. 공개 workshop 논문은 map 유무를 비교하여 gamma=.90에서 평균
-행동 수 20.5→15.4를 보고한다. [저자 공개 방법·비교표](https://autonomousrobots.nl/assets/images/workshops/2025_iros/accepted_papers/paper_5_Autonomous.pdf)
-[학술지 출판 기록](https://link.springer.com/article/10.1007/s10514-025-10214-7)
+행동 수 20.5→15.4를 보고한다. 저자 공개 방법·비교표 (`https://autonomousrobots.nl/assets/images/workshops/2025_iros/accepted_papers/paper_5_Autonomous.pdf`)
+학술지 출판 기록 (`https://link.springer.com/article/10.1007/s10514-025-10214-7`)
 
 우리에 대한 시사점: 국소 map을 탐색/조작 행동 결과로 검증한 직접적인 선례다. 다만 큰 물체는
 단독으로도 높은 기여를 가질 수 있어, 이 공식을 그대로 적용하면 사용자가 지적한 문제가 남을
@@ -2577,7 +2579,7 @@ clutter map을 사용한다. 공개 workshop 논문은 map 유무를 비교하�
 
 개수 4–8/9–15/16–25로 sparse/dense/ultra-dense 장면을 나눈다. 정책의 teacher 표현은 손가락과
 목표·주변 물체 표면 사이 거리를 사용하고, student는 단일 camera의 부분 point cloud를 받는다.
-[논문 §4.1.1, §5.1](https://arxiv.org/html/2506.14317v2)
+논문 §4.1.1, §5.1 (`https://arxiv.org/html/2506.14317v2`)
 
 우리에 대한 시사점: 개수는 장면 난이도를 나누는 지표로 사용될 수 있다. 그러나 이 연구가
 국소 pixel count GT를 검증한 것은 아니다. 가까운 장애물과의 관계를 명시적으로 다루는 부분이
@@ -2588,7 +2590,7 @@ clutter map을 사용한다. 공개 workshop 논문은 map 유무를 비교하�
 물체 개수만으로 평가하지 않고 색·대비·방향의 Feature Congestion을 사용한다. Robot view와
 별도의 top-down view를 결합한 DvFC로 장면을 나눠 VLA 성공률과 비교한다. 실험 생성에서는
 stack/pile을 피하고 목표 가림을 50% 이하로 제한하며 grasp affordance를 유지한다.
-[논문 §III-B/C](https://arxiv.org/html/2511.22780v1#S3)
+논문 §III-B/C (`https://arxiv.org/html/2511.22780v1#S3`)
 
 우리에 대한 시사점: 개수와 clutter의 효과를 구분해서 평가한다. 그러나 단일 RGB-D 관측,
 심한 적층/완전 가림이 있는 서랍과 관측·실험 조건이 다르므로 DvFC를 그대로 사용할 수 없다.
@@ -2678,7 +2680,7 @@ GitHub Development Log에는 이 milestone의 비교 그림·수치·실패와 �
   배경을 complexity=0의 감독값으로 섞지 않는다. Label/depth 결측과 관측 경계 주변은 제외한다.
 - `/16`, scene별 min–max, 강제로 상위 일정 비율을 밝히는 정규화는 없다.
 
-이 수식은 [선행 문헌 검토](#definition-review)의 물체 간 관계 관점을 좁혀 만든
+이 수식은 선행 문헌 검토 (C1. 정의 재검토)의 물체 간 관계 관점을 좁혀 만든
 프로젝트 후보다. 해당 논문들이 이 수식을 Complexity 정답으로 검증했다고 주장하지 않는다.
 
 #### 실행 범위와 결과
@@ -2972,7 +2974,7 @@ B/C 구현 일부와 계획은 로컬에 보존했다. SAM2 tiny 약156MB 다운
 
 2026-09-16 갱신. 사용자 설명을 반영한 A/B/C 계획 중 **A 진단만 완료**했다.
 B/C는 미실행이며 새 GT·모델은 채택하지 않았다. 실제 결과는
-[Phase 36 완료 보고서](#representation-probe)를 우선한다.
+Phase 36 완료 보고서 (C4. 표현 A 완료 보고서)를 우선한다.
 
 #### 연구 질문
 
@@ -3052,7 +3054,7 @@ B/C의 region은 RGB-D에서 추정하고 공유한다. GT mask로 영역을 제
   checkpoint를 즉시 사용할 수 있다고 가정하지 않으며 첫 단계부터 재학습하지 않는다.
 
 후보의 설치·추론·B/C 비교 결과는 없다. 도입 검토와 다운로드 관련 경위는
-[완료 보고서](#representation-probe)와 `spatial_model_feasibility_20260916.md`를 참조한다.
+완료 보고서 (C4. 표현 A 완료 보고서)와 `spatial_model_feasibility_20260916.md`를 참조한다.
 후속 평가에서 필요성이 확인되면 적은 수의 장면에서
 호환성·메모리·출력 위치를 먼저 확인하고 feature는 한 번 계산해 cache한다. 오래된 의존성은
 현재 연구 환경과 분리한다. VLM이 출력한 scalar나 설명문 자체를 Complexity GT로 사용하지 않는다.
@@ -3077,10 +3079,10 @@ B/C의 region은 RGB-D에서 추정하고 공유한다. GT mask로 영역을 제
 
 #### 확인한 1차 자료
 
-- [SpatialRGPT 공식 프로젝트](https://anjiecheng.me/SpatialRGPT/)
-- [SpatialRGPT 공식 코드](https://github.com/AnjieCheng/SpatialRGPT)
-- [공개 checkpoint](https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B)
-- [D3G 공식 코드](https://github.com/paolotron/D3G)
+- SpatialRGPT 공식 프로젝트 (`https://anjiecheng.me/SpatialRGPT/`)
+- SpatialRGPT 공식 코드 (`https://github.com/AnjieCheng/SpatialRGPT`)
+- 공개 checkpoint (`https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B`)
+- D3G 공식 코드 (`https://github.com/paolotron/D3G`)
 
 2026-09-16 확인. 모델을 우리 cluttered scene에서 검증한 결과로 인용하지 않는다.
 
@@ -3107,36 +3109,36 @@ VLM 불필요의 근거로 확대하지 않는다. 기존 10 layouts는 개발 �
 - 공식 설치는 Python 3.10, torch 2.3.0, torchvision 0.18.0, transformers 4.37.2와
   CUDA 12.2/torch 2.3용 FlashAttention 2.5.8 wheel을 사용하고 transformers 소스를 덮어쓴다.
   현재 haneul의 Python 3.14.4/torch 2.12.0/torchvision 0.27.0/transformers 5.14.1과
-  그대로 혼합할 수 있는 경로가 아니다. [설치 코드](https://github.com/AnjieCheng/SpatialRGPT/blob/main/environment_setup.sh),
-  [dependency pins](https://github.com/AnjieCheng/SpatialRGPT/blob/main/pyproject.toml)
+  그대로 혼합할 수 있는 경로가 아니다. 설치 코드 (`https://github.com/AnjieCheng/SpatialRGPT/blob/main/environment_setup.sh`),
+  dependency pins (`https://github.com/AnjieCheng/SpatialRGPT/blob/main/pyproject.toml`)
 - RTX 5090용 경로는 별도 Python 3.10/3.11 환경과 Blackwell 지원 PyTorch/CUDA,
   SDPA/eager attention을 사용하는 추론 전용 호환 계층을 검증하는 것이다.
   PyTorch 2.7은 Blackwell 및 CUDA 12.8 wheel 지원을 명시한다. 이는 포팅 후보이며
   SpatialRGPT 전체의 실행 호환성을 이번 조사에서 실증한 것은 아니다.
-  [PyTorch 공식 발표](https://pytorch.org/blog/pytorch-2-7/)
+  PyTorch 공식 발표 (`https://pytorch.org/blog/pytorch-2-7/`)
 - 공개 다운로드 크기는 LLM 약 16.1GB, vision tower 857MB, region extractor 40.1MB,
   multimodal projector 71.3MB로 전체 약 17GB다. 모델만의 값이며 환경·별도 region 모델은 제외한다.
-  [LLM](https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/tree/main/llm),
-  [vision](https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/tree/main/vision_tower),
-  [region](https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/tree/main/region_extractor),
-  [projector](https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/blob/main/mm_projector/model.safetensors)
+  LLM (`https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/tree/main/llm`),
+  vision (`https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/tree/main/vision_tower`),
+  region (`https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/tree/main/region_extractor`),
+  projector (`https://huggingface.co/a8cheng/SpatialRGPT-VILA1.5-8B/blob/main/mm_projector/model.safetensors`)
 - 작은 visual probe는 vision tower와 region extractor 약 897MB만으로 분리 구현할 여지가 있다.
   코드의 `feature_refinement()` 후 `RegionExtractor.forward(image_features, depth_features, masks)`가
   RGB/depth의 영역별 projected embedding을 반환한다. 출력은 영역당 각각 4,096차원이다.
   이 경로는 LLM을 통과하지 않는다. 따라서 **visual/depth region encoder ablation**이며
   완전한 SpatialRGPT의 관계 추론이나 학습된 공간 지식 전체를 측정한 것으로 부르지 않는다.
-  [region extractor](https://github.com/AnjieCheng/SpatialRGPT/blob/main/llava/model/region_extractor/base_extractor.py)
+  region extractor (`https://github.com/AnjieCheng/SpatialRGPT/blob/main/llava/model/region_extractor/base_extractor.py`)
 - 전체 C의 feature 지점은 multimodal embedding이 삽입된 LLM의 hidden state다.
   공식 forward는 `output_hidden_states`를 전달한다. 동일한 두 region을 포함한 고정 prompt와
   마지막 prompt-token state 등 추출 위치를 사전에 정해야 하며, image token 확장에 따른 위치와
   region 순서의 영향을 확인해야 한다. B=1, 짧은 문맥, `eval/inference_mode`, BF16/FP16의
   작은 forward는 가중치 크기상 32GB에서 가능성이 있지만 peak VRAM·kernel 호환성은 미측정이다.
-  [LLM forward](https://github.com/AnjieCheng/SpatialRGPT/blob/main/llava/model/language_model/llava_llama.py)
+  LLM forward (`https://github.com/AnjieCheng/SpatialRGPT/blob/main/llava/model/language_model/llava_llama.py`)
 - 공식 demo의 region 입력은 사용자 box 또는 그 box로 SAM-HQ가 만든 mask다.
   자동 region 생성기가 제공된 것으로 취급하면 안 된다. Depth도 영상별 min–max 후
   8-bit grayscale을 3채널로 복제한 입력이다. 실제 metric depth를 넣을 때 가까움/멀어짐 방향,
   결측, 정규화와 resize를 고정하여 입력 차이를 별도로 검증해야 한다.
-  [demo 입력 처리](https://github.com/AnjieCheng/SpatialRGPT/blob/main/demo/gradio_web_server_multi.py)
+  demo 입력 처리 (`https://github.com/AnjieCheng/SpatialRGPT/blob/main/demo/gradio_web_server_multi.py`)
 
 #### 자동 RGB region 후보: SAM 2.1 Hiera Tiny
 
@@ -3149,14 +3151,14 @@ VLM 불필요의 근거로 확대하지 않는다. 기존 10 layouts는 개발 �
 - 공식 Tiny는 38.9M parameter이며 가중치 한 형식은 **약 156MB**다. 수십 MB가 아니다.
   HF 폴더의 312MB는 `.pt`와 `model.safetensors` 두 형식의 합계다. 기존 transformers 경로는
   safetensors와 작은 config/processor 파일만 사용하면 된다.
-  [공식 파일 목록](https://huggingface.co/facebook/sam2.1-hiera-tiny/tree/main),
-  [모델 크기](https://github.com/facebookresearch/sam2#model-description)
+  공식 파일 목록 (`https://huggingface.co/facebook/sam2.1-hiera-tiny/tree/main`),
+  모델 크기 (`https://github.com/facebookresearch/sam2#model-description`)
 - 공식 transformers는 `mask-generation` pipeline의 자동 grid-point mask 생성을 지원한다.
   현재 로컬 pipeline도 `points_per_crop`, `points_per_batch`, `crops_n_layers`를 지원하므로
   작은 검사에서는 grid 16×16, batch 16, crop layer 0처럼 비용을 고정할 수 있다.
   이는 proposed smoke 설정이며 채택된 성능 최적값은 아니다. 별도 SAM package/CUDA extension
   설치를 먼저 요구할 이유는 현재 확인 범위에서 없다.
-  [공식 pipeline 문서](https://huggingface.co/docs/transformers/model_doc/sam2#automatic-mask-generation-with-pipeline)
+  공식 pipeline 문서 (`https://huggingface.co/docs/transformers/model_doc/sam2#automatic-mask-generation-with-pipeline`)
 
 #### 비교 계약과 실제 남은 조건
 
@@ -3886,6 +3888,8 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   `Tensor 규격`, `주요 연산`, `Target geometry`처럼 내용을 바로 식별할 수 있는 제목을 사용하고,
   본문은 기존 README의 `~함/~임/~아님` 기술 문체로 작성한다. 긴 문단은 핵심 설명·표·수식으로
   나누며 중복 비유·독자 호명·당연한 부정 예시를 줄인다. 계산·설계 이유·상세 FAQ는 보존한다.
+- README·공개 `agent.md`·답변의 하이퍼링크는 최대한 줄인다. 본문 참조는 섹션명·파일명·경로로
+  표기하고, 필요한 외부 출처 주소는 inline code로 남긴다. 그림 표시용 Markdown은 유지한다.
 - 한국어로 목적 → 방법 → 이유 → 결과 → 한계 → 다음 Step 순서로 설명한다.
 - 다른 사람이 처음 읽어도 이해하도록 tensor 차원과 약어의 의미를 풀어 쓴다.
 - `target이 숨을 수 있는` 대신 `target이 가려질 수 있는`을 사용한다.
