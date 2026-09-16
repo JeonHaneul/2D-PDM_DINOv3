@@ -14,7 +14,7 @@
 
 | 주제 | 완료·확인한 것 | 남은 것·현재 해석 |
 |---|---|---|
-| Similarity | Frozen DINOv3 + SigLIP, layer별 projection, no-shortcut MatchingBlock; 외부 target 정성 패널 | 공식 final checkpoint manifest 미확정, 정량 unseen-target benchmark 미완료 |
+| Similarity | Frozen DINOv3 + SigLIP, layer별 projection, no-shortcut MatchingBlock; 미학습 target의 zero-shot 동작 정성 확인 | 공식 final checkpoint manifest 지정, 여러 미학습 target의 정량 성능 평가 |
 | Occlusion GT | Target/yaw별 adaptive pose, 70% 이상 가림 판정, 16×3,000×5 = 240,000 maps | 실제 clutter 충돌·지지·안정성을 포함한 physics posterior가 아님 |
 | Occlusion 학습 | Native68 global FiLM + raw target broadcast, full16 epoch 3; scene-heldout MAE 0.013997 | Coverage 내부 raw patch 평가. Coverage 밖 반응까지 보장하지 않음 |
 | Occlusion 외부 평가 | `packaged_food_5`, 30 scene keys/150 views, MAE 0.017998 | 외부 target 하나·고정 합성 rig·정확한 reference mask; 최신 full16 standalone CLI 없음 |
@@ -151,7 +151,7 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 
 | 구성 요소 | 현재 상태 | 다음 작업 |
 |---|---|---|
-| Similarity Stream | DINOv3 + SigLIP, no-shortcut 코드와 정성 결과 존재 | 정량 object-held-out 평가와 재현성 metadata 보강 필요 |
+| Similarity Stream | DINOv3 + SigLIP, no-shortcut 구현; 미학습 target의 zero-shot 동작 정성 확인 | 여러 미학습 target의 정량 평가와 재현성 metadata 보강 |
 | Occlusion GT | 16 targets × 3,000 scenes × 5 cameras = 240,000 maps 생성 완료 | 현재 GT를 보존하고 필요할 때만 추가 external target 생성 |
 | Occlusion model | Adaptive GT 기반 full16 10% baseline 학습·평가 완료 | 구조 확장보다 baseline 동결이 현재 판단 |
 | External occlusion check | `packaged_food_5` 30 scenes × 5 views 평가 완료 | 여러 external target과 실제 RGB mask는 후속 검증 |
@@ -186,7 +186,10 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 2. **Model generalization:** 학습하지 않은 target vector를 trainable head가 올바르게 사용함.
 3. **Deployment generalization:** 실제 RGB, 다른 camera/FOV, 실제 mask 오차, sim-to-real에서도 동작함.
 
-현재 Similarity는 1번과 qualitative 2번 증거가 있고, 정량 object-heldout 검증은 남아 있다.
+현재 Similarity는 Banana와 `packaged_food_5`를 추가 학습 없이 query로 사용하여 관련 물체 영역을
+활성화하는 zero-shot 동작을 정성적으로 확인했다(2번). Fruit와 packaged-food category는 학습에
+포함된 seen-category/unseen-instance 조건이다. 여러 미학습 target의 평균 성능과 실패 조건을
+측정하는 정량 object-heldout 평가가 후속 작업이다.
 현재 Occlusion은 합성 환경의 `packaged_food_5` 한 개로 2번의 smoke evidence를 얻었지만,
 geometry에 합성 segmentation mask를 사용했으므로 3번은 아직 증명하지 않았다.
 Complexity Phase 33은 기존 asset library의 scene-heldout pilot이며, 학습하지 않은 scene 물체에 대한
@@ -494,9 +497,10 @@ Qualitative evidence:
 - 학습하지 않은 Banana query에서 fruit 영역 활성화. 공개 패널 3장이 보존되어 있으며 파일명의
   Book/Avocado/Orange는 scene 식별자다. 정확한 run/checkpoint 연결과 정량 benchmark는 미확인이다.
 
-이 결과는 정성 증거다. 다음 항목은 아직 부족하다.
+위 사례에서 unseen-instance zero-shot 동작을 정성적으로 확인했다. 후속 평가·분석 항목은 다음과 같다.
 
-- Object-heldout/category-heldout 정량 benchmark
+- 여러 미학습 target의 평균 성능·실패 조건을 측정하는 object-heldout 정량 benchmark
+- 학습에서 category 전체를 제외하는 category-heldout 평가(일반화 범위를 넓히는 별도 실험)
 - DINO-only vs SigLIP-only
 - Image-only vs image+text
 - Text prompt swap
@@ -1407,7 +1411,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 
 | 단계 | 핵심 문제와 시도 | 현재까지의 결론 | 상세 기록 |
 |---|---|---|---|
-| Similarity 의미 보완 | DINO 외형 대응 → CLS category prototype → SigLIP 의미 결합 → cosine shortcut 점검 | 현재는 DINO+SigLIP의 shortcut 없는 head; 정량 unseen 검증은 남음 | Phase 1–4 |
+| Similarity 의미 보완 | DINO 외형 대응 → CLS category prototype → SigLIP 의미 결합 → cosine shortcut 점검 | DINO+SigLIP의 shortcut 없는 head; zero-shot 동작 정성 확인, 여러 target의 정량 평가 남음 | Phase 1–4 |
 | Occlusion GT 계산 | 촬영 기반 GT를 mesh depth와 pose별 가림 비율 계산으로 전환 | GPU probability GT 생성과 렌더링 정합을 확인 | Phase 5–8 |
 | Target conditioning 진단 | 공정한 split에서 외형·크기·shape와 global/local 조절을 비교 | Target geometry의 역할과 각 실험의 한계를 확인; oracle gate는 현재 baseline이 아님 | Phase 9–30 |
 | Occlusion 기준 모델 확정 | Fixed grid의 target별 pose 누락을 확인하고 adaptive GT로 수정 | Full16 native68 global FiLM baseline과 external target 1개 평가 완료 | Phase 31–32 |
@@ -1499,7 +1503,7 @@ SigLIP image/text embedding을 평균하고 layer별 projection으로 DINOv3 차
 ![Unseen packaged-food target: image-only result](img/similarity/packaged_food_5_zeroshot_nolabel_2.png)
 ![Unseen packaged-food target: image-and-text result](img/similarity/packaged_food_5_zeroshot_v2.png)
 
-**의미와 범위:** 학습에 없던 packaged-food target의 정성 사례에서 같은 category 영역이 활성화되는 것을 관찰함. 이는 SigLIP 의미 정보의 가능성을 보여주는 사례이며, 여러 unseen instance에 대한 정량 zero-shot 성능은 최종 benchmark에서 별도로 확인해야 함.
+**의미와 범위:** 학습에 없던 packaged-food target을 추가 학습 없이 query로 사용하여 같은 category 영역을 활성화하는 zero-shot 동작을 정성적으로 확인함. 여러 unseen instance의 평균 성능과 SigLIP의 독립적인 기여는 후속 정량 평가·통제 비교에서 측정함.
 
 ---
 
@@ -3372,6 +3376,11 @@ Similarity에는 machine-readable final-checkpoint manifest가 아직 없다. �
 
 #### 정성 평가와 공개 이미지
 
+Banana와 `packaged_food_5`는 기존 16개 training target에 없는 instance이며, 추가 학습 없이
+관련 물체 영역을 활성화하는 zero-shot 동작을 정성적으로 확인했다. 해당 category는 학습에
+포함되어 있다. 여러 target의 정량 성능 평가와 과거 패널의 정확한 checkpoint·실행 설정 연결은
+후속 평가·재현 기록 보강에 해당하며, 확인된 정성 결과와 구분한다.
+
 - 원본: `outputs/zero-shot_test/260728/`
 - 다수 validation panel: `outputs/validate_v2_20260726_160615/`
 - GitHub 공개 복사본: `<REPO_ROOT>/img/similarity/`
@@ -3895,6 +3904,9 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 - `target이 숨을 수 있는` 대신 `target이 가려질 수 있는`을 사용한다.
 - `다음 결정` 대신 `다음 Step`을 사용하고, `기각` 같은 단정적 표현은 피한다.
 - 숫자만 나열하지 말고 좋은 값인지, 무엇과 비교했는지 설명한다.
+- 이미 확인한 결과를 먼저 명시하고 후속 평가와 구분한다. Similarity의 Banana/packaged_food_5
+  결과는 unseen-instance zero-shot 동작의 정성 확인이다. 여러 target의 정량 benchmark가 남았다는
+  이유로 이 결과를 encoder 입력 가능성이나 zero-shot 미확인 상태로 낮춰 설명하지 않는다.
 - README에는 가능하면 실제 scene, GT, prediction을 함께 보여 주는 이미지를 사용한다.
 - 공개 README 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/` 세 폴더에 바로 저장한다.
   다른 repo로 README와 이미지를 복사하기 쉽도록 실험별 새 폴더나 하위 폴더를 만들지 않는다.
