@@ -2204,9 +2204,170 @@ Full16의 학습·평가 pipeline과 checkpoint는 확보되어 있으며, 이�
 
 ## Complexity Stream
 
-> **현재까지 확인한 결과:** 고정 rig·기존 asset 조건의 RGB-D density pilot에서 count MAE가 depth-only 0.832717 대비 0.641416으로 **22.973% 감소**함. 순수 patch의 가시 asset 대응도 DINO+position AUROC **0.998953**까지 확인함. 다음은 경계·분리된 조각·다중 물체 관계에서 보완할 능력을 특정하는 단계임. 최종 구조적 Complexity GT는 미확정이며, 물체 묶음 B와 공간 표현 C는 미실행 상태임.
+> **현재 상태: 정의와 최종 모델을 검토하는 실험 단계임.** RGB-D로 가시 개수·점유율을 예측한 pilot과, DINO feature에 물체 소속 정보가 있는지 확인한 진단을 완료함. 아직 최종 Complexity GT와 모델 구조는 정하지 않았음. 아래는 처음 가정에서 현재 질문까지 이어진 연구 과정임.
 
-### 1. 목적과 입출력
+### 1. 연구 목적
+
+Complexity에서 표현하려는 것은 **같은 물체 더미 안에서도 어느 부분의 물체 구성이 더 복잡한가**임. 더미 전체를 높게 표시하는 것보다, 여러 물체가 가까이 놓이거나 서로 가려 구분하기 어려운 부분의 차이를 담으려는 목적임. 이 차이를 어떤 값으로 정의할지는 현재 검토 중임.
+
+Similarity가 찾을 물체와 관련된 가시 영역을, Occlusion이 그 target이 가려질 수 있는 위치를 다룬다면, Complexity는 **찾을 물체와 무관한 현재 더미의 구성과 물체 간 관계**를 다룸. 추론 시 사용할 장면 관측은 RGB와 depth임.
+
+처음에는 국소 개수와 depth 변화로 시작했지만, 이 값이 비슷해도 물체의 구성과 배치는 다를 수 있음. 따라서 현재는 **“복잡도 숫자를 어떻게 만들 것인가”에 앞서 “RGB-D에서 물체와 물체 사이를 구분할 정보가 충분한가”**를 확인하고 있음.
+
+### 2. 가정과 실험의 흐름
+
+아래 그림은 확정된 모델의 계산 구조가 아니라 **연구 질문이 이어진 순서**임. ①–③은 초기 density pilot에서 함께 다룬 내용이며, ④–⑤가 이후의 관계·표현 진단임. 번호는 바로 아래 설명과 대응함.
+
+```mermaid
+flowchart TD
+    N1["① 국소 개수·점유율 가설<br/>좁은 영역에 여러 물체가 있으면 복잡한가"]
+    N2["② Depth 변화로 보완<br/>높이 변화만으로 물체 구성을 구분할 수 있는가"]
+    N3["③ RGB-D와 관측 범위 실험<br/>48·96·160px 주변의 개수 예측"]
+    N4["④ 물체 간 경계·근접 관계 검토<br/>무늬와 물체 경계를 구분하고 물체 단위로 연결할 수 있는가"]
+    N5["⑤ 기존 DINO 표현 진단<br/>두 내부 patch가 같은 물체에 속하는지 읽을 수 있는가"]
+    N6["⑥ 현재 남은 질문<br/>경계·분리된 조각·다중 물체 관계 평가<br/>이후 Complexity 정의와 모델 결정"]
+    N1 --> N2 --> N3 --> N4 --> N5 --> N6
+```
+
+### 3. 단계별 가정과 확인 결과
+
+#### ① 국소 개수·점유율로 시작한 이유
+
+출발점은 **같은 넓이 안에 물체가 많이 보이면 그 부분에 여러 물체가 밀집해 있다**는 생각이었음. 예를 들어 같은 크기의 영역 안에 책 한 권만 있는 경우와 작은 물체 다섯 개가 있는 경우를 구분하려는 것임.
+
+다만 더미 전체의 `개수/면적` 하나만 계산하면 더미 내부의 어느 부분이 다른지는 남지 않음. 그래서 초기 pilot에서는 각 위치 주변에 작은 영역을 두고, 그 안에 보이는 segmentation 그룹을 세도록 구현함. **실제 학습값은 `국소 count/16`이며 더미 전체 면적으로 나눈 값은 아님.** 물체가 덮은 면적 비율인 occupancy도 보조 출력으로 사용함.
+
+이 방법에는 두 가지 문제가 있음.
+
+| 질문 | 왜 문제가 되는가 |
+|---|---|
+| 무엇을 한 물체로 셀 것인가? | 한 책의 표지 무늬를 여러 영역으로 나누면 과대 계수하고, 붙어 있는 두 책을 하나로 합치면 과소 계수함 |
+| 개수가 같으면 구조도 같은가? | 세 물체가 떨어져 있는 경우와 서로 겹친 경우 모두 count는 3일 수 있음. 큰 책 한 권과 여러 물체 모두 occupancy가 1에 가까울 수도 있음 |
+
+표지가 복잡한 책은 **물체 내부의 시각적 변화와 물체 사이의 경계가 다르다**는 점을 보여주는 예임. 이는 검토한 실패 가능성이며, 특정 segmentation 모델이 이 책을 실제로 분할하지 못했다는 비교 결과는 아님.
+
+개수를 직접 세려면 모든 pixel 경계가 완벽해야 하는 것은 아님. 작은 경계 오차가 있어도 같은 물체를 한 그룹으로 유지하면 개수는 맞을 수 있음. 핵심은 **한 물체를 여러 개로 나누거나 여러 물체를 하나로 합치는 오류**임.
+
+초기 실험에서는 RGB에서 예측한 segmentation을 세지 않고 **시뮬레이션의 저장된 segmentation으로 GT를 만들었음.** RGB-D 모델은 이 GT의 개수·점유율을 학습했고 추론에는 scene segmentation을 넣지 않음. 저장 색이 다른 asset 사이에서 겹치는 경우도 있어, 결과는 실제 물체 수보다 정확하게는 **가시 label-group 수**로 기록함.
+
+따라서 초기 count·occupancy 예측은 밀도 단서의 학습으로 보존함. 이 정답을 잘 맞혔다는 사실만으로 더미의 구조적 복잡도까지 정의된 것은 아님.
+
+#### ② Depth 변화만으로 보완할 수 있는가
+
+Depth를 고려한 이유는 RGB 무늬와 별개로 **실제 관측 표면의 거리 차이**를 얻을 수 있기 때문임. 여러 물체의 면이 서로 다른 높이로 쌓여 있으면 그 변화가 단서가 될 수 있음.
+
+그러나 depth의 변화량과 물체 개수는 일대일로 대응하지 않음. 아래는 그 차이를 보여주는 가상 예임.
+
+| 장면 | 관측 depth | 이 값만으로 놓치는 정보 |
+|---|---|---|
+| 윗면 높이가 같은 책 여러 권 | 여러 위치가 모두 약 2.90m | 표면이 평평해도 여러 물체일 수 있음 |
+| 기울어진 책 한 권 | 한쪽 2.85m → 다른 쪽 2.95m | 깊이가 크게 변해도 한 물체일 수 있음 |
+| 둥근 과일 한 개 | 표면을 따라 깊이가 연속 변화함 | 곡면 변화와 다물체 구조를 구분해야 함 |
+
+초기 cue는 단순 분산에서 더 나아가 일정한 기울기를 제거한 잔차와 인접 depth 변화의 불균일성을 계산함. 빈 서랍 자체의 벽·바닥에도 반응하는 오류를 확인하여, **같은 camera의 빈 서랍 depth와의 차이에서 계산하도록 수정함.** 고정 배경 반응을 제거한 것까지 확인했음.
+
+그래도 평평하게 놓인 여러 물체를 depth만으로 구별하는 문제는 남음. 반대로 한 물체의 곡면이나 관측 오차도 잔차를 만들 수 있음. 이 때문에 RGB의 외형·문맥과 depth를 함께 사용하는 방향으로 진행함. 완전히 가려져 RGB와 depth 어느 쪽에도 나타나지 않는 물체의 개수는 현재 관측 개수와 별도 문제임.
+
+#### ③ RGB-D와 관측 범위를 함께 시험함
+
+Phase 33에서는 **같은 depth 정보에 DINOv3의 RGB feature를 더하면 국소 개수 예측이 나아지는가**를 비교함. DINO는 고정하고 작은 예측 head를 학습했으며, RGB-D와 depth-only의 구조·초기값·학습 순서를 맞춤.
+
+여기에는 서로 다른 두 크기가 사용됨.
+
+| 크기 | 무엇을 정하는가 |
+|---|---|
+| **16×16px DINO patch** | Feature와 출력을 놓는 간격. 480×640 영상에서 30×40개 위치를 만듦 |
+| **48·96·160px count window** | 각 위치 주변에서 개수를 셀 범위. DINO patch 크기를 바꾸는 설정은 아님 |
+
+같은 위치라도 작은 window에는 한 물체의 일부만, 큰 window에는 주변 물체까지 들어올 수 있음. 예를 들어 세 범위에 각각 1·3·5개 그룹이 보이면 한 위치의 정답은 `[1/16, 3/16, 5/16]`이 됨. 이는 계산 예이며 실제 측정값은 아님. 나누는 16은 기존 asset library를 기준으로 정한 출력 scale이며, patch의 한 변 16px와 별개임.
+
+작은 범위는 국소 차이를 남기지만 주변 관계를 놓칠 수 있고, 큰 범위는 주변 물체를 함께 보지만 여러 위치에 비슷한 count를 줄 수 있음. **이 절충을 보기 위해 세 범위의 출력을 함께 학습·평가함.**
+
+기존 16개 source pool·고정 five-camera rig, test 960영상·3 seeds에서 얻은 결과는 다음과 같음. 값은 유효하며 GT count가 0보다 큰 window의 **가시 label-group 개수 MAE**임. 작을수록 개수 예측 오차가 작음.
+
+| Count window | RGB-D | Depth-only |
+|---|---:|---:|
+| 48×48px | 0.352517 | 0.497709 |
+| 96×96px | 0.621799 | 0.805782 |
+| 160×160px | 0.949932 | 1.194659 |
+| 세 범위 평균 | **0.641416** | **0.832717** |
+
+**세 범위 모두 RGB-D의 오차가 작았고 평균 MAE가 22.973% 감소함.** 이 조건에서 depth 외에 RGB 표현이 제공하는 정보를 확인한 결과임.
+
+48px의 오차가 가장 작다고 최적 범위가 정해진 것은 아님. 범위를 바꾸면 세는 개수와 유효 평가 위치도 달라짐. 현재는 **한 모델의 세 출력 범위를 평가한 것**이며, DINO patch 크기별 재학습이나 최적 window를 선택·추론하는 실험까지 수행한 것은 아님. 최적 범위를 정하려면 먼저 어떤 국소 관계를 잘 구분해야 하는지 공통 평가 기준을 정해야 함.
+
+![RGB-D density pilot in five views](img/complexity/book_1_five_views.png)
+
+열은 scene RGB / 96px count GT / RGB-D prediction / 절대 오차 / occupancy GT / 직접 depth occupancy / depth plane residual임. 이 그림은 **density pilot 결과**이며 최종 Complexity map은 아님.
+
+#### ④ 개수에서 물체 간 경계·관계로 질문을 넓힘
+
+다음 가정은 **물체가 바뀌는 경계가 가까이 모인 부분에는 서로 다른 물체 사이의 관계가 많이 나타날 수 있다**는 것이었음. 단순 개수보다 더미 내부의 국소 차이를 보려는 방향임.
+
+여기서 필요한 것은 RGB의 모든 edge가 아니라 **서로 다른 물체 사이의 경계**임. 책 표지의 글자·그림에도 edge가 많고, 복잡한 외곽선을 가진 한 물체에도 경계가 길게 생길 수 있음. 따라서 edge가 많다는 이유만으로 물체가 많거나 Complexity가 높다고 정하지 않음.
+
+```text
+책 표지 안의 글자와 그림 사이 변화 → 같은 물체 내부의 변화
+책 A와 책 B가 맞닿은 곳의 변화    → 서로 다른 물체 사이의 경계
+
+두 경우를 구분하려면: 각 영역이 어느 물체에 속하는지에 대한 정보가 필요함
+```
+
+Phase 34에서는 우선 **GT label로 물체 소속을 알려준 상태에서**, depth로 복원한 서로 다른 물체의 관측 표면이 얼마나 가까운지 계산함. 가까운 접경에 국소 반응이 생기는 것까지 확인했지만, 면적 통제에는 실패하여 최종 GT로 채택하지 않았음.
+
+또 경계가 높게 표시되어도 최종 선택 단위는 물체임. Phase 35에서는 실제 asset이 쌓인 10개 layout에서 하나씩 정적으로 제거한 결과와 물체별 평균 근접도를 대조함. 공통 701조건·49 views에서 새로 보인 다른 물체 면적 비율과의 순위 상관은 **0.078**로 약했음. 이 평균을 물체 선택 점수로 사용하는 근거를 확보하지 못했음.
+
+이 과정을 거치며 **국소 경계 신호를 만드는 것, 같은 물체의 영역을 묶는 것, 물체 간 관계를 표현하는 것은 각각 확인해야 할 문제**로 구분함. 근접도나 제거 횟수를 새 Complexity GT로 바로 바꾸기보다, 기존 표현이 이 구분에 필요한 정보를 갖고 있는지 먼저 확인하기로 함.
+
+#### ⑤ DINOv3가 물체 소속 정보를 갖고 있는지 확인함
+
+Similarity에서 DINO 외형에 SigLIP 의미 표현을 결합한 것처럼, Complexity도 필요한 정보가 무엇이고 기존 표현에서 무엇이 부족한지부터 확인하려는 접근임. Phase 36에서는 새 모델을 추가하기 전에 **기존 DINO feature로 두 patch의 물체 소속을 구분할 수 있는가**를 진단함.
+
+예를 들어 책 표지의 그림 부분과 글자 부분이 다르게 보여도 두 patch가 같은 책에 속한다고 판단할 정보가 있어야 함. 반대로 책 A와 책 B는 모두 책이지만 서로 다른 asset으로 구분해야 함.
+
+| 비교하는 두 patch | 정답 |
+|---|---|
+| 책 A 내부의 두 위치 | 같은 asset |
+| 책 A 내부와 책 B 내부 | 같은 category이지만 다른 asset |
+| 책 A 내부와 과일 내부 | 다른 category·asset |
+
+GT segmentation으로 평가할 patch와 같은/다른 asset 정답을 고르고, DINO·depth feature를 읽는 작은 판별기를 학습함. **DINO 자체를 다시 학습하거나 전체 scene의 segmentation을 예측한 실험은 아님.**
+
+먼저 한 patch 면적의 90% 이상이 같은 label인 **물체 내부 patch**를 사용함. 기존 16개 seen asset, same-category 80,024 pairs·604 views·8 test scene keys에서 다음 결과를 얻음. 위치 정보도 입력에 포함되어 `+position`으로 표기함.
+
+| 입력 | Same-asset 판별 AUROC |
+|---|---:|
+| DINO + position | **0.998953** |
+| Depth + position | 0.773882 |
+| RGB-D + position | 0.998908 |
+
+AUROC는 같은 asset 쌍에 다른 asset 쌍보다 높은 점수를 주는지 보는 지표이며 1에 가까울수록 좋음. **순수 내부 patch의 소속을 구분하는 정보는 기존 DINO에서 매우 잘 읽혔음.** 이는 depth와 비교한 표현 진단이며, 기존 segmentation 모델보다 DINO가 우수하다는 비교 결과는 아님.
+
+![Frozen-feature visible-asset correspondence](img/complexity/representation_comparison.png)
+
+이 조건에 들어온 patch는 알려진 foreground의 **42.40%**였음. 두 물체가 섞이는 경계 patch는 상당 부분 제외했으므로, 다음에는 **실제 경계를 나누는 능력과 가려져 떨어진 조각을 같은 물체로 묶는 능력**을 확인할 필요가 있음. 같은 내부 patch 판별 지표가 이미 거의 1이므로, 여기에 새 모델을 추가해 소수점만 높이는 비교는 현재 질문에 충분하지 않음.
+
+#### ⑥ 현재 남은 질문과 다음 Step
+
+현재까지는 **RGB가 국소 개수 예측에 도움이 된다는 것과, DINO에 순수 내부 patch의 물체 소속 정보가 있다는 것**을 확인함. 이제 실제 cluttered scene에서 다음 차이를 평가할 필요가 있음.
+
+| 확인할 능력 | 실제 더미에서 구분할 사례 |
+|---|---|
+| 물체 내부 변화와 물체 간 경계 | 표지의 복잡한 무늬와 서로 맞닿은 두 책 |
+| 분리된 가시 조각의 소속 | 다른 물체에 가려 양쪽만 보이는 한 책과 서로 다른 두 책 |
+| 여러 물체의 국소 관계 | 여러 경계가 가까이 모인 부분과 한 물체의 복잡한 외곽 |
+| 관계를 볼 적절한 범위 | 작은 범위에서 놓치는 주변 관계와 큰 범위에서 흐려지는 국소 차이 |
+
+이 사례에서 **어떤 실패가 남는지 먼저 고정된 기준으로 확인한 뒤**, 물체 영역을 묶는 모델이나 사전학습 공간 표현이 그 실패를 줄이는지 비교하려는 단계임. 관측 범위도 같은 관계 과제에서 비교해야 하며, 현재 최적 patch/window가 정해진 상태는 아님.
+
+물체 묶음 B와 공간 표현 C의 비교는 계획만 있고 미실행임. 최종 Complexity의 출력 의미·GT·모델은 위 진단 결과를 바탕으로 결정함. 기존 density pilot의 `F_C: 64×30×40`은 보존한 실험의 출력 규격이며 최종 구조로 확정한 것은 아님.
+
+### 4. 보존한 Density Pilot의 구현과 GT
+
+아래는 **Phase 33에서 실제로 구현·평가한 모델**의 상세임. 연구 흐름과 분리해 보존하며, 이후 경계·관계 진단의 모델이나 최종 Complexity 구조와 구분함.
+
+<details>
+<summary>Pilot 목적·입출력 규격과 고정 camera reference</summary>
 
 #### 연구 목적과 현재 구현 범위
 
@@ -2247,7 +2408,12 @@ depth:  2.90    2.90      2.90 m        depth:  2.85 → 2.90 → 2.95 m
 
 Workspace mask와 empty depth는 camera별 고정 배경 정보임. 매 scene의 물체 정답인 segmentation과 구분하며, rig를 이동하면 reference 정합을 다시 검증해야 함. Density 추론에는 scene segmentation·asset 이름·target reference를 입력하지 않음. 학습 정답 생성과 Phase 34–36의 GT 기반 진단 조건은 4·5절에 별도로 정리함.
 
-### 2. 전체 모델 구조
+</details>
+
+<details>
+<summary>Pilot 모델 구조·모듈 선택 이유·depth cue 계산</summary>
+
+#### Pilot 모델 구조
 
 RGB는 frozen DINOv3에서 위치별 feature를 추출하고, depth는 고정 수식으로 9개 cue를 계산함. 두 branch의 학습 projection과 fusion으로 feature 55개를 만든 뒤 원래 depth cue 9개를 concat하여 `F_C64`를 구성함. Auxiliary head는 이 feature에서 네 감독값을 예측함.
 
@@ -2283,7 +2449,7 @@ Depth:  cue 9   → projection 64 ─┴→ concat 128 → fusion 55 ─┐
 
 Concat은 같은 위치의 channel을 이어 붙이는 연산임. `64+64→128`, `55+9→64`는 원소별 덧셈과 구분함. 이후 convolution이 channel과 이웃 위치의 정보를 학습 가중치로 혼합함.
 
-### 3. 내부 모듈과 선택 이유
+#### Pilot 내부 모듈
 
 | 모듈 | 입력 → 출력 | 역할과 선택 이유 | 적용 범위와 추가 검증 |
 |---|---|---|---|
@@ -2412,7 +2578,10 @@ Logit 0의 sigmoid 값은 0.5임. Count channel에서는 `0.5×16=8` label-group
 
 Sigmoid는 bounded GT를 예측하는 마지막 head에만 적용함. `F_C` 전체에 적용하면 학습 feature 55개까지 0–1로 제한되므로 중간 표현은 그대로 유지함. 네 map과 `F_C`를 함께 반환하는 경로를 구현했으며, 최종 fusion에서 중간 feature의 추가 효과를 확인할 필요 있음.
 
-### 4. GT 생성과 학습
+</details>
+
+<details>
+<summary>Count·occupancy GT 생성, window·정규화, loss와 추론 출력</summary>
 
 #### 감독 경로와 추론 경로
 
@@ -2596,7 +2765,14 @@ Hash 검사는 학습에 사용한 weight/reference와 다른 파일의 혼입�
 
 구현: `complexity_cues.py`, `complexity_model.py`, `run_complexity_pilot.py`, `inference_complexity.py`. 실행법은 density pilot 문서 (`docs/complexity_results/README.md`)에 정리함.
 
-### 5. 핵심 설계 과정과 검증 결과
+</details>
+
+### 5. 상세 평가 조건과 결과
+
+본문의 주요 판단을 뒷받침하는 Phase 33–36의 비교 조건·수치·평가 범위를 정리함. 개별 실행과 추가 사진은 Development Log의 해당 Phase에 보존함.
+
+<details>
+<summary>Phase 33–36: Density 비교, 근접도·제거 진단, DINO pair 구성과 평가</summary>
 
 고정 rig에서 RGB의 density 예측 기여를 확인한 뒤, 국소 관계 후보와 제거 효과를 대조하고 frozen 표현의 대응 정보를 진단함. 각 단계에서 확인한 결과와 이어서 검증할 질문은 다음과 같음.
 
@@ -2613,9 +2789,7 @@ All16 source pools의 고정 five-camera 평가에서 RGB-D는 depth-only보다 
 
 Occupancy도 RGB-D `0.00854`로 depth-only learned head `0.01524`, 직접 depth occupancy `0.00981`보다 낮은 MAE를 보였음. 가시 개수·점유율의 예측까지 확인됐으며, 동일 occupancy에서 달라지는 단일 물체·다물체 구성을 구분하려면 별도의 관계 평가가 필요함.
 
-![RGB-D density pilot in five views](img/complexity/book_1_five_views.png)
-
-열은 scene RGB / 96px count GT / RGB-D prediction / 절대 오차 / occupancy GT / 직접 depth occupancy / depth plane residual임. Count는 GT-valid window만 표시하므로 표시 밖의 0을 물체 부재로 해석하지 않음. Empty-reference 수정과 평가 조건은 Phase 33에 정리함.
+③에 제시한 density 그림의 열은 scene RGB / 96px count GT / RGB-D prediction / 절대 오차 / occupancy GT / 직접 depth occupancy / depth plane residual임. Count는 GT-valid window만 표시하므로 표시 밖의 0을 물체 부재로 해석하지 않음. Empty-reference 수정과 평가 조건은 Phase 33에 정리함.
 
 #### Phase 34–35: 근접도 teacher와 정적 제거
 
@@ -2676,9 +2850,9 @@ Purity ≥90%는 patch 전체 256px 중 최소 231px이 같은 알려진 label�
 
 AUROC는 positive가 negative보다 높은 score를 받는 순위 판별 지표임. 동점은 절반 기여, 이상적 순위는 1, 무작위 순위는 대략 0.5임. Score 0.5로 정·오답을 나눈 accuracy나 확률 calibration과 다르므로 **0.998953을 pixel segmentation 정확도 99.8953%로 해석하지 않음.**
 
-![Frozen-feature visible-asset correspondence](img/complexity/representation_comparison.png)
-
 순수 patch 대응의 높은 AUROC로 **새 encoder를 추가하기 전에 기존 feature의 활용 가능성을 확인**함. 이 이진 과제는 거의 포화되어 B/C의 추가 효과를 구분하기 어려우므로 현재 도입을 보류함. 다음은 경계·분리된 조각·다중 관계에서 남은 실패와 관측 가능한 label을 특정하는 단계임. 작은 물체·심한 가림·동일 asset 복제·unseen asset 일반화도 별도 검증이 필요함. 자료와 큰 오차 pair 그림은 Phase 36에 정리함.
+
+</details>
 
 ### 6. 질문과 답변
 

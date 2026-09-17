@@ -77,6 +77,7 @@
 - 2026-09-17 문서 정정: 확인된 결과·평가 조건·추가 확인 범위 순서로 README와 현재 문맥을 정리함. Occlusion의 GT 생성·full16·external zero-shot 정량 평가를 완료된 성과로 명시함. 실험 수치와 과거 Phase 기록은 보존함.
 - 같은 날 모델 설명 정리: Similarity/Occlusion 구조도 뒤 설명을 실제 입력 → 숫자 표현 → 연산 → 다음 입력 순서로 연결함. Mask·channel/공간 위치·pooling·공유 FiLM·semantic query를 작은 계산 예로 설명하며 기존 실험 결과와 구분함.
 - 이후 설명 재구성: 사용자가 제공한 쉬운 설명을 본문 흐름으로 사용하고, 구조도 ①–⑧과 설명 번호를 일치시킴. 설계 선택 이유를 각 단계에 포함하고 구현 상세는 접기 영역으로 구분함.
+- Complexity 연구 흐름 정정: 국소 개수·depth 가설에서 관측 범위·물체 관계·DINO 대응 진단으로 이어진 이유를 정리함. 기존 density 구현은 실험 상세로 보존하며, 최적 window 선정이나 segmentation 대비 우월성 검증을 완료한 것으로 쓰지 않음.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -980,6 +981,22 @@ RGB+mask 입력과 native 68-D descriptor를 사용하도록 위 legacy script�
 > 구분하는 능력을 평가하고 필요한 표현 보완을 확인하는 것이다. B/C·fusion은 후속 실행 항목이며
 > 아래 09-07 실험은 이력, 현재 판단과 계획은 8.8절에서 확인한다.
 
+#### 설명 순서와 가정·실험의 구분 — 2026-09-17
+
+사용자는 Complexity를 미확정 모델의 구조 소개보다 연구의 가정과 전환 이유로 설명하도록 정정했다.
+README는 국소 개수 → depth 한계 → RGB-D와 관측 범위 → 경계·근접 관계 → 기존 DINO의 물체 소속
+진단 → 남은 질문 순서로 구성했다. Density pilot의 구조·GT는 보존한 실험의 상세로 구분한다.
+
+- 초기 `개수/더미 면적`은 출발 가설이며 실제 pilot 감독은 국소 `count/16`이다.
+- 책 표지의 복잡한 무늬가 과분할을 일으킬 수 있다는 예는 논리적 우려이며, 특정 segmentation
+  모델과 DINO를 직접 비교한 결과가 아니다. 중요한 계수 오류는 같은 물체의 분할·다른 물체의 병합이다.
+- 같은 높이의 여러 물체와 기울어진 단일 물체는 depth 변화가 물체 개수와 일치하지 않는 반례다.
+  실제로 실행·수정한 빈 서랍 roughness 오류와 가상 장면 설명을 구분한다.
+- DINO patch는 16px로 고정했다. 48/96/160px는 Phase 33 한 모델의 count window 3개이며
+  각각 별도 크기의 DINO를 학습한 실험이나 최적 window를 결정·추론한 실험이 아니다.
+- Phase 36은 GT가 고른 순수 patch의 같은 asset 대응 진단이다. 전체 scene segmentation,
+  물체 경계 검출, 분리된 모든 조각의 grouping까지 완료한 것으로 확대하지 않는다.
+
 #### 8.1 Phase 33: RGB-D visible-clutter pilot (2026-09-07)
 
 Target identity와 무관한 관측 clutter를 위치별 feature `F_C`로 표현하는 첫 pilot을 구현·평가했다.
@@ -1065,6 +1082,11 @@ RGB-D의 상대 개선은 **22.973%**이며 5/5 camera에서 개선했다. Paire
 사전 기준인 상대 개선 10% 이상, CI 하한 양수, 최소 3/5 camera 개선, 위치 평균 baseline보다 낮은
 MAE를 모두 만족했다. Zero-count window를 포함한 MAE도 RGB-D 0.592704, depth-only 0.763233이다.
 Occupancy MAE는 RGB-D 0.008544, depth-only 0.015244, 직접 depth occupancy 0.009814다.
+
+같은 V2 `summary.json`의 `count_mae_by_scale`을 48/96/160px 순서로 읽으면 RGB-D는
+`0.352517/0.621799/0.949932`, depth-only는 `0.497709/0.805782/1.194659`다. 한 모델의 세 출력에
+대한 3-seed 평균이며 새로운 실험이 아니다. 범위별 GT 개수와 유효 영역이 달라지므로 48px의
+작은 MAE를 최적 window의 근거로 삼지 않는다. 범위 선택은 공통 관계 평가 기준이 정해진 뒤 비교한다.
 
 #### 8.5 한계와 다음 Step
 
@@ -3398,6 +3420,13 @@ Phase 기록은 보존했다. 기록은 `docs/public_agent_context_walkthrough_2
 이유는 해당 단계에 포함했다. 흐름 외 구현 상세는 접기 영역에 보존하며, 실험 기록·현재 상태는
 유지했다. 문서화 기록은 `docs/public_agent_context_numbered_20260917.json`이다.
 
+같은 날 Complexity 본문은 최종 모델 소개에서 가정·한계·실험의 연구 흐름으로 재구성했다.
+초기 개수/면적 가설과 실제 count/16 감독, 16px DINO patch와 48/96/160px count window,
+GT 기반 순수 patch 대응과 segmentation 모델 비교를 구분했다. Window별 수치는 기존 V2
+`summary.json`의 `count_mae_by_scale`을 제시한 것이며 새 실험·최적 크기 선정이 아니다.
+현재 GT·모델 미확정 상태와 Phase 33–36 원본을 유지하고 구현 상세는 접기 영역에 보존했다.
+문서화 기록은 `docs/public_agent_context_complexity_flow_20260917.json`이다.
+
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -3992,6 +4021,13 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   처음부터 역할표·정밀 규격·수식·parameter 표를 한꺼번에 나열하지 않는다. 흐름에 필수적이지 않은
   구현 세부는 해당 단계의 접기 영역으로 옮겨 보존하고, 본문과 별도 요약의 반복을 줄인다.
 - README에는 가능하면 실제 scene, GT, prediction을 함께 보여 주는 이미지를 사용한다.
+- 2026-09-17 Complexity 설명 정정: 미확정 최종 모델처럼 소개하지 않고 국소 개수 가설 →
+  depth의 한계 → RGB-D·관측 범위 실험 → 경계·물체 소속·근접 관계 → DINO 진단 → 남은 질문의
+  연구 흐름으로 설명한다. 기존 density 구조·GT·평가 수치는 실험 상세로 보존한다.
+  책 표지의 과분할은 검토한 실패 가능성이며 특정 segmentation 모델의 실측 실패로 쓰지 않는다.
+  Phase 36은 segmentation 모델 대비 우월성 비교가 아니라 GT가 고른 순수 patch의 대응 진단이다.
+  48/96/160px는 Phase 33 한 모델의 count window 3개이며 DINO patch는 16px로 고정했다.
+  크기별 독립 재학습·최적 window 선택·추론 실험을 완료했다고 쓰지 않는다.
 - 공개 README 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/` 세 폴더에 바로 저장한다.
   다른 repo로 README와 이미지를 복사하기 쉽도록 실험별 새 폴더나 하위 폴더를 만들지 않는다.
   실험·단계 구분과 이름 충돌은 의미 있는 파일명으로 해결하고, 이동할 때 모든 문서 링크를 함께 갱신한다.
