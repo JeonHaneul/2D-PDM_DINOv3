@@ -82,6 +82,7 @@
 - Similarity architecture 추가: 입력 차원·channel/공간 축·Conv2d MatchingBlock·네 layer 통합과 adapter의 GT map loss 학습 경로를 두 그림으로 작성함. 차원 일치와 의미 학습을 구분하며 frozen encoder·공동 학습되는 adapter/head를 코드에 대조함. 구조 설명용 PNG·SVG 4개를 추가했고 새 실험은 실행하지 않음.
 - Similarity 학습 설명 보완: 직접적인 feature 정렬 감독과 최종 map 감독을 비교하고, map 오차를 통한 표현 활용법 학습과 새 target의 공유 모델 추론을 연결함. 기존 adapter 그림에 zero-shot 경로를 추가했으며 확인된 정성 결과와 후속 성공률·모듈 기여 평가를 구분함.
 - Similarity 차원 설명 보완: 실제 1152→768 변환, 같은 768차원 안의 query 이동, Q1의 설명용 2-D 화살표를 구분함. 별도 alignment loss의 부재가 실제 변환이나 학습의 부재를 뜻하지 않음을 명시함.
+- Occlusion architecture 추가: current full16의 RGB-D·full-frame target·68-D geometry·FiLM·1793채널 MatchingBlock을 실제 tensor 그림으로 작성함. FiLM의 공유 모델·계수 직접 출력·두 위치 계산을 별도 그림으로 설명하며, 기존 가상 예와 실측 결과를 구분함. PNG·SVG 4개를 기존 `img/occlusion/`에 추가함.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -858,6 +859,34 @@ Current trainable non-DINO parameters는 15,706,689개다.
 
 `occlusion_model.py`에는 과거 relation/local-FiLM mode가 checkpoint 호환을 위해 남아 있지만, current
 protocol은 `target_interaction_mode=raw_broadcast`, `geometry_conditioning_mode=global_film`이다.
+
+##### Tensor architecture와 FiLM 설명 그림
+
+2026-09-17에 current full16의 `raw_broadcast + global_film + native 68-D`를 코드와 protocol에
+대조하여 아래 두 그림으로 작성했다. README framework의 ①–⑧과 같은 번호를 사용한다.
+그림은 구조·계산 설명도이며 새 activation·예측 결과나 새 실험이 아니다.
+
+![Occlusion tensor architecture](img/occlusion/occlusion_tensor_architecture.png)
+
+전체 그림은 A의 scene/target DINO, B의 학습 depth encoder, C의 mask geometry/FiLM,
+D의 1793-channel interaction과 2D MatchingBlock·fusion·map head를 이어 보여 준다.
+Target RGB는 full-frame 공간 평균이며 mask는 geometry 경로에 사용한다. ResNet depth
+level2·3·4·4가 DINO layer2·5·8·11에 대응한다. 마지막 두 경로는 같은 depth scale을 쓰지만
+서로 다른 layer의 FiLM 계수와 MatchingBlock을 적용한다.
+
+![Occlusion FiLM conditioning and shared target model](img/occlusion/occlusion_film_conditioning.png)
+
+FiLM 그림은 `Linear(68,64) → ReLU → Linear(64,2048) → 4×2×256`을 표시한다.
+Gamma·beta는 마지막 Linear의 직접 출력이다. 마지막 weight=0, gamma bias=1, beta bias=0으로
+초기화하며 `gamma=1+delta`라는 별도 연산은 없다. Layer별 `256×1×1` 계수를 scene depth
+`256×30×40`에 broadcast한다. 그림의 두 위치는 같은 channel의 서로 다른 공간 위치이고,
+0.20/0.00 및 0.89/0.33은 기존 README의 가상 계산 예다. 확률·미터 단위·실측값이 아니다.
+모든 target이 같은 GeometryFiLM weight를 사용하고 mask 입력에 따라 계수가 달라진다.
+
+로컬 renderer는 `docs/render_occlusion_tensor_architecture_20260917.py`,
+`docs/render_occlusion_film_conditioning_20260917.py`이며 공개 자료는
+`img/occlusion/`의 동일 이름 PNG·SVG다. MSE 기반 Similarity 학습 설명을 Occlusion에 적용하지
+않으며, 현재 Occlusion loss는 다음 절의 coverage 가중 BCE·SmoothL1 및 safe-ring BCE다.
 
 #### 7.8 Dataset, loss, split
 
@@ -3527,6 +3556,12 @@ channel과 공간 축, raw query/cosine 분기, Conv2d MatchingBlock과 네 laye
 정리했다. 정렬 loss의 부재가 변환이나 학습의 부재를 뜻하지 않음을 본문과 Q&A에 연결했으며,
 기록은 `docs/public_agent_context_similarity_dimensions_20260917.json`이다.
 
+같은 날 Occlusion current full16의 tensor architecture와 FiLM 상세 그림을 작성했다.
+RGB/target 평균·depth scale·68-D mask geometry·global FiLM·1793→64 MatchingBlock·fusion을
+실제 코드와 protocol에 대조했다. FiLM의 동일 channel 두 위치 계산은 기존 가상 예를 그림으로
+표현했으며 새 실험은 추가하지 않았다. PNG·SVG 4개는 `img/occlusion/`에 바로 저장했다.
+기록은 `docs/public_agent_context_occlusion_architecture_20260917.json`이다.
+
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -3864,8 +3899,8 @@ Archive GT도 현재 production GT와 섞지 않는다.
 
 ### 9. README 이미지 색인
 
-2026-09-16 공개 파일 45개를 보존하고 2026-09-17 Similarity 구조 설명 PNG·SVG 4개를 추가하여
-현재 inventory는 49개다. 새 파일은 설명용 구조도이며 정성 예측 결과를 추가한 것은 아니다.
+2026-09-16 공개 파일 45개를 보존하고 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG
+8개를 추가하여 현재 inventory는 53개다. 새 파일은 설명용 구조도이며 정성 예측 결과를 추가한 것은 아니다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
 
 #### `img/similarity/` — 10개
@@ -3881,7 +3916,7 @@ Archive GT도 현재 production GT와 섞지 않는다.
 - `img/similarity/similarity_semantic_adapter.png`
 - `img/similarity/similarity_semantic_adapter.svg`
 
-#### `img/occlusion/` — 21개
+#### `img/occlusion/` — 25개
 
 - `img/occlusion/adaptive_gt_coverage_peach.png`
 - `img/occlusion/common_anchor_heldout_five_camera.png`
@@ -3904,6 +3939,10 @@ Archive GT도 현재 production GT와 섞지 않는다.
 - `img/occlusion/target_interaction_ablation_v2.png`
 - `img/occlusion/target_physical_descriptor_gates.png`
 - `img/occlusion/zero_shot_packaged_food_5_test30.png`
+- `img/occlusion/occlusion_tensor_architecture.png`
+- `img/occlusion/occlusion_tensor_architecture.svg`
+- `img/occlusion/occlusion_film_conditioning.png`
+- `img/occlusion/occlusion_film_conditioning.svg`
 
 #### `img/complexity/` — 18개
 
@@ -4139,6 +4178,10 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 - 1152→768 projection은 실제 차원 변환, a+z는 같은 768차원 안에서 새 query를 만드는 덧셈,
   Q1의 2-D 화살표는 그 덧셈의 설명도다. 별도 alignment loss의 부재를 변환의 부재처럼
   설명하지 않으며, 설명용 두 축을 모델의 중간 2-D 변환이나 실측 feature 투영으로 쓰지 않는다.
+- Occlusion architecture 그림은 current full16의 native 68-D/global FiLM/raw broadcast를 따른다.
+  Full-frame target 공간 평균, mask 전용 geometry 경로, depth level2/3/4/4와 DINO layer2/5/8/11
+  대응을 보존한다. FiLM의 gamma·beta 직접 출력과 항등 초기화, 계수의 target 출처와 scene depth
+  적용 대상을 구분한다. 1793→64 MatchingBlock과 네 경로 concat 256을 depth 256과 혼동하지 않는다.
 - 2026-09-17 Complexity 설명 정정: 미확정 최종 모델처럼 소개하지 않고 국소 개수 가설 →
   depth의 한계 → RGB-D·관측 범위 실험 → 경계·물체 소속·근접 관계 → DINO 진단 → 남은 질문의
   연구 흐름으로 설명한다. 기존 density 구조·GT·평가 수치는 실험 상세로 보존한다.

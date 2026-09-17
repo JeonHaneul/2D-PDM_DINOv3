@@ -1197,6 +1197,18 @@ flowchart TD
     N8 --> PO["P_O: 위치마다 가림값 하나, 0–1"]
 ```
 
+#### Tensor architecture
+
+아래는 **현재 full16 모델의 실제 tensor와 convolution 구조**임. A는 RGB의 위치별 feature와 target appearance, B는 scene depth의 세 scale, C는 target geometry와 FiLM, D는 정보 결합과 최종 map을 보여 줌. ①–⑧은 위 framework 및 아래 본문과 대응하며 `X`, `a`, `E'` 포트는 앞에서 계산한 같은 값을 이어서 사용함.
+
+![Occlusion tensor architecture: RGB-D encoders, target geometry, FiLM, matching blocks and map head](img/occlusion/occlusion_tensor_architecture.png)
+
+겹친 면은 channel이고 면 안의 가로·세로는 공간 위치임. **FiLM은 `256×30×40`의 크기를 유지하면서 값만 조절함.** 이후 RGB 768개·FiLM depth 256개·target 768개·cosine 1개를 합치면 `1793×30×40`이 되고, MatchingBlock의 3×3 Conv가 이를 `64×30×40`으로 바꿈. 네 경로의 64개씩을 합친 256은 앞의 depth 256과 구성 정보가 다름.
+
+A의 target RGB는 원본 전체를 DINO에 넣고 공간 평균함. C의 mask는 별도로 geometry를 만드는 입력임. B에서는 ResNet layer2·3·4를 각각 256-channel, 30×40으로 맞춘 뒤 DINO layer2·5·8·11에 **depth level2·3·4·4**를 연결함. 가장 깊은 depth feature를 재사용하는 두 경로도 FiLM 계수와 MatchingBlock은 각 경로에 맞게 적용함.
+
+파랑은 고정 DINO, 주황은 학습 모듈, 초록은 정해진 계산임. 그림의 격자와 두께는 개념도이며 실제 크기는 숫자로 표시함. 같은 이름의 SVG도 `img/occlusion/`에 보존함. `P_O`는 가림 GT를 예측하는 map이며 표시용 확대는 sigmoid 뒤에 적용함.
+
 ### 3. 내부 모듈과 선택 이유
 
 서랍에서 작은 장난감을 찾는 경우를 기준으로 설명함. 현재 서랍의 RGB·depth는 **서랍이 어떻게 생겼는지**, 별도 target RGB·mask는 **무엇을 찾는지** 알려주는 자료임. 아래 예는 사진 한 장을 기준으로 batch 축을 생략하며, `채널×세로×가로` 순서로 표기함.
@@ -1455,13 +1467,9 @@ Native 68-D는 이 원래 정의를 모두 사용하는 계약임. 과거 size-o
 
 하는 일은 곱하고 더하기임. Target geometry를 받는 작은 신경망이 곱할 값 `gamma`와 더할 값 `beta`를 만들고, 이를 ②에서 얻은 scene depth feature에 적용함.
 
-```text
-Target mask → geometry 68개 → 공유 FiLM 신경망 → gamma, beta
-                                                      │
-Scene depth → ResNet → 원래 depth feature E ──────────┤
-                                                      ↓
-                                     조절된 feature = gamma × E + beta
-```
+![Occlusion FiLM: target-mask conditioning, scene-depth modulation and shared-model inference](img/occlusion/occlusion_film_conditioning.png)
+
+그림 위쪽은 **68→64→2048개의 조절값을 만드는 경로**, 가운데는 **그 조절값을 scene depth feature에 적용하는 경로**임. 아래 계산은 다음 본문과 같은 가상 예이며, 실제 activation이나 예측 결과를 표시한 것은 아님. 마지막 Linear는 gamma·beta를 직접 출력하고, 초기에는 gamma=1·beta=0이 되도록 설정하여 원래 feature부터 학습을 시작함.
 
 **조건을 만드는 것은 target mask이고, 변환하는 대상은 scene depth feature임.** Target depth는 이 계산에 들어가지 않음.
 
