@@ -80,6 +80,7 @@
 - Complexity 연구 흐름 정정: 국소 개수·depth 가설에서 관측 범위·물체 관계·DINO 대응 진단으로 이어진 이유를 정리함. 기존 density 구현은 실험 상세로 보존하며, 최적 window 선정이나 segmentation 대비 우월성 검증을 완료한 것으로 쓰지 않음.
 - Complexity 연결 재정정: count와 occupancy의 한계를 분리하고 물체 구분에서 DINO 진단으로 연결함. Phase 34–35는 별도 관계 후보 검사로 보존하며, 소속·AUROC를 수치 예로 설명하고 동일 위치쌍의 feature 범위 비교를 미실행 제안으로 구체화함.
 - Similarity architecture 추가: 입력 차원·channel/공간 축·Conv2d MatchingBlock·네 layer 통합과 adapter의 GT map loss 학습 경로를 두 그림으로 작성함. 차원 일치와 의미 학습을 구분하며 frozen encoder·공동 학습되는 adapter/head를 코드에 대조함. 구조 설명용 PNG·SVG 4개를 추가했고 새 실험은 실행하지 않음.
+- Similarity 학습 설명 보완: 직접적인 feature 정렬 감독과 최종 map 감독을 비교하고, map 오차를 통한 표현 활용법 학습과 새 target의 공유 모델 추론을 연결함. 기존 adapter 그림에 zero-shot 경로를 추가했으며 확인된 정성 결과와 후속 성공률·모듈 기여 평가를 구분함.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -490,7 +491,16 @@ text의 고정 cache다. 두 encoder가 항상 같은 view를 받는 구조로 �
 어떤 보정값을 만들지는 최종 map GT와의 MSE를 줄이도록 adapter와 MatchingBlock·fusion·head가
 공동으로 학습한다. Raw query와 cosine 두 경로를 통해 adapter까지 gradient가 전달된다.
 DINOv3·SigLIP은 frozen이고 별도의 ‘정답 DINO vector’에 맞추는 feature alignment loss는 없다.
-따라서 현재 task에 유용한 변환을 학습하는 구조이며 DINO 자체가 새 의미를 재학습한다는 뜻은 아니다.
+**별도 feature 정렬 loss가 없다는 것은 두 표현의 대응을 배우지 않는다는 뜻이 아니다.**
+같은 물체의 두 vector를 직접 가깝게 만드는 감독과, 최종 map을 맞추면서 adapter·head가
+두 표현의 사용법을 공동으로 배우는 감독을 구분한다. 현재는 후자이며 DINO 자체를 재학습하지 않는다.
+
+Zero-shot은 사전학습 표현과 모든 target에 공유되는 adapter·head를 새 reference에 적용하는
+추론이다. 새 Banana reference → frozen feature → 기존 adapter·head → 새 map 순서로 계산하며
+추론 시 GT나 추가 학습은 사용하지 않는다. Unseen은 우리 Similarity 학습에 없던 target이라는
+뜻이며 encoder의 사전학습에서도 처음 보는 개념이라는 뜻은 아니다. Banana·packaged_food_5의
+zero-shot 정성 동작은 확인했고, 여러 external target의 성공률과 모듈별 기여는 후속 평가한다.
+직접 feature 정렬 loss의 부재를 우연한 zero-shot이라는 해석으로 연결하지 않는다.
 
 README의 apple target/orange 위치 예는 같은 fruit 관계 GT 0.8에 대해 예측 0.3이면 오차 0.25,
 가상 학습 후 예측 0.7이면 0.01이라는 계산 예다. 실측 수치로 인용하지 않는다.
@@ -3501,6 +3511,12 @@ channel과 공간 축, raw query/cosine 분기, Conv2d MatchingBlock과 네 laye
 코드 대조·그림 검토를 거친 설명용 PNG·SVG이며 새 실험이나 Phase를 추가하지 않았다.
 기록은 `docs/public_agent_context_similarity_architecture_20260917.json`에 남긴다.
 
+이후 같은 설명 그림과 README의 ④·Q1·Q5에서 직접적인 feature 정렬 감독과 최종 map 감독을
+구분했다. 별도 정렬 loss의 부재가 표현 대응 학습의 부재를 뜻하지 않음을 명시하고,
+새 reference에 공유 adapter·head를 적용하는 zero-shot 추론 경로를 그림에 추가했다.
+확인된 Banana·packaged_food_5 정성 결과와 추가 성공률·모듈 기여 평가를 연결했다.
+기존 이미지 경로를 유지했으며 기록은 `docs/public_agent_context_similarity_alignment_20260917.json`이다.
+
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -4105,6 +4121,11 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   규격을 맞추는 것이고, 유용한 변환은 map GT loss로 adapter와 head가 함께 학습한다.
   Frozen DINO가 SigLIP 지식으로 재학습되거나 차원 일치만으로 의미 정렬이 완료된다고 쓰지 않는다.
   구조 개념도와 실제 activation·예측 결과를 구분한다.
+- ‘별도 feature alignment loss가 없음’과 ‘표현의 대응을 배우지 않음’을 혼동하지 않는다.
+  현재 Similarity는 최종 map GT를 통해 adapter와 head가 두 표현의 활용법을 함께 학습한다.
+  Zero-shot은 사전학습 표현과 공유 모델을 새 reference에 적용하는 경로로 설명한다.
+  Unseen은 우리 head 학습에 없는 target이며 encoder 사전학습에서도 처음 보는 개념이라는 뜻은 아니다.
+  확인한 정성 zero-shot 결과와 여러 target의 성공률·모듈별 기여 분석을 구분한다.
 - 2026-09-17 Complexity 설명 정정: 미확정 최종 모델처럼 소개하지 않고 국소 개수 가설 →
   depth의 한계 → RGB-D·관측 범위 실험 → 경계·물체 소속·근접 관계 → DINO 진단 → 남은 질문의
   연구 흐름으로 설명한다. 기존 density 구조·GT·평가 수치는 실험 상세로 보존한다.

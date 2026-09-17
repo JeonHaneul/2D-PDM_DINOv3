@@ -486,7 +486,7 @@ Banana appearance a: 768개 ─────┘
 
 **차원을 맞추는 것만으로 두 모델의 의미가 같아지는 것은 아님.** 1152→768은 덧셈을 할 수 있도록 출력의 길이를 맞추는 구조임. 어떤 768개 숫자를 만들어야 유용한지는 최종 similarity map의 GT 오차로 학습함.
 
-![Semantic adapter learned jointly with the matching head from the final similarity-map loss](img/similarity/similarity_semantic_adapter.png)
+![Semantic adapter: map-supervised correspondence learning and shared-model zero-shot inference](img/similarity/similarity_semantic_adapter.png)
 
 처음에는 adapter의 `W,b`가 현재 작업에 맞춰 학습되기 전이므로, 차원만 맞는다고 유용한 보정값이 나오는 것은 아님. 그 상태에서도 query와 예측 map을 계산하고 GT와 비교할 수 있음. **예측 오차를 줄이는 방향으로 adapter와 MatchingBlock·fusion·map head의 weight를 함께 갱신함.** 이 과정이 그림의 빨간 점선임.
 
@@ -501,9 +501,20 @@ Banana appearance a: 768개 ─────┘
 
 여기서 DINOv3가 SigLIP의 지식을 전달받아 다시 학습되는 것은 아님. **DINO의 scene·target feature는 그대로이고, 뒤의 adapter와 head가 두 표현을 이용하는 방법을 배움.** 고정된 DINO feature가 이미 담고 있는 시각·문맥 정보와 target 의미 조건을 함께 읽는 구조임. Target의 전역 semantic vector만으로 scene에 없던 위치별 관측 정보를 새로 만드는 연산도 아님.
 
-현재 감독은 map GT와의 MSE이며, projected SigLIP vector를 별도의 ‘정답 DINO vector’에 맞추는 feature alignment loss는 없음. 따라서 이를 **현재 map 예측 작업에 맞춰 학습한 변환**으로 설명함. 두 encoder의 모든 의미 축이 일치하도록 변환됐다고 해석하지 않음.
+**Feature alignment는 서로 다른 표현 사이에 대응 관계를 만드는 것을 뜻함.** 여기서 구분할 것은 표현의 대응을 배우는지 여부가 아니라, **어디에 정답과 오차를 두고 배우는가**임.
+
+| 학습 방식 | 정답과 비교하는 대상 | 배우는 내용 |
+|---|---|---|
+| 직접적인 feature 정렬의 예 | 같은 물체의 변환된 SigLIP vector와 DINO vector | 두 표현이 가까워지도록 변환을 학습함 |
+| **현재 모델: map GT로 학습** | 예측 similarity map과 GT map | Adapter가 의미 조건을 query에 넣는 방법과 head가 scene·query를 함께 읽는 방법을 공동으로 학습함 |
+
+현재 별도의 feature alignment loss는 없지만, **map 오차를 통해 두 표현을 함께 사용하는 방법을 학습함.** 중간 vector에 정답을 직접 주는 대신 최종 답을 맞추면서 대응을 배우는 구조임. MatchingBlock은 cosine 하나뿐 아니라 raw scene 768개·query 768개도 함께 받으므로, 최종 예측에 필요한 관계를 이 정보들에서 읽도록 학습할 수 있음. 이를 모든 DINO·SigLIP 좌표의 의미가 동일해졌다는 뜻으로 해석하지는 않음.
 
 학습 후에는 이 가중치가 고정됨. 새 Banana 사진을 넣으면 **같은 계산 규칙에 새로운 입력이 들어가므로 보정값과 query가 새로 계산됨.** Target별 projection을 고르거나 새 target용 모델을 다시 학습하지 않음. 한 layer의 projection은 기존 16개 target과 새로운 target이 함께 사용함.
+
+**Zero-shot은 사전학습 표현과 target 간에 공유하는 계산 규칙을 새 reference에 적용하는 방식임.** SigLIP은 이미지·텍스트 관계를, DINOv3는 시각 feature를 사전학습한 모델임. 예를 들어 apple·orange 등의 학습에서 익힌 관련 영역 판별 방법이 새 Banana의 표현에도 적용될 수 있음. Banana reference에서 외형·의미 표현을 계산하고 기존 adapter와 head에 넣어 새로운 map을 만듦. 별도 feature 정렬 loss의 유무만으로 zero-shot을 우연한 출력으로 해석하지 않음.
+
+여기서 새 target은 **우리 Similarity 모델의 학습에 없던 target**임. 사전학습 encoder까지 그 물체의 개념을 처음 접한다는 뜻은 아님. **Banana와 `packaged_food_5`의 관련 영역 활성화는 추가 학습 없이 정성적으로 확인함.** 후속 평가는 여러 새 target에서의 성공률과 SigLIP·adapter의 개별 기여를 측정하기 위한 것임. 이는 관찰한 일반화의 범위와 원인을 구체화하는 평가임.
 
 이제 scene 위치 A의 vector와 Banana query를 비교할 준비가 됨.
 
@@ -934,6 +945,8 @@ SigLIP semantic s: [s1, s2, ... , s1152]                          ├──→ q
 
 **학습 신호:** 별도의 “fruit 좌표”를 지정하지 않고 similarity-map GT와의 오차를 이용함. Same-category 영역을 과소 예측하는 경우에도 projection과 head가 함께 MSE를 줄이는 방향으로 갱신되며, DINOv3/SigLIP weight는 고정됨.
 
+**직접적인 feature 정렬과의 차이:** 같은 물체의 두 vector가 가까워지도록 직접 감독하는 대신, 최종 map이 GT에 가까워지도록 감독함. 따라서 ‘별도 alignment loss가 없음’은 ‘두 표현의 대응을 배우지 않음’이라는 뜻이 아님. 현재는 adapter와 head가 map 오차를 통해 두 표현을 함께 사용하는 방법을 학습함. ④의 그림은 학습 시의 이 경로와 학습 후 새 target에 같은 모델을 적용하는 경로를 구분해 보여 줌.
+
 **Target 간 공유:** `W^ℓ,b^ℓ`는 해당 layer의 모든 target이 공유하는 학습 parameter임. 추론에서 Banana reference를 넣으면 이 parameter를 수정하는 대신, 그 reference에서 얻은 `s`를 기존 식에 대입하여 다른 출력값을 계산함. 네 DINO layer 사이에는 독립적인 adapter가 있고, target 종류 사이에는 같은 adapter를 사용함. 따라서 새 target용 projection을 다시 만들거나 선택할 필요가 없음.
 
 **Latent-space 해석:** Vector를 고차원 공간의 한 점 또는 원점에서 향하는 화살표로 나타내면, `a^ℓ`에 `W^ℓs+b^ℓ`를 더하여 새로운 query 위치 `q^ℓ`를 만드는 연산임.
@@ -1088,6 +1101,8 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 | 여러 미학습 target의 성능을 수치화함 | 외부 target·scene별 성능을 집계하여 평균 성능과 실패 조건 측정 | 후속 object-held-out 정량 평가 |
 
 **현재 zero-shot은 seen-category 안의 unseen-instance 조건에서 확인한 결과임.** Image-only와 image+text 각각의 추론 사례까지 보존되어 있으며, 두 조건의 성능 차이는 같은 scene·target을 사용하는 paired ablation으로 측정할 항목임. Image+text 학습 후 text를 제거하면 입력 분포도 달라지므로, 이 비교에서는 학습 조건과 추론 조건을 함께 기록함. 앞서 제시한 두 packaged-food 결과는 서로 다른 scene의 사례임. Category 전체를 학습에서 제외하는 평가는 일반화 범위를 더 넓히는 별도 실험임.
+
+여기서 unseen은 **우리 Similarity 모델의 학습 목록에 없던 external target**을 뜻함. DINOv3·SigLIP의 사전학습에서도 처음 보는 개념이라는 뜻은 아님. 새 reference의 표현을 계산해 기존 adapter·head에 넣는 것이 zero-shot 추론 경로이며, 직접적인 feature 정렬 loss를 추가해야만 이 경로가 성립하는 것은 아님. 이미 확인한 동작의 적용 범위는 여러 external target 평가로, 구성요소별 기여는 입력·모듈을 통제한 비교로 분석함.
 
 #### Q6. 밝은 값은 target 존재 확률인가? Similarity가 정확하면 최종 탐색도 해결되는가?
 
