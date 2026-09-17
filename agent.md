@@ -81,6 +81,7 @@
 - Complexity 연결 재정정: count와 occupancy의 한계를 분리하고 물체 구분에서 DINO 진단으로 연결함. Phase 34–35는 별도 관계 후보 검사로 보존하며, 소속·AUROC를 수치 예로 설명하고 동일 위치쌍의 feature 범위 비교를 미실행 제안으로 구체화함.
 - Similarity architecture 추가: 입력 차원·channel/공간 축·Conv2d MatchingBlock·네 layer 통합과 adapter의 GT map loss 학습 경로를 두 그림으로 작성함. 차원 일치와 의미 학습을 구분하며 frozen encoder·공동 학습되는 adapter/head를 코드에 대조함. 구조 설명용 PNG·SVG 4개를 추가했고 새 실험은 실행하지 않음.
 - Similarity 학습 설명 보완: 직접적인 feature 정렬 감독과 최종 map 감독을 비교하고, map 오차를 통한 표현 활용법 학습과 새 target의 공유 모델 추론을 연결함. 기존 adapter 그림에 zero-shot 경로를 추가했으며 확인된 정성 결과와 후속 성공률·모듈 기여 평가를 구분함.
+- Similarity 차원 설명 보완: 실제 1152→768 변환, 같은 768차원 안의 query 이동, Q1의 설명용 2-D 화살표를 구분함. 별도 alignment loss의 부재가 실제 변환이나 학습의 부재를 뜻하지 않음을 명시함.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -409,10 +410,16 @@ Target RGB + segmentation mask
 Hybrid query: q_l = a_l + W_l s + b_l
 ```
 
-SigLIP vector를 DINO vector에 원형 그대로 더하지 않는다. 네 개의 학습 가능한 projection이
-각 DINO layer의 768-D 공간에 맞게 변환한 뒤 더한다. 이 결합은 frozen DINO output을 변조하는
-오류가 아니라, appearance vector를 semantic 방향으로 보정한 **새로운 target query**를 만드는
-의도적인 연산이다. 다만 query는 더 이상 순수 DINO feature가 아니다.
+SigLIP vector는 layer별 학습 가능한 projection으로 `z_l = W_l s+b_l`을 계산하여
+1152-D에서 768-D로 실제 변환한다. 이어지는 `q_l = a_l+z_l`은 같은 768차원 안에서
+appearance에 보정값을 더해 새 query를 만드는 연산이다. 출력 차원은 구조로 정하고,
+유용한 출력값을 만드는 가중치는 최종 map GT를 통해 head와 함께 학습한다.
+Frozen DINO output은 그대로이고 query는 appearance와 의미 조건을 결합한 표현이다.
+
+README Q1의 2차원 화살표는 변환이 끝난 뒤 768-D vector 덧셈을 단순하게 그린 설명도다.
+모델에 중간 2-D 변환 단계가 있거나 실측 feature를 2-D로 투영한 결과가 아니다.
+‘fruit 방향’은 의미 조건 반영의 비유이며 정답 fruit 위치를 측정해 그곳으로 옮겼다는 뜻은 아니다.
+별도 feature alignment loss가 없다는 설명은 이 실제 변환이나 학습을 부정하지 않는다.
 
 각 layer의 projection은 모든 target이 공유한다. 추론에서 새 target을 넣으면 appearance와
 semantic 입력이 달라지고 같은 학습 weight가 새 hybrid query를 계산한다. 물체별 adapter를
@@ -3516,6 +3523,9 @@ channel과 공간 축, raw query/cosine 분기, Conv2d MatchingBlock과 네 laye
 새 reference에 공유 adapter·head를 적용하는 zero-shot 추론 경로를 그림에 추가했다.
 확인된 Banana·packaged_food_5 정성 결과와 추가 성공률·모듈 기여 평가를 연결했다.
 기존 이미지 경로를 유지했으며 기록은 `docs/public_agent_context_similarity_alignment_20260917.json`이다.
+이어 ④·Q1의 실제 1152→768 projection, 768차원 내 a→q 덧셈, 설명용 2-D 화살표의 차이를
+정리했다. 정렬 loss의 부재가 변환이나 학습의 부재를 뜻하지 않음을 본문과 Q&A에 연결했으며,
+기록은 `docs/public_agent_context_similarity_dimensions_20260917.json`이다.
 
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
@@ -4126,6 +4136,9 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   Zero-shot은 사전학습 표현과 공유 모델을 새 reference에 적용하는 경로로 설명한다.
   Unseen은 우리 head 학습에 없는 target이며 encoder 사전학습에서도 처음 보는 개념이라는 뜻은 아니다.
   확인한 정성 zero-shot 결과와 여러 target의 성공률·모듈별 기여 분석을 구분한다.
+- 1152→768 projection은 실제 차원 변환, a+z는 같은 768차원 안에서 새 query를 만드는 덧셈,
+  Q1의 2-D 화살표는 그 덧셈의 설명도다. 별도 alignment loss의 부재를 변환의 부재처럼
+  설명하지 않으며, 설명용 두 축을 모델의 중간 2-D 변환이나 실측 feature 투영으로 쓰지 않는다.
 - 2026-09-17 Complexity 설명 정정: 미확정 최종 모델처럼 소개하지 않고 국소 개수 가설 →
   depth의 한계 → RGB-D·관측 범위 실험 → 경계·물체 소속·근접 관계 → DINO 진단 → 남은 질문의
   연구 흐름으로 설명한다. 기존 density 구조·GT·평가 수치는 실험 상세로 보존한다.

@@ -474,7 +474,7 @@ SigLIP semantic s: 1152개  ← image/text 의미를 요약
 
 두 vector는 길이와 좌표계가 다름. 그래서 `s`를 **학습된 projection**에 넣어 숫자 768개로 바꿈. Projection은 1152개 중 앞의 768개만 고르는 것이 아니라, **1152개를 학습된 가중치로 조합해 새로운 768개를 만드는 계산**임.
 
-그 출력을 appearance와 같은 좌표끼리 더함. 결과도 768개이며, 이것이 scene와 비교할 **query**, 즉 “이번에 무엇을 찾는가”를 나타내는 검색 조건임.
+그 출력을 appearance와 같은 좌표끼리 더함. 결과도 768개이며, 이것이 scene와 비교할 **query**, 즉 “이번에 무엇을 찾는가”를 나타내는 검색 조건임. **Projection은 `1152→768`로 차원을 바꾸는 연산이고, 이어지는 덧셈은 같은 768차원 안에서 appearance `a`를 새 query `q`로 이동시키는 연산임.** 두 연산을 구분해서 읽음.
 
 ```text
 Banana semantic s: 1152개
@@ -484,7 +484,7 @@ Banana semantic s: 1152개
 Banana appearance a: 768개 ─────┘
 ```
 
-**차원을 맞추는 것만으로 두 모델의 의미가 같아지는 것은 아님.** 1152→768은 덧셈을 할 수 있도록 출력의 길이를 맞추는 구조임. 어떤 768개 숫자를 만들어야 유용한지는 최종 similarity map의 GT 오차로 학습함.
+**1152차원 표현을 768차원 표현으로 변환하는 것은 실제로 수행하는 계산임.** 출력 길이는 adapter의 구조로 정하고, 출력값은 학습된 `W,b`로 계산함. 이 변환이 유용한 의미 조건을 전달하도록 최종 similarity map의 GT 오차로 adapter와 head를 함께 학습함. ‘같은 차원이라고 의미까지 자동으로 일치하지는 않음’은 이 학습이 필요한 이유이며, 차원 변환 자체를 하지 않는다는 뜻이 아님.
 
 ![Semantic adapter: map-supervised correspondence learning and shared-model zero-shot inference](img/similarity/similarity_semantic_adapter.png)
 
@@ -949,23 +949,30 @@ SigLIP semantic s: [s1, s2, ... , s1152]                          ├──→ q
 
 **Target 간 공유:** `W^ℓ,b^ℓ`는 해당 layer의 모든 target이 공유하는 학습 parameter임. 추론에서 Banana reference를 넣으면 이 parameter를 수정하는 대신, 그 reference에서 얻은 `s`를 기존 식에 대입하여 다른 출력값을 계산함. 네 DINO layer 사이에는 독립적인 adapter가 있고, target 종류 사이에는 같은 adapter를 사용함. 따라서 새 target용 projection을 다시 만들거나 선택할 필요가 없음.
 
-**Latent-space 해석:** Vector를 고차원 공간의 한 점 또는 원점에서 향하는 화살표로 나타내면, `a^ℓ`에 `W^ℓs+b^ℓ`를 더하여 새로운 query 위치 `q^ℓ`를 만드는 연산임.
+**Latent-space 해석:** 먼저 `z^ℓ = W^ℓs+b^ℓ`로 SigLIP의 1152개 숫자를 768개로 변환함. 그다음 `q^ℓ = a^ℓ+z^ℓ`로 같은 768차원 안에서 새 query를 만듦. Vector를 공간의 한 점으로 그리면, `a^ℓ`에서 `z^ℓ`만큼 이동한 위치가 `q^ℓ`임. **차원이 바뀌는 단계는 projection이고, 아래 화살표는 변환이 끝난 뒤의 덧셈을 나타냄.**
 
 ```text
-개념도: 실제 768-D 공간을 설명용 2-D 종이에 그린 것
+개념도: 768-D vector의 덧셈을 두 축으로 단순하게 그린 것
+모델이 중간에 2-D로 변환하는 단계는 없음
 
     표시용 축 v
          ↑
-         │                         • q^ℓ = a^ℓ + semantic 보정
+         │                         • q^ℓ = a^ℓ + z^ℓ
          │                       ↗
-         │           • a^ℓ ────╱  W^ℓs+b^ℓ
+         │           • a^ℓ ────╱  z^ℓ = W^ℓs+b^ℓ
          │
          └──────────────────────────────────→ 표시용 축 u
 
 의도: Banana의 외형 query에 image/text semantic 정보를 함께 반영
 ```
 
-“외형 위치를 banana·fruit 방향으로 보정한다”는 표현은 **semantic 조건을 query에 반영한다는 개념 비유**임. 위 축과 화살표는 실제 feature의 측정값이 아니라 addition을 나타낸 설명용 도식임. 실제 768-D 좌표에는 banana·fruit 같은 고정 이름표가 없으며, 보정 후 각 scene token과의 cosine 변화는 학습된 projection과 해당 입력에 따라 결정됨.
+| 표현 | 실제 의미 |
+|---|---|
+| **1152차원에서 768차원으로 변환** | `z^ℓ = W^ℓs+b^ℓ`로 실제 수행하는 계산임 |
+| **외형 위치에서 새 query 위치로 이동** | 변환된 보정값을 더하는 `q^ℓ = a^ℓ+z^ℓ`이며, 두 위치 모두 768차원임 |
+| **2차원 화살표 그림** | 위 덧셈의 설명용 그림임. 실측 feature를 2차원으로 투영한 결과가 아님 |
+
+이동의 방향과 크기는 입력 `s`와 학습된 `W^ℓ,b^ℓ`가 정함. 그 값을 유용하게 만드는 학습 기준이 **최종 map GT와의 오차**임. Matching Head는 이동한 query를 scene feature와 함께 읽음. 따라서 ‘banana·fruit 방향으로 보정한다’는 말은 의미 조건을 반영한다는 비유이며, 실제 feature 공간에서 정답 fruit 위치를 측정해 그곳으로 보냈다는 뜻은 아님. **공간 변환과 query 이동은 실제 연산이고, 그 변환의 사용법을 map GT로 학습하는 구조**임. 별도 feature alignment loss가 없다는 것은 이 변환이 없거나 학습되지 않는다는 뜻이 아님.
 
 **결합 비중:** `q^ℓ`는 DINO appearance와 projected semantic을 함께 담은 표현임. 고정 혼합 비율이나 별도 alignment loss 대신 task loss로 projection을 학습하므로, projection의 크기도 semantic이 query에 기여하는 비중에 영향을 줌. Image/text 조건의 변경과 오류에 따른 출력 차이는 prompt swap·image-only 대조로 분석할 항목임.
 
