@@ -65,6 +65,7 @@
 
 ### 주요 공개 근거
 
+- 전체 tensor architecture (`img/overall_architecture.png`): stream별 현재 tensor와 미구현 fusion·decoder·DRL 연결을 구분한 설명도. 같은 이름의 SVG 원본도 보존함.
 - Similarity 상세 설명·Q&A (`similarity_stream.md`), Occlusion 상세 설명·Q&A (`occlusion_stream.md`), Complexity 상세 설명·Q&A (`complexity_stream.md`)
 - Complexity V2 protocol 공개본 (`docs/complexity_results/protocol_public.json`), test 결과 (`docs/complexity_results/summary.json`), 정의 기술 통계 (`docs/complexity_results/gt_definition_audit_20260908.json`)
 - Full16 book_1 패널 (`img/occlusion/full16_book_1_five_cameras.png`), 외부 packaged_food_5 패널 (`img/occlusion/zero_shot_packaged_food_5_test30.png`)
@@ -88,6 +89,7 @@
 - Similarity 차원 설명 보완: 실제 1152→768 변환, 같은 768차원 안의 query 이동, Q1의 설명용 2-D 화살표를 구분함. 별도 alignment loss의 부재가 실제 변환이나 학습의 부재를 뜻하지 않음을 명시함.
 - Occlusion architecture 추가: current full16의 RGB-D·full-frame target·68-D geometry·FiLM·1793채널 MatchingBlock을 실제 tensor 그림으로 작성함. FiLM의 공유 모델·계수 직접 출력·두 위치 계산을 별도 그림으로 설명하며, 기존 가상 예와 실측 결과를 구분함. PNG·SVG 4개를 기존 `img/occlusion/`에 추가함.
 - 공개 문서 분할: README에는 전체 개요·입출력·fusion·현재 상태·roadmap을 남기고 세 stream과 Development Log를 최상위의 별도 Markdown으로 이동함. 본문·그림 경로를 보존하고 각 문서의 위·아래에 상호 이동 링크를 추가함. 본 통합본은 `development_log.md`에서 과거 이력을 읽음.
+- 전체 architecture 설명도 추가: 공통 frozen DINO 규격, Similarity 1537·Occlusion 1793 interaction과 각 F64, Complexity density pilot의 learned55+direct9, 계획된 concat192·fusion·decoder·DRL을 연결함. 현재 stream별 실행과 미구현 통합 forward를 구분함. 기존 53개 asset을 유지하고 `img/` root의 `overall_architecture.png/.svg` 2개를 추가했으며 새 연구 Phase·실험 결과는 아님.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -160,6 +162,30 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 - **Occlusion:** 현재 clutter 구조에서 해당 target이 다른 물체에 가려질 수 있는 위치는 어디인가
 - **Complexity:** 더미 내부에서 서로 다른 물체의 근접·가림·표면 구조가 어디에서 복잡한가.
   현재 count/occupancy 모델은 density pilot이며 이 구조적 복잡도 정의는 아직 검증되지 않음.
+
+#### 전체 tensor architecture 설명 그림
+
+![Overall tensor architecture](img/overall_architecture.png)
+
+2026-09-17 전체 입력·세 stream의 tensor·계획된 결합을 한 그림으로 정리했다. 공개 원본은
+`img/overall_architecture.png`와 `.svg`, 로컬 renderer는
+`docs/render_overall_architecture_20260917.py`다. 현재 stream별 실행을 설명하는 구조도이며,
+**세 stream을 함께 호출하는 통합 forward와 fusion·decoder·DRL은 미구현**이다.
+
+- Scene RGB의 공통 frozen DINOv3 ViT-B/16 규격은 layer별 `B×768×30×40`이다. Similarity와
+  Occlusion은 layer 2/5/8/11, Complexity density pilot은 layer 11을 사용한다. 공통 encoder
+  표시는 같은 backbone 규격·weight를 뜻하며, 세 stream을 한 번에 실행하는 공유 cache나 통합
+  forward가 구현됐다는 뜻은 아니다.
+- Similarity는 SigLIP semantic 1152-D를 layer별 adapter로 768-D로 바꾸어 DINO appearance에
+  더한 query를 사용한다. Scene768 + query768 + cosine1의 `1537` interaction을 네 경로에서
+  처리·통합하여 `F_S: B×64×30×40`을 만든다.
+- Current full16 Occlusion은 target mask의 geometry68에서 FiLM 계수를 만들어 scene depth256을
+  조절한다. Scene768 + depth256 + target768 + cosine1의 `1793` interaction을 처리하여
+  `F_O: B×64×30×40`을 만든다. Native68/global FiLM/raw broadcast baseline을 나타낸다.
+- Complexity는 보존한 density pilot의 learned55 + direct depth geometry9를 이어 붙인
+  `F_C: B×64×30×40`이다. 실험 단계의 표현이며 최종 Complexity 구조·GT로 확정하지 않았다.
+- 세 feature를 연결하는 `B×192×30×40` 입력, 이후 learned fusion·decoder의 `P_2D`와 DRL
+  탐색 prior 활용은 계획이다. 개별 stream의 score map을 단순 합산한 현재 구현으로 읽지 않는다.
 
 #### 현재 위치
 
@@ -1516,8 +1542,10 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 - GitHub main에 직접 올리는 요청이 있을 때 branch를 만들지 말 것
 - 외부 push와 대규모 삭제는 현재 요청 범위를 확인할 것
 
-공개 문서의 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/`의 세 폴더에 직접 저장하고
-상대경로로 참조한다. 다른 repo에 복사하기 쉽도록 실험별 하위 폴더는 만들지 않으며 단계 구분은
+공개 stream별 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/`의 세 폴더에 직접 저장한다.
+전체 architecture처럼 여러 stream에 공통인 그림은 `img/` root에 둔다. 기존 53개 asset은 그대로
+유지하며 공통 구조도 PNG·SVG 두 개를 추가한 inventory는 55개다. 모든 그림은 상대경로로
+참조한다. 다른 repo에 복사하기 쉽도록 실험별 하위 폴더는 만들지 않으며 단계 구분은
 파일명으로 한다. Output의 절대경로만 Markdown에 넣으면 GitHub에 image가 나타나지 않는다.
 
 ---
@@ -3592,6 +3620,12 @@ navigation에는 상대경로 하이퍼링크를 사용하고 기존 `img/...` �
 이 변경은 새 연구 Phase나 실행 결과가 아닌 문서화 milestone이다. 기록은
 `docs/public_agent_context_document_split_20260917.json`이며 게시 상태·commit은 해당 기록과 Git으로 확인한다.
 
+같은 날 전체 tensor architecture 설명도를 `img/overall_architecture.png`와 `.svg`로 추가했다.
+공통 frozen DINO 규격에서 세 stream의 `F_S/F_O/F_C: B×64×30×40`까지와, 계획된 concat192·
+fusion·decoder·DRL 연결을 구분한다. Complexity는 density pilot이며 통합 forward는 미구현이다.
+Renderer는 로컬 `docs/render_overall_architecture_20260917.py`에 보존한다. 기존 53개 이미지
+asset은 유지하고 공통 그림 2개를 더했으며 새 실험·연구 Phase를 추가한 것이 아니다.
+
 세 stream 문서의 현재 본문과 `development_log.md`의 과거 실험 기록을 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -3929,9 +3963,18 @@ Archive GT도 현재 production GT와 섞지 않는다.
 
 ### 9. 공개 문서 이미지 색인
 
-2026-09-16 공개 파일 45개를 보존하고 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG
-8개를 추가하여 현재 inventory는 53개다. 새 파일은 설명용 구조도이며 정성 예측 결과를 추가한 것은 아니다.
+2026-09-16 공개 파일 45개와 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG 8개를 보존하고,
+전체 architecture PNG·SVG 2개를 추가하여 현재 inventory는 55개다. 새 파일은 설명용 구조도이며
+정성 예측 결과를 추가한 것은 아니다. 공통 그림은 `img/` root, stream별 그림은 기존 세 폴더에 둔다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
+
+#### `img/` root 공통 그림 — 2개
+
+- `img/overall_architecture.png`
+- `img/overall_architecture.svg`
+
+로컬 renderer: `docs/render_overall_architecture_20260917.py`. 현재 stream별 모델의 입력·tensor
+연결과 미구현 fusion·decoder·DRL 계획을 함께 표시한 설명도이며 통합 실행 결과가 아니다.
 
 #### `img/similarity/` — 10개
 
@@ -4236,9 +4279,14 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   동일 위치쌍·GT·비교군 공통 유효영역을 고정하고 주변 feature 집계 범위만 비교하는 안을 제시했으며,
   외형 변화·경계·분리된 조각 유형별 validation AUROC의 동일 가중 평균으로 선택하는 미실행 제안이다.
   기존 count window 실험과 새 feature 집계 범위 비교, 최종 Complexity 범위 결정을 혼동하지 않는다.
-- 공개 README 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/` 세 폴더에 바로 저장한다.
-  다른 repo로 README와 이미지를 복사하기 쉽도록 실험별 새 폴더나 하위 폴더를 만들지 않는다.
+- 공개 stream별 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/` 세 폴더에 바로 저장한다.
+  여러 stream에 공통인 전체 architecture 그림은 `img/` root에 둔다(`img/overall_architecture.png/.svg`).
+  공통 그림을 위해 새 폴더를 만들거나 기존 stream 이미지를 이동하지 않는다. 다른 repo로 공개
+  문서와 이미지를 복사하기 쉽도록 실험별 새 폴더나 하위 폴더를 만들지 않는다.
   실험·단계 구분과 이름 충돌은 의미 있는 파일명으로 해결하고, 이동할 때 모든 문서 링크를 함께 갱신한다.
+- 전체 architecture 그림의 공통 frozen DINO는 같은 backbone 규격·weight를 뜻한다. 현재는
+  stream별 실행이며 세 stream 통합 forward·fusion·decoder·DRL은 미구현이다. Complexity의
+  learned55 + direct9는 보존한 density pilot으로 표시하고 최종 구조·GT로 확정하지 않는다.
 - GitHub 수식에서 지원되지 않는 `operatorname` 매크로를 사용하지 않는다.
 - 진행 로그는 준비 완료·실험 완료·해석 변경 같은 주요 milestone 중심으로 전달한다.
   예상 실행 시간에 맞춰 대기한 뒤 확인하며, 짧은 간격의 반복 polling과 epoch 로그 중계를 피한다.

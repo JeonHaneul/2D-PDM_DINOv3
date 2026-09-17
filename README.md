@@ -19,7 +19,7 @@
 | [Development Log](development_log.md) | Phase 1–36의 주요 가정·실험·사진·결과·판단 |
 | [연구 문맥·근거 색인](agent.md) | 다른 agent와 외부 독자를 위한 문맥·상세 보고서·작업 지침 |
 
-각 문서의 위·아래 이동 링크로 전체 개요와 다른 문서를 오갈 수 있음. 모든 문서는 저장소 최상위에 두며 그림은 기존 `img/similarity/`, `img/occlusion/`, `img/complexity/` 경로를 그대로 사용함.
+각 문서의 위·아래 이동 링크로 전체 개요와 다른 문서를 오갈 수 있음. 모든 문서는 저장소 최상위에 둠. Stream별 그림은 기존 `img/similarity/`, `img/occlusion/`, `img/complexity/` 경로를 유지하고, 공통 전체 구조도는 `img/overall_architecture.png`에 둠.
 
 ## Overview
 
@@ -31,32 +31,23 @@
 | Occlusion | 해당 target이 가려질 수 있는 위치 추론 | Adaptive GT 생성·full16 가림확률 예측·외부 target의 zero-shot 정량 평가 완료; 여러 target·실제 관측 조건으로 평가 확장 |
 | Complexity | 더미 내부 물체 간 구조 차이 표현 | RGB-D density 예측 개선과 물체 내부 patch 대응 정보 확인; 경계·물체 관계 평가를 통해 최종 구조·GT 구체화 |
 
-```mermaid
-flowchart LR
-    RGB["Scene RGB"] --> S["Similarity"]
-    RGB --> O["Occlusion"]
-    RGB --> C["Complexity: density pilot"]
-    DEPTH["Scene metric depth"] --> O
-    DEPTH --> C
-    TARGET["Target reference RGB"] --> S
-    TARGET --> O
-    PROMPT["Target category prompt"] --> S
-    MASK["Target reference mask"] --> S
-    MASK --> O
-    CAL["Fixed-camera workspace / reference information"] -->|"학습 영역·출력 후처리"| O
-    CAL --> C
-    S --> FS["F_S: B x 64 x 30 x 40"]
-    O --> FO["F_O: B x 64 x 30 x 40"]
-    C --> FC["F_C candidate: B x 64 x 30 x 40"]
-    FS --> CONCAT["Concat: B x 192 x 30 x 40"]
-    FO --> CONCAT
-    FC --> CONCAT
-    CONCAT -.-> FUSION["Learned fusion + decoder: planned"]
-    FUSION -.-> PDM["P_2D: B x 1 x H x W"]
-    PDM -.-> POLICY["Exploration policy: planned"]
-```
+### 전체 아키텍처
 
-Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **다음 구현 단계는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 통합**임. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임.
+![2D-PDM 전체 tensor architecture](img/overall_architecture.png)
+
+그림은 **현재 구현된 stream 내부 구조와 계획 중인 통합 경로**를 함께 나타냄. 파란색은 frozen encoder, 주황색은 학습 모듈, 초록색은 고정 연산이며, 보라색 점선은 후속 구현 단계임. Tensor는 `channel × 세로 × 가로`로 표시하고 batch `B`는 생략함.
+
+**① Scene 입력과 공통 backbone.** 현재 서랍의 RGB `3×480×640`을 DINOv3로 처리하면 각 위치가 768개 숫자로 표현된 `768×30×40` feature가 나옴. Similarity·Occlusion은 layer `2,5,8,11`의 feature를 사용하고, Complexity pilot은 마지막 layer `11`을 사용함. 그림 상단은 이 공통 backbone 규격을 모아 표시한 것이며, 현재 실행은 stream별로 이루어짐.
+
+**② Similarity — 무엇을 찾을 것인가.** Target reference RGB와 mask에서 물체 영역을 잘라 DINO appearance `768-D`를 만들고, SigLIP은 reference 이미지와 이름·category를 `1152-D` 의미 조건으로 표현함. 학습 adapter가 이를 `768-D`로 변환하여 appearance에 더한 값이 검색 query임. 이 변환은 similarity-map GT를 통해 학습되며, DINO 자체의 weight는 고정됨. 각 scene 위치에서 **scene 768 + query 768 + cosine 1 = 1537채널**을 MatchingBlock이 64채널로 해석하고, 네 layer의 출력을 통합하여 `F_S`를 만듦.
+
+**③ Occlusion — 그 target이 어디에 가려질 수 있는가.** Scene RGB feature와 함께 depth encoder가 만든 **현재 서랍의 depth feature**를 사용함. Target RGB는 물체의 appearance를 제공하고, reference mask는 크기·윤곽을 나타내는 `68-D` geometry를 제공함. 공유 MLP가 geometry에서 FiLM 계수를 계산하여 scene depth의 256채널 값을 조절함. 이렇게 조절한 depth 256채널과 scene 768·target 768·cosine 1을 합친 **1793채널**을 MatchingBlock에 전달하고, 네 layer를 통합하여 `F_O`를 만듦. Target이 달라지면 같은 모델에서 조절값이 달라지는 구조임.
+
+**④ Complexity — 현재는 RGB-D density pilot.** Target 조건 없이 scene의 DINO feature와 depth 단서를 결합함. DINO `768→64`, depth cue `9→64`를 각각 변환한 뒤 합쳐 학습 feature 55개를 만들고, 원본 depth cue 9개를 다시 붙여 `F_C`의 64채널을 구성함. Depth cue 계산에는 고정 camera의 workspace와 empty-depth reference를 사용함. 현재 head는 국소 label-group count 3개와 occupancy 1개를 예측하도록 학습했으며, **더미 내부의 구조적 Complexity를 표현할 최종 모델·GT는 검증 중**임.
+
+**⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 stream은 같은 `30×40` 위치마다 서로 다른 64개 숫자를 제공함. 이를 같은 위치끼리 이어 붙이면 **`64+64+64=192채널`**이며 공간 격자는 유지됨. 그림에서 오른쪽으로 갈라지는 prediction head는 각 stream의 GT를 예측하는 경로이고, 아래 fusion은 그 head 이전의 feature를 받도록 계획함. 이후 learned fusion·decoder로 최종 target 위치 map을 만들고 탐색 정책에 연결할 예정임. 현재 density `F_C`의 최종 채택은 Complexity 정의·관계 표현 검증 후 판단함.
+
+Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** 현재 Complexity의 우선 과제는 실제 더미의 경계·물체 관계를 검증하여 출력 의미와 GT를 구체화하는 것임. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
