@@ -1,12 +1,16 @@
 # 2D-PDM 연구 문맥·가정·실험 통합 기록
 
+<!-- navigation:start -->
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
+<!-- navigation:end -->
+
 > 문서 기준일: 2026-09-17 (Asia/Seoul) · 연구 이력: Phase 1–36 · 현재 마지막 실험: Phase 36 A
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
-> 최신 상세 모델 설명: README의 세 stream 본문. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
+> 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
 이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–36 Development Log, Complexity의 가정·실험·후속 계획 보고서 6개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
-모델별 상세 설명: `README.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
+모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
 ## 읽는 순서와 현재 상태
 
@@ -61,7 +65,7 @@
 
 ### 주요 공개 근거
 
-- Similarity 상세 설명·Q&A (`README.md#similarity-stream`), Occlusion 상세 설명·Q&A (`README.md#occlusion-stream`), Complexity 상세 설명·Q&A (`README.md#complexity-stream`)
+- Similarity 상세 설명·Q&A (`similarity_stream.md`), Occlusion 상세 설명·Q&A (`occlusion_stream.md`), Complexity 상세 설명·Q&A (`complexity_stream.md`)
 - Complexity V2 protocol 공개본 (`docs/complexity_results/protocol_public.json`), test 결과 (`docs/complexity_results/summary.json`), 정의 기술 통계 (`docs/complexity_results/gt_definition_audit_20260908.json`)
 - Full16 book_1 패널 (`img/occlusion/full16_book_1_five_cameras.png`), 외부 packaged_food_5 패널 (`img/occlusion/zero_shot_packaged_food_5_test30.png`)
 - 정적 제거 비교 (`img/complexity/clutter_comparison.png`), 표현 A 비교 (`img/complexity/representation_comparison.png`), 표현 A 큰 오차 예 (`img/complexity/failure_examples.png`)
@@ -83,6 +87,7 @@
 - Similarity 학습 설명 보완: 직접적인 feature 정렬 감독과 최종 map 감독을 비교하고, map 오차를 통한 표현 활용법 학습과 새 target의 공유 모델 추론을 연결함. 기존 adapter 그림에 zero-shot 경로를 추가했으며 확인된 정성 결과와 후속 성공률·모듈 기여 평가를 구분함.
 - Similarity 차원 설명 보완: 실제 1152→768 변환, 같은 768차원 안의 query 이동, Q1의 설명용 2-D 화살표를 구분함. 별도 alignment loss의 부재가 실제 변환이나 학습의 부재를 뜻하지 않음을 명시함.
 - Occlusion architecture 추가: current full16의 RGB-D·full-frame target·68-D geometry·FiLM·1793채널 MatchingBlock을 실제 tensor 그림으로 작성함. FiLM의 공유 모델·계수 직접 출력·두 위치 계산을 별도 그림으로 설명하며, 기존 가상 예와 실측 결과를 구분함. PNG·SVG 4개를 기존 `img/occlusion/`에 추가함.
+- 공개 문서 분할: README에는 전체 개요·입출력·fusion·현재 상태·roadmap을 남기고 세 stream과 Development Log를 최상위의 별도 Markdown으로 이동함. 본문·그림 경로를 보존하고 각 문서의 위·아래에 상호 이동 링크를 추가함. 본 통합본은 `development_log.md`에서 과거 이력을 읽음.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -230,13 +235,14 @@ target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlu
 
 1. 현재 root 실행 코드와 run의 `protocol.json`, `summary.json`, metadata
 2. 이 `PROJECT_CONTEXT.md`
-3. 최신 public narrative인 `2D-PDM_DINOv3_git/README.md`
+3. Git clone의 최신 공개 문서: `README.md`, `similarity_stream.md`, `occlusion_stream.md`,
+   `complexity_stream.md`, `development_log.md`
 4. 오래된 `2D-PDM_DINOv3/README2.md`, 코드 주석, `code_2607xx`, `legacy/occlusion`
 
 중요한 현재 상태:
 
 - Working folder의 `README2.md`는 2026-08-06 수준에서 멈춘 오래된 문서다.
-- 연구 색인은 Phase 1–36을 연결한다. 공개 README의 최신 반영 범위와 commit은 Git HEAD에서
+- 연구 색인은 `development_log.md`의 Phase 1–36을 연결한다. 공개 문서의 최신 반영 범위와 commit은 Git HEAD에서
   확인하며, 최신 수치는 working root의 각 run JSON과 이 문서를 우선한다.
 - Git clone의 코드 일부는 working folder보다 오래됐거나 누락되어 있다.
 - 2026-08-28에는 `742d903`을 확인했으며, 2026-09-07 Complexity 코드·실험 자료·README Phase 33을
@@ -258,10 +264,16 @@ target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlu
   입력에서 출력까지의 차원 변화, 모듈 역할·비교표, 수치 예·도식, 상세 FAQ를 추가했다.
   GitHub에는 README 한 파일만 게시했고 Phase 1–36과 기존 이미지 경로는 그대로 보존했다.
   원격 main 일치·clean을 확인했다. 검토 기록은 `docs/readme_stream_expansion_20260916.json`이다.
-- 따라서 **코드는 working folder**, **공개 설명은 Git clone README**를 기준으로 읽는다.
+- 2026-09-17 공개 문서를 저장소 root의 다섯 파일로 분리했다. `README.md`는 전체 개요·입출력·
+  fusion·현재 상태·roadmap, `similarity_stream.md`·`occlusion_stream.md`·`complexity_stream.md`는
+  stream별 상세 설명, `development_log.md`는 Phase 1–36의 이력이다. 상세 내용과 연구 결과를
+  축약하지 않고 이동했으며, Phase 제목은 `###`에서 `##`로 바뀌었다. 문서별 상호 navigation과
+  `agent.md` 진입 링크를 유지하고 기존 `img/...` 상대경로는 변경하지 않는다.
+  문서화 기록은 `docs/public_agent_context_document_split_20260917.json`이다. 새 연구 Phase가 아니다.
+- 따라서 **코드는 working folder**, **공개 설명은 Git clone의 개요·stream 문서·개발 로그**를 기준으로 읽는다.
 
 `2D-PDM_DINOv3_git`은 working folder가 Git repository가 아니어서 GitHub 반영을 위해 만든 별도
-clone이다. 실험 코드가 자동으로 그곳에 동기화되는 구조가 아니다. 주요 milestone의 README와
+clone이다. 실험 코드가 자동으로 그곳에 동기화되는 구조가 아니다. 주요 milestone의 공개 문서와
 로그용 이미지·결과만 선별하며, 미검증 실험 코드·checkpoint는 staging에서 제외한다. GitHub CLI는 `JeonHaneul`
 계정으로 인증되어 있었지만, 실제 push 직전 `gh auth status`와 remote를 다시 확인하며 token 값은
 로그나 문서에 노출하지 않는다.
@@ -417,7 +429,7 @@ appearance에 보정값을 더해 새 query를 만드는 연산이다. 출력 �
 유용한 출력값을 만드는 가중치는 최종 map GT를 통해 head와 함께 학습한다.
 Frozen DINO output은 그대로이고 query는 appearance와 의미 조건을 결합한 표현이다.
 
-README Q1의 2차원 화살표는 변환이 끝난 뒤 768-D vector 덧셈을 단순하게 그린 설명도다.
+`similarity_stream.md` Q1의 2차원 화살표는 변환이 끝난 뒤 768-D vector 덧셈을 단순하게 그린 설명도다.
 모델에 중간 2-D 변환 단계가 있거나 실측 feature를 2-D로 투영한 결과가 아니다.
 ‘fruit 방향’은 의미 조건 반영의 비유이며 정답 fruit 위치를 측정해 그곳으로 옮겼다는 뜻은 아니다.
 별도 feature alignment loss가 없다는 설명은 이 실제 변환이나 학습을 부정하지 않는다.
@@ -476,6 +488,7 @@ Current trainer는 `category_dim=0`으로 model을 만들기 때문에 과거 CL
 semantic adapter의 학습 경로 그림을 추가했다. 아래 그림은 구조 설명용이며 실제 activation이나
 새 실험 결과가 아니다. Renderer는 로컬 `docs/render_similarity_tensor_architecture_20260917.py`,
 `docs/render_similarity_semantic_adapter_20260917.py`에 보존하고 PNG·SVG만 공개한다.
+현재 설명과 그림은 `similarity_stream.md`에 보존한다.
 
 ![Similarity tensor architecture](img/similarity/similarity_tensor_architecture.png)
 
@@ -510,7 +523,7 @@ Zero-shot은 사전학습 표현과 모든 target에 공유되는 adapter·head�
 zero-shot 정성 동작은 확인했고, 여러 external target의 성공률과 모듈별 기여는 후속 평가한다.
 직접 feature 정렬 loss의 부재를 우연한 zero-shot이라는 해석으로 연결하지 않는다.
 
-README의 apple target/orange 위치 예는 같은 fruit 관계 GT 0.8에 대해 예측 0.3이면 오차 0.25,
+`similarity_stream.md`의 apple target/orange 위치 예는 같은 fruit 관계 GT 0.8에 대해 예측 0.3이면 오차 0.25,
 가상 학습 후 예측 0.7이면 0.01이라는 계산 예다. 실측 수치로 인용하지 않는다.
 기존 unseen target zero-shot 정성 확인과 이번 구조·학습 설명을 구분한다.
 
@@ -863,7 +876,7 @@ protocol은 `target_interaction_mode=raw_broadcast`, `geometry_conditioning_mode
 ##### Tensor architecture와 FiLM 설명 그림
 
 2026-09-17에 current full16의 `raw_broadcast + global_film + native 68-D`를 코드와 protocol에
-대조하여 아래 두 그림으로 작성했다. README framework의 ①–⑧과 같은 번호를 사용한다.
+대조하여 아래 두 그림으로 작성했다. 현재 `occlusion_stream.md` framework의 ①–⑧과 같은 번호를 사용한다.
 그림은 구조·계산 설명도이며 새 activation·예측 결과나 새 실험이 아니다.
 
 ![Occlusion tensor architecture](img/occlusion/occlusion_tensor_architecture.png)
@@ -880,7 +893,7 @@ FiLM 그림은 `Linear(68,64) → ReLU → Linear(64,2048) → 4×2×256`을 표
 Gamma·beta는 마지막 Linear의 직접 출력이다. 마지막 weight=0, gamma bias=1, beta bias=0으로
 초기화하며 `gamma=1+delta`라는 별도 연산은 없다. Layer별 `256×1×1` 계수를 scene depth
 `256×30×40`에 broadcast한다. 그림의 두 위치는 같은 channel의 서로 다른 공간 위치이고,
-0.20/0.00 및 0.89/0.33은 기존 README의 가상 계산 예다. 확률·미터 단위·실측값이 아니다.
+0.20/0.00 및 0.89/0.33은 `occlusion_stream.md`에 보존한 가상 계산 예다. 확률·미터 단위·실측값이 아니다.
 모든 target이 같은 GeometryFiLM weight를 사용하고 mask 입력에 따라 계수가 달라진다.
 
 로컬 renderer는 `docs/render_occlusion_tensor_architecture_20260917.py`,
@@ -1067,7 +1080,7 @@ RGB+mask 입력과 native 68-D descriptor를 사용하도록 위 legacy script�
 #### 설명 순서와 가정·실험의 구분 — 2026-09-17
 
 사용자는 Complexity를 미확정 모델의 구조 소개보다 연구의 가정과 전환 이유로 설명하도록 정정했다.
-README는 국소 개수 → depth 한계 → RGB-D와 관측 범위 → 경계·근접 관계 → 기존 DINO의 물체 소속
+당시 README는 국소 개수 → depth 한계 → RGB-D와 관측 범위 → 경계·근접 관계 → 기존 DINO의 물체 소속
 진단 → 남은 질문 순서로 구성했다. Density pilot의 구조·GT는 보존한 실험의 상세로 구분한다.
 
 - 초기 `개수/더미 면적`은 출발 가설이며 실제 pilot 감독은 국소 `count/16`이다.
@@ -1081,7 +1094,7 @@ README는 국소 개수 → depth 한계 → RGB-D와 관측 범위 → 경계·
   물체 경계 검출, 분리된 모든 조각의 grouping까지 완료한 것으로 확대하지 않는다.
 
 이후 사용자는 위 설명이 count·occupancy의 한계, 물체 구분, 근접도 후보를 잘못 이어 붙였다고
-정정했다. 현재 README의 중심 연결은 **국소 개수 → 무엇을 한 물체로 셀 것인가 → RGB-D 개수
+정정했다. 현재 `complexity_stream.md`의 중심 연결은 **국소 개수 → 무엇을 한 물체로 셀 것인가 → RGB-D 개수
 pilot → 기존 DINO의 같은 물체 판별 진단**이다. Occupancy가 큰 책과 여러 물체를 구분하지 못하는
 것은 occupancy 단독의 한계이며 count의 반박이 아니다. 같은 count의 다른 배치는 수량 외 정보가
 다르다는 뜻이고, 겹친 쪽이 반드시 더 복잡하다고 검증한 예가 아니다. RGB edge를 새 정답으로
@@ -1292,7 +1305,7 @@ Test의 알려진 foreground 128,380 patches 중 적격은 54,429개(**42.40%**)
 `experiments/complexity_definition/representation_probe_split_20260916.json`,
 상세 결과와 실행 상태 (C4. 표현 A 완료 보고서),
 남은 B/C 계획 (C5. B/C 계획).
-코드·readout checkpoint·원시 NPZ는 로컬 보존한다. 공개 README·그림의 게시 상태는 Git에서 확인한다.
+코드·readout checkpoint·원시 NPZ는 로컬 보존한다. 공개 stream 문서·개발 로그·그림의 게시 상태는 Git에서 확인한다.
 
 ### 9. 실행 환경과 기본 명령
 
@@ -1425,7 +1438,7 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 1. `train_similarity_v2.py` comment는 15 targets라고 쓰지만 실제 list는 16이다.
 2. Similarity trainer는 `similarity_map`이 아니라 `paths_config.GT_DIR=GT_data`를 현재 읽는다.
 3. Working `README2.md`는 최신 상태가 아니다.
-4. Git clone README는 연구 이력 설명이며, 각 Phase의 최신 실행 상태와 수치는 working code/run을 우선한다.
+4. Git clone의 `development_log.md`는 연구 이력 설명이며, 각 Phase의 최신 실행 상태와 수치는 working code/run을 우선한다.
 5. Latest full16 Occlusion용 standalone inference CLI가 없다.
 6. `inference_occlusion.py`와 `occlusion_target_input.py`는 이전 A_XYZ_RING protocol용이다.
 7. `occlusion_model.py`의 여러 local/relation mode는 current mode가 아니라 archive compatibility다.
@@ -1463,11 +1476,16 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
   핵심 설명·비교표·수식으로 정리한다. 수치·차원·계산 이유·상세 FAQ의 깊이를 줄이라는 뜻은 아니다.
 - 추가 요청: README·공개 `agent.md`·답변의 하이퍼링크는 최대한 줄인다. 섹션명·파일명·경로로
   참조하고, 필요한 외부 출처 주소는 inline code로 보존한다. 그림 표시용 Markdown은 유지한다.
+- 2026-09-17 문서 분할 요청: 저장소 root의 `README.md`에는 전체 개요를, `similarity_stream.md`·
+  `occlusion_stream.md`·`complexity_stream.md`에는 상세 설명을, `development_log.md`에는 Phase 이력을
+  둔다. 본문을 축약하지 않으며 각 문서와 `agent.md`의 위·아래 navigation 및 관련 문서 참조에는
+  상대경로 하이퍼링크를 사용한다. 이전 링크 최소화 선호로 navigation을 제거하지 않는다.
+  문서 분할 때 모든 `img/...` 상대경로와 이미지 파일은 그대로 유지한다.
 - 최신 요청: 로컬 handoff와 로그 색인을 현재까지 갱신하고 GitHub `agent.md` 하나로 연구 문맥을
   공개한다. 외부 GPT가 목표·가정·실험·결과·한계·다음 Step을 읽을 수 있도록 상세 기록을 포함한다.
   공개 문서와 로컬 원시 artifact의 접근 가능성을 구분하고, 이후 주요 milestone마다 함께 갱신한다.
   로컬 `python docs/build_public_agent_context.py`로 통합본을 재생성할 수 있다. 먼저 원본 문서와
-  README의 완료 상태를 갱신한 뒤 실행하고, 생성된 `agent.md`의 참조 경로·과거/현재 구분·공개 범위를
+  개요·stream 문서·개발 로그의 완료 상태를 갱신한 뒤 실행하고, 생성된 `agent.md`의 참조 경로·과거/현재 구분·공개 범위를
   확인한다. 이 builder와 publication manifest는 로컬 관리 파일이며 실험 코드 게시 대상이 아니다.
 - 목적 → 방법 → 왜 이 방법인가 → 결과 → 한계 → 다음 Step 흐름을 지킬 것
 - “수렴하는 경향을 보였습니다”보다 “수렴하는 경향을 보임” 같은 간결한 문체 선호
@@ -1498,7 +1516,7 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 - GitHub main에 직접 올리는 요청이 있을 때 branch를 만들지 말 것
 - 외부 push와 대규모 삭제는 현재 요청 범위를 확인할 것
 
-README 공개 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/`의 세 폴더에 직접 저장하고
+공개 문서의 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/`의 세 폴더에 직접 저장하고
 상대경로로 참조한다. 다른 repo에 복사하기 쉽도록 실험별 하위 폴더는 만들지 않으며 단계 구분은
 파일명으로 한다. Output의 절대경로만 Markdown에 넣으면 GitHub에 image가 나타나지 않는다.
 
@@ -1511,7 +1529,7 @@ README 공개 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/
 1. `AGENTS.md`, 이 문서, `PROJECT_LOG_INDEX.md`를 끝까지 읽는다.
 2. 요청이 Similarity/Occlusion/Complexity 중 어느 범위인지 확인한다.
 3. 실제 working root code와 관련 run JSON을 다시 읽는다.
-4. 최신 Git README는 설명 참고용으로만 사용하고 code와 다른 부분을 검증한다.
+4. Git clone의 `README.md` 개요, 해당 stream 문서와 `development_log.md`를 설명 참고용으로 읽고 code와 다른 부분을 검증한다.
 5. GPU가 필요한 작업은 실제 terminal에서 CUDA visibility를 확인한다.
 6. 장시간 생성·학습 전 smoke/preflight, output root, overwrite 방지, 예상 시간을 확인한다.
 7. 결과를 볼 때 metric 정의, sample 수, target seen/unseen, scene split, camera correlation을 함께 기록한다.
@@ -1520,7 +1538,7 @@ README 공개 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/
    확대하지 않는다. B/C는 미실행이며 density pilot을 보존하되 구조적 GT·fusion은 미검증이다.
 9. Occlusion 구조를 다시 복잡하게 만들기 전 adaptive GT baseline이 해결하지 못한 구체적 failure를
    actual scene/GT/prediction panel로 먼저 입증한다.
-10. Public README를 수정할 때 working code의 변경을 Git clone에 선택적으로 복사하고 diff를 확인한
+10. Public 문서를 수정할 때 working code의 변경을 Git clone에 선택적으로 복사하고 diff를 확인한
     후에만 commit/push한다.
 
 ---
@@ -1546,7 +1564,7 @@ README 공개 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/
 
 - `outputs/multi_target_20260728_114403_siglip/`
 - `outputs/zero-shot_test/260728/`
-- Latest public explanation: `<REPO_ROOT>/README.md`
+- Latest public explanation: `<REPO_ROOT>/similarity_stream.md`
 
 #### Complexity Phase 33 evidence
 
@@ -1568,7 +1586,7 @@ README 공개 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/
 
 - Similarity snapshots: `code_260721`, `code_260727`, `code_260728_ver2-이게 shortcut없는 최종버전`
 - Occlusion archive index: `legacy/occlusion/README.md`
-- Historical Development Log: `2D-PDM_DINOv3_git/README.md`, Phase 1–36
+- Historical Development Log: `2D-PDM_DINOv3_git/development_log.md`, Phase 1–36 (`##` 제목)
 - Phase 33–36: 이 문서 8절과 각 Complexity run의 structured evidence
 - Raw evidence routing: `PROJECT_LOG_INDEX.md`
 
@@ -1578,7 +1596,7 @@ README 공개 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/
 
 ## B. Phase 1–36 Development Log 전체
 
-> 원본: `<REPO_ROOT>/README.md`
+> 원본: `<REPO_ROOT>/development_log.md`
 > 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
 
 Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를 시간순으로 기록함. 각 Phase는 단순 모델 목록이 아니라 **왜 문제가 되었는지 → 무엇만 바꿨는지 → 결과가 무엇을 뜻하는지 → 다음 Step은 무엇인지**를 설명함.
@@ -3403,7 +3421,7 @@ machine 절대경로를 역할별 기호로 바꾼다. 로컬 artifact 이름은
 - 성공뿐 아니라 효과가 없거나 비교가 불공정했던 실험
 - 현재 채택한 코드와 과거 실험 코드의 구분
 - 보고된 수치의 JSON/log/checkpoint 위치
-- README에 사용한 정성 이미지의 원본 또는 공개 복사본 위치
+- 공개 개요·stream 문서·개발 로그에 사용한 정성 이미지의 원본 또는 공개 복사본 위치
 - 대용량 GT의 생성 설정과 완료 metadata
 
 채팅 원문 자체는 project 내부에 완전한 transcript로 저장되어 있지 않다. 과거 응답 일부는
@@ -3419,14 +3437,18 @@ source로 사용하지 않는다. 원문 대화까지 영구 보존해야 한다
 2. 해당 run의 `protocol.json`, `summary.json`, `history.json`, metric JSON과 checkpoint
 3. GT의 `_metadata/complete.json`, target별 `run_config.json`, camera별 `*.done.json`
 4. `PROJECT_CONTEXT.md`
-5. GitHub clone의 `README.md` Development Log
+5. GitHub clone의 개요 `README.md`, 세 stream 문서와 이력 `development_log.md`
 6. `legacy/occlusion`, `code_2607xx`, 오래된 `README2.md`
 
 Working folder와 GitHub clone은 자동 동기화되지 않는다.
 
 ```text
 실제 개발: <DEV_ROOT>
-공개 문서: <REPO_ROOT>/README.md
+공개 문서 root: <REPO_ROOT>
+전체 개요: README.md
+상세 설명: similarity_stream.md, occlusion_stream.md, complexity_stream.md
+Phase 1–36 이력: development_log.md
+통합 연구 문맥: agent.md
 ```
 
 근거 수준은 다음처럼 구분한다.
@@ -3438,44 +3460,44 @@ Working folder와 GitHub clone은 자동 동기화되지 않는다.
 
 ### 3. 시간순 개발 기록
 
-가장 자세한 사람이 읽는 개발 기록은 다음 파일의 `Development Log`에 있다.
+가장 자세한 사람이 읽는 개발 기록은 다음 `development_log.md`에 있다.
 
 ```text
-<REPO_ROOT>/README.md
+<REPO_ROOT>/development_log.md
 ```
 
-아래 색인은 Phase 1–36을 Git README와 로컬 실행 근거에 연결한다. 공개 README의 최신 반영
+아래 색인은 Phase 1–36을 공개 `development_log.md`와 로컬 실행 근거에 연결한다. 공개 문서의 최신 반영
 범위·commit은 Git에서 확인한다. Complexity Phase 33–36은 `PROJECT_CONTEXT.md` 8절과
 각 working-root run의 실제 결과를 우선한다.
 
 | Phase | 핵심 내용 | 자세한 기록 |
 |---|---|---|
-| 1 | DINOv3 appearance matching 시작 | Git README Phase 1 |
-| 2 | DINO CLS category prototype 시도 | Git README Phase 2 |
-| 3 | DINOv3 + SigLIP semantic fusion | Git README Phase 3 |
-| 4 | Cosine shortcut, raw cosine, patch matching, CLS/ranking 진단 후 shortcut 제거 | Git README Phase 4 |
-| 5 | Zero-shot Occlusion 입력과 GT 설계 | Git README Phase 5 |
-| 6 | USD mesh 추출과 depth reproduction 검증 | Git README Phase 6 |
-| 7 | GPU rasterization, mesh 단순화, corrected denominator | Git README Phase 7 |
-| 8 | Legacy GT 재현과 probability GT 분리 | Git README Phase 8 |
-| 9 | Occlusion conditioning ablation과 평가 confound 발견 | Git README Phase 9 |
-| 10 | Shared-scene GT와 five-camera protocol | Git README Phase 10 |
-| 11 | Multi-scale controlled protocol | Git README Phase 11 |
-| 12 | 3D workspace와 physical-corrected pilot | Git README Phase 12 |
-| 13 | Workspace leakage와 ring-loss 분석 | Git README Phase 13 |
-| 14 | Analytic geometry와 size-only conditioning | Git README Phase 14 |
-| 15 | Target path ablation | Git README Phase 15 |
-| 16 | Fresh paired reproducibility gate | Git README Phase 16 |
-| 17–19 | Relation feature, magnitude, calibration | Git README Phase 17–19 |
-| 20–22 | Compact physical descriptor와 exact 3D extent oracle | Git README Phase 20–22 |
-| 23–26 | Local gate와 footprint/height separation | Git README Phase 23–26 |
-| 27–30 | Scale-paired loss, BatchNorm, common anchor, five-camera oracle check | Git README Phase 27–30 |
-| 31 | Fixed grid의 target-specific GT coverage 누락 확인 | Git README Phase 31 |
-| 32 | Adaptive full16 baseline과 external `packaged_food_5` 평가 | Git README Phase 32 |
-| 33 | RGB-D Complexity pilot, empty-depth 반례 수정, 새 test key의 3-seed 비교 | Git README Phase 33, Context 8절, Complexity V2 run |
-| 34 | 관측 표면 근접도 반례 진단, 면적 통제 실패·GT 미승인 | Git README 사진·결과·실패 기록; 로컬 relational diagnostic v2와 후속 기하 audit |
-| 35 | 실제 cluttered 10 layouts 정적 제거 진단; 물체 평균 근접도 효용 상관 약함 | Git README 사진·표; 로컬 clutter replay v1 공통표본 분석과 Isaac v4 |
-| 36 | Frozen DINO의 순수 patch 가시 asset 대응 A probe; 거의 포화, B/C 미실행·도입 보류 | Context 8.8, 로컬 representation probe 보고서·results·coverage |
+| 1 | DINOv3 appearance matching 시작 | `development_log.md` Phase 1 |
+| 2 | DINO CLS category prototype 시도 | `development_log.md` Phase 2 |
+| 3 | DINOv3 + SigLIP semantic fusion | `development_log.md` Phase 3 |
+| 4 | Cosine shortcut, raw cosine, patch matching, CLS/ranking 진단 후 shortcut 제거 | `development_log.md` Phase 4 |
+| 5 | Zero-shot Occlusion 입력과 GT 설계 | `development_log.md` Phase 5 |
+| 6 | USD mesh 추출과 depth reproduction 검증 | `development_log.md` Phase 6 |
+| 7 | GPU rasterization, mesh 단순화, corrected denominator | `development_log.md` Phase 7 |
+| 8 | Legacy GT 재현과 probability GT 분리 | `development_log.md` Phase 8 |
+| 9 | Occlusion conditioning ablation과 평가 confound 발견 | `development_log.md` Phase 9 |
+| 10 | Shared-scene GT와 five-camera protocol | `development_log.md` Phase 10 |
+| 11 | Multi-scale controlled protocol | `development_log.md` Phase 11 |
+| 12 | 3D workspace와 physical-corrected pilot | `development_log.md` Phase 12 |
+| 13 | Workspace leakage와 ring-loss 분석 | `development_log.md` Phase 13 |
+| 14 | Analytic geometry와 size-only conditioning | `development_log.md` Phase 14 |
+| 15 | Target path ablation | `development_log.md` Phase 15 |
+| 16 | Fresh paired reproducibility gate | `development_log.md` Phase 16 |
+| 17–19 | Relation feature, magnitude, calibration | `development_log.md` Phase 17–19 |
+| 20–22 | Compact physical descriptor와 exact 3D extent oracle | `development_log.md` Phase 20–22 |
+| 23–26 | Local gate와 footprint/height separation | `development_log.md` Phase 23–26 |
+| 27–30 | Scale-paired loss, BatchNorm, common anchor, five-camera oracle check | `development_log.md` Phase 27–30 |
+| 31 | Fixed grid의 target-specific GT coverage 누락 확인 | `development_log.md` Phase 31 |
+| 32 | Adaptive full16 baseline과 external `packaged_food_5` 평가 | `development_log.md` Phase 32 |
+| 33 | RGB-D Complexity pilot, empty-depth 반례 수정, 새 test key의 3-seed 비교 | `development_log.md` Phase 33, Context 8절, Complexity V2 run |
+| 34 | 관측 표면 근접도 반례 진단, 면적 통제 실패·GT 미승인 | `development_log.md` Phase 34 사진·결과·실패 기록; 로컬 relational diagnostic v2와 후속 기하 audit |
+| 35 | 실제 cluttered 10 layouts 정적 제거 진단; 물체 평균 근접도 효용 상관 약함 | `development_log.md` Phase 35 사진·표; 로컬 clutter replay v1 공통표본 분석과 Isaac v4 |
+| 36 | Frozen DINO의 순수 patch 가시 asset 대응 A probe; 거의 포화, B/C 미실행·도입 보류 | `development_log.md` Phase 36, Context 8.8, 로컬 representation probe 보고서·results·coverage |
 
 `PROJECT_CONTEXT.md`의 `6.7`과 `7.13`은 위 기록을 현재 판단에 필요한 수준으로 압축한 표다.
 2026-09-16 Phase 35 공개 commit은 `1c63f1b`(README와 비교 그림 4장)이다.
@@ -3562,7 +3584,15 @@ RGB/target 평균·depth scale·68-D mask geometry·global FiLM·1793→64 Match
 표현했으며 새 실험은 추가하지 않았다. PNG·SVG 4개는 `img/occlusion/`에 바로 저장했다.
 기록은 `docs/public_agent_context_occlusion_architecture_20260917.json`이다.
 
-README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
+2026-09-17 문서 분할 milestone: 저장소 root의 `README.md`에는 전체 개요·입출력·fusion·현재
+상태·roadmap을 남기고, 상세 본문을 `similarity_stream.md`·`occlusion_stream.md`·
+`complexity_stream.md`, Phase 1–36을 `development_log.md`로 옮겼다. 기존 상세 내용·수치·그림을
+축약하지 않았으며 Phase 제목은 `###`에서 `##`로 변경했다. 각 문서와 `agent.md` 사이의
+navigation에는 상대경로 하이퍼링크를 사용하고 기존 `img/...` 상대경로와 이미지 파일은 유지한다.
+이 변경은 새 연구 Phase나 실행 결과가 아닌 문서화 milestone이다. 기록은
+`docs/public_agent_context_document_split_20260917.json`이며 게시 상태·commit은 해당 기록과 Git으로 확인한다.
+
+세 stream 문서의 현재 본문과 `development_log.md`의 과거 실험 기록을 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
 - 과거 fixed `±0.17 m`, 44,100 pose는 이전 방식이다. Current
@@ -3760,7 +3790,7 @@ full16 baseline은 아니다.
   원본16-only 또는 770개 독립 scene, 실제 집기·target 발견·RGB-D 추론 성능으로 확대하지 않는다.
 - 물체 평균 근접도 채택/학습 보류. 관측 가림 방향의 추가 가치 검증은 당시 후속 제안이었다.
   이후 사용자 정정에 따른 표현 진단과 현재 다음 Step은 위 Phase 36 기록을 따른다.
-  코드·원시 자료는 로컬에 보존하고 공개 README Phase 35와 `img/complexity/`에 사진·표를 게시한다.
+  코드·원시 자료는 로컬에 보존하고 공개 `development_log.md` Phase 35와 `img/complexity/`에 사진·표를 보존한다.
 
 #### 2026-09-08 Phase 34 국소 근접도 진단 — GT NOT APPROVED
 
@@ -3776,7 +3806,7 @@ full16 baseline은 아니다.
   파일명의 real은 원본 Isaac dataset을 뜻하며 실제 로봇 영상이 아니다.
 - `outputs/complexity_relation_diagnostic_20260908_v1/`: JSON 직렬화 실패 실행의 소스·로그·그림 보존
 - `docs/complexity_results/relational_diagnostic_20260908.md`: 판단·한계·다음 Step·재실행
-- 코드·원시 자료는 로컬에 보존한다. 사용자 정정에 따라 README Development Log에는
+- 코드·원시 자료는 로컬에 보존한다. 사용자 정정에 따라 공개 `development_log.md`에는
   비교 사진·수치 결과·실패와 한계를 게시한다. 공개 그림은 Git clone의 `img/complexity/`다.
 - 2026-09-16 검증 범위 정정: 다음 실험은 실제 asset이 쌓인 cluttered scene을 사용한다.
   정형 도형 진단을 확대하지 않는다. 당시 제안한 정적 제거 비교는 이후 Phase 35에서 완료했다.
@@ -3880,7 +3910,7 @@ checkpoint 186개, JSON 83개, text log 78개, CSV 20개, PNG 18개다. 모든 r
 - `single_center_ft*`: 제한된 center-view fine-tuning 진단
 
 각 run에 JSON이 있으면 JSON을 우선하고, checkpoint 이름만으로 결과를 추정하지 않는다. Phase와 run
-directory의 대응 및 당시 판단은 Git README Phase 9–31에 자세히 적혀 있다.
+directory의 대응 및 당시 판단은 공개 `development_log.md` Phase 9–31에 자세히 적혀 있다.
 
 Archive GT도 현재 production GT와 섞지 않는다.
 
@@ -3897,7 +3927,7 @@ Archive GT도 현재 production GT와 섞지 않는다.
 `multiscale_appearance_abc_locked_eval/locked_eval_v1_analysis/REPORT.md` 한 건이므로, 다른 실험은
 개별 JSON/log까지 직접 읽는다.
 
-### 9. README 이미지 색인
+### 9. 공개 문서 이미지 색인
 
 2026-09-16 공개 파일 45개를 보존하고 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG
 8개를 추가하여 현재 inventory는 53개다. 새 파일은 설명용 구조도이며 정성 예측 결과를 추가한 것은 아니다.
@@ -3986,7 +4016,7 @@ Banana query 패널의 Book/Avocado/Orange 파일명은 scene 쪽 이름이며 t
 6. Working `README2.md`는 오래된 문서이며 최신 이력으로 사용하지 않음.
 7. 일부 Similarity qualitative output은 protocol/metric manifest 없이 이미지만 남아 있어 독립적인
    완전 재현 근거가 아님.
-8. 과거 `img/occlusion_gt_full16_book1_preview.png` 표기는 현재 공개 파일이 아니다. 현재 README의
+8. 과거 `img/occlusion_gt_full16_book1_preview.png` 표기는 현재 공개 파일이 아니다. 현재 `occlusion_stream.md`의
    `img/occlusion/full16_book_1_five_cameras.png`는 full16 run의
    `stratified_prediction_panels/book_book_1_all_5_cameras.png`에서 가져온 비교 그림이다.
    그림 자체 대신 해당 run의 structured metric JSON을 정량 근거로 사용한다.
@@ -3997,7 +4027,7 @@ Banana query 패널의 Book/Avocado/Orange 파일명은 scene 쪽 이름이며 t
 
 1. `AGENTS.md`, `PROJECT_CONTEXT.md`, 이 문서를 끝까지 읽는다.
 2. 요청 범위와 관련된 root code를 읽는다.
-3. 현재 결과라면 current run JSON을, 과거 판단이라면 Git README Phase와 archive JSON을 함께 읽는다.
+3. 현재 결과라면 current run JSON을, 과거 판단이라면 `development_log.md`의 Phase와 archive JSON을 함께 읽는다.
 4. sample 수, split, target seen/unseen, camera 범위, metric 정의를 확인한다.
 5. 새 실행 전 output path와 overwrite 방지를 확인한다.
 6. 현재 사용자 우선순위가 바뀌지 않았다면 실제 asset의 경계·분리된 조각·다중 물체 관계에서
@@ -4031,9 +4061,9 @@ find legacy/occlusion/gt_data -type f \
 # Production GT provenance
 find <DATA_ROOT>/occlusion_map/_metadata -maxdepth 2 -type f | sort
 
-# 공개 README의 Phase와 이미지 참조
-rg -n '^### .*Phase [0-9]+' <REPO_ROOT>/README.md
-rg -n '!\[' <REPO_ROOT>/README.md
+# 공개 개발 로그의 Phase 제목(##)과 전체 문서의 이미지 참조
+rg -n '^## .*Phase [0-9]+' <REPO_ROOT>/development_log.md
+rg -n '!\[' <REPO_ROOT>/{README,similarity_stream,occlusion_stream,complexity_stream,development_log,agent}.md
 ```
 
 대용량 map 전체의 파일명을 handoff 문서에 복사하지 않는다. 그 대신 생성 완료 metadata, file count,
@@ -4066,7 +4096,8 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 1. 현재 실행 코드와 해당 run의 JSON/metadata
 2. `PROJECT_CONTEXT.md`
 3. `PROJECT_LOG_INDEX.md`가 가리키는 원시 근거
-4. `<REPO_ROOT>/README.md`
+4. Git clone의 `README.md`, `similarity_stream.md`, `occlusion_stream.md`,
+   `complexity_stream.md`, `development_log.md`
 5. 오래된 `README2.md`, 주석, `code_2607xx`, `legacy/occlusion`
 
 오래된 기록도 연구 이력이므로 임의로 삭제하거나 현재 baseline으로 승격하지 않는다.
@@ -4076,7 +4107,7 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 - 실제 개발은 `<DEV_ROOT>`에서 수행한다.
 - Git 작업은 별도 clone `<REPO_ROOT>`에서만 수행한다.
 - 2026-09-08 사용자 정정: GitHub의 구현 코드와 README의 채택된 방법 설명은 검증된 내용만 반영한다.
-  README Development Log에는 주요 milestone의 **비교 사진·수치 결과·실패와 한계**를 함께 게시한다.
+  `development_log.md`에는 주요 milestone의 **비교 사진·수치 결과·실패와 한계**를 함께 게시한다.
   로그에 필요한 이미지 asset 업로드는 허용된다. 실험 결과 공개와 방법의 최종 채택을 혼동하지 않는다.
   미검증 실험 코드·checkpoint·대용량 원시 자료는 로컬에 보존한다.
   2026-09-16 최신 사용자 요청에 따라 handoff 내용은 공개 `agent.md`로 통합·게시한다.
@@ -4127,7 +4158,12 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 
 ### Communication and documentation style
 
-- README의 각 stream 본문은 목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ 순서로 정리한다.
+- 공개 문서는 저장소 최상위에 둔다. `README.md`는 전체 개요·입출력·fusion·현재 상태·roadmap,
+  `similarity_stream.md`·`occlusion_stream.md`·`complexity_stream.md`는 상세 stream 설명,
+  `development_log.md`는 Phase별 실험 이력이다. 내용을 축약하지 않고 문서별로 관리하며,
+  각 문서와 `agent.md` 위·아래의 상대경로 navigation을 유지한다. 모든 `img/...` 경로는 그대로 둔다.
+  아래 과거 지침의 ‘README stream 본문’은 이제 해당 stream 문서를 가리킨다.
+- 각 stream 문서는 목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ 순서로 정리한다.
   노드별 실제 입력/출력 차원, 계산, 역할과 선택 이유를 설명하고 기대 효과와 검증된 효과를 구분한다.
   현재 기준 모델과 과거 실험 구조를 섞지 않는다. 설계를 결정한 굵직한 가정·결과만 본문에 남기며
   작은 설정 변경과 개별 실험은 Development Log에 둔다. Complexity는 최종 구조·GT 미확정 상태를 유지한다.
@@ -4141,6 +4177,8 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   나누며 중복 비유·독자 호명·당연한 부정 예시를 줄인다. 계산·설계 이유·상세 FAQ는 보존한다.
 - README·공개 `agent.md`·답변의 하이퍼링크는 최대한 줄인다. 본문 참조는 섹션명·파일명·경로로
   표기하고, 필요한 외부 출처 주소는 inline code로 남긴다. 그림 표시용 Markdown은 유지한다.
+  이후 사용자가 문서 분할과 상호 이동을 요청했으므로 문서 navigation과 관련 문서 참조에는
+  상대경로 하이퍼링크를 사용한다. 이전 링크 최소화 선호로 navigation을 제거하지 않는다.
 - 한국어로 목적 → 방법 → 이유 → 결과 → 한계 → 다음 Step 순서로 설명한다.
 - 다른 사람이 처음 읽어도 이해하도록 tensor 차원과 약어의 의미를 풀어 쓴다.
 - `target이 숨을 수 있는` 대신 `target이 가려질 수 있는`을 사용한다.
@@ -4206,3 +4244,7 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   예상 실행 시간에 맞춰 대기한 뒤 확인하며, 짧은 간격의 반복 polling과 epoch 로그 중계를 피한다.
 
 ---
+
+<!-- navigation:start -->
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
+<!-- navigation:end -->
