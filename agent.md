@@ -79,6 +79,7 @@
 - 이후 설명 재구성: 사용자가 제공한 쉬운 설명을 본문 흐름으로 사용하고, 구조도 ①–⑧과 설명 번호를 일치시킴. 설계 선택 이유를 각 단계에 포함하고 구현 상세는 접기 영역으로 구분함.
 - Complexity 연구 흐름 정정: 국소 개수·depth 가설에서 관측 범위·물체 관계·DINO 대응 진단으로 이어진 이유를 정리함. 기존 density 구현은 실험 상세로 보존하며, 최적 window 선정이나 segmentation 대비 우월성 검증을 완료한 것으로 쓰지 않음.
 - Complexity 연결 재정정: count와 occupancy의 한계를 분리하고 물체 구분에서 DINO 진단으로 연결함. Phase 34–35는 별도 관계 후보 검사로 보존하며, 소속·AUROC를 수치 예로 설명하고 동일 위치쌍의 feature 범위 비교를 미실행 제안으로 구체화함.
+- Similarity architecture 추가: 입력 차원·channel/공간 축·Conv2d MatchingBlock·네 layer 통합과 adapter의 GT map loss 학습 경로를 두 그림으로 작성함. 차원 일치와 의미 학습을 구분하며 frozen encoder·공동 학습되는 adapter/head를 코드에 대조함. 구조 설명용 PNG·SVG 4개를 추가했고 새 실험은 실행하지 않음.
 
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
 
@@ -459,6 +460,41 @@ Cosine 결과는 scene 전체 scalar 하나가 아니라 `B×1×30×40` map이�
 
 Current trainer는 `category_dim=0`으로 model을 만들기 때문에 과거 CLS prototype category channel은
 사용하지 않는다. Output에 cosine을 직접 더하는 shortcut도 없다.
+
+##### Tensor architecture와 semantic adapter 학습
+
+2026-09-17 README에 framework의 ①–⑧을 실제 tensor·Conv2d 구조로 펼친 그림과
+semantic adapter의 학습 경로 그림을 추가했다. 아래 그림은 구조 설명용이며 실제 activation이나
+새 실험 결과가 아니다. Renderer는 로컬 `docs/render_similarity_tensor_architecture_20260917.py`,
+`docs/render_similarity_semantic_adapter_20260917.py`에 보존하고 PNG·SVG만 공개한다.
+
+![Similarity tensor architecture](img/similarity/similarity_tensor_architecture.png)
+
+- A: Scene `3×480×640` → layer별 `768×30×40`, target crop `3×224×224` →
+  `768×14×14` → mask-weighted pooling과 L2 → appearance 768-D다.
+  SigLIP vision 입력은 `3×384×384`이며 image/text 각각 1152-D를 정규화·평균·정규화한다.
+- B: layer별 `Linear(1152,768)` 출력과 appearance를 더해 query를 만든다. Raw scene 768,
+  같은 query를 각 위치에 복사한 768, `(cosine+1)/2` cue 1을 concat하여 `1537×30×40`이 된다.
+  합산 query는 raw 경로에서 다시 L2하지 않고 cosine 계산 경로에서만 정규화한다.
+- C: 3×3 Conv2d는 한 위치의 모든 1537 channel과 주변 8칸을 읽어 64 channel을 만든다.
+  Padding 1로 공간은 30×40을 유지하며 GN(8)·ReLU → 1×1 Conv·GN(8)·ReLU가 이어진다.
+  Layer별 64개씩 네 결과 → concat 256 → fusion 64 → sigmoid map 1이다.
+
+학습 target appearance는 다섯 reference camera 중 선택한 view이며 semantic은 center image와
+text의 고정 cache다. 두 encoder가 항상 같은 view를 받는 구조로 읽지 않는다. 현재 추론은
+선택한 reference camera를 두 경로에 사용한다.
+
+![Semantic adapter learning from the final map loss](img/similarity/similarity_semantic_adapter.png)
+
+**차원 일치는 덧셈을 가능하게 할 뿐 의미 일치를 자동으로 만들지 않는다.** `W_l s+b_l`이
+어떤 보정값을 만들지는 최종 map GT와의 MSE를 줄이도록 adapter와 MatchingBlock·fusion·head가
+공동으로 학습한다. Raw query와 cosine 두 경로를 통해 adapter까지 gradient가 전달된다.
+DINOv3·SigLIP은 frozen이고 별도의 ‘정답 DINO vector’에 맞추는 feature alignment loss는 없다.
+따라서 현재 task에 유용한 변환을 학습하는 구조이며 DINO 자체가 새 의미를 재학습한다는 뜻은 아니다.
+
+README의 apple target/orange 위치 예는 같은 fruit 관계 GT 0.8에 대해 예측 0.3이면 오차 0.25,
+가상 학습 후 예측 0.7이면 0.01이라는 계산 예다. 실측 수치로 인용하지 않는다.
+기존 unseen target zero-shot 정성 확인과 이번 구조·학습 설명을 구분한다.
 
 #### 6.4 Similarity GT
 
@@ -3458,6 +3494,13 @@ GT로 소속을 제공한 별도의 근접도 후보 검사로 옮겼으며, ‘
 사전 기준으로 소급 적용하지 않는다. 실험·과거 log는 보존하고 문서화 기록은
 `docs/public_agent_context_complexity_clarity_20260917.json`에 남긴다.
 
+같은 날 Similarity framework 뒤에 tensor architecture 그림을 추가했다. 입력·출력 차원,
+channel과 공간 축, raw query/cosine 분기, Conv2d MatchingBlock과 네 layer 통합을 표현했다.
+별도 그림은 차원 일치와 의미 학습을 구분하고 map MSE에서 adapter·head로 이어지는 학습 경로를
+보여 준다. 학습 중 DINO appearance의 선택 view와 center semantic cache도 구분했다.
+코드 대조·그림 검토를 거친 설명용 PNG·SVG이며 새 실험이나 Phase를 추가하지 않았다.
+기록은 `docs/public_agent_context_similarity_architecture_20260917.json`에 남긴다.
+
 README의 현재 stream 본문과 과거 Development Log를 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -3793,12 +3836,13 @@ Archive GT도 현재 production GT와 섞지 않는다.
 `multiscale_appearance_abc_locked_eval/locked_eval_v1_analysis/REPORT.md` 한 건이므로, 다른 실험은
 개별 JSON/log까지 직접 읽는다.
 
-### 9. README 정성 이미지 색인
+### 9. README 이미지 색인
 
-2026-09-16 공개 파일 inventory는 45개다. 기존 이미지 byte를 보존하여 아래 세 폴더에 모았다.
+2026-09-16 공개 파일 45개를 보존하고 2026-09-17 Similarity 구조 설명 PNG·SVG 4개를 추가하여
+현재 inventory는 49개다. 새 파일은 설명용 구조도이며 정성 예측 결과를 추가한 것은 아니다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
 
-#### `img/similarity/` — 6개
+#### `img/similarity/` — 10개
 
 - `img/similarity/packaged_food_5_zeroshot_nolabel.png`
 - `img/similarity/packaged_food_5_zeroshot_nolabel_2.png`
@@ -3806,6 +3850,10 @@ Archive GT도 현재 production GT와 섞지 않는다.
 - `img/similarity/panel_Book-Book_1_scene00002_env0168_top.png`
 - `img/similarity/panel_Fruit-Avocado_scene00005_env0224_right.png`
 - `img/similarity/panel_Fruit-Orange_scene00003_env0274_center.png`
+- `img/similarity/similarity_tensor_architecture.png`
+- `img/similarity/similarity_tensor_architecture.svg`
+- `img/similarity/similarity_semantic_adapter.png`
+- `img/similarity/similarity_semantic_adapter.svg`
 
 #### `img/occlusion/` — 21개
 
@@ -4052,6 +4100,11 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   처음부터 역할표·정밀 규격·수식·parameter 표를 한꺼번에 나열하지 않는다. 흐름에 필수적이지 않은
   구현 세부는 해당 단계의 접기 영역으로 옮겨 보존하고, 본문과 별도 요약의 반복을 줄인다.
 - README에는 가능하면 실제 scene, GT, prediction을 함께 보여 주는 이미지를 사용한다.
+- Similarity architecture 설명은 framework의 상자 연결 외에 channel×공간 tensor, raw query와
+  cosine 경로, MatchingBlock의 Conv2d와 네 layer 통합을 그림으로 보여 준다. 1152→768은 연산
+  규격을 맞추는 것이고, 유용한 변환은 map GT loss로 adapter와 head가 함께 학습한다.
+  Frozen DINO가 SigLIP 지식으로 재학습되거나 차원 일치만으로 의미 정렬이 완료된다고 쓰지 않는다.
+  구조 개념도와 실제 activation·예측 결과를 구분한다.
 - 2026-09-17 Complexity 설명 정정: 미확정 최종 모델처럼 소개하지 않고 국소 개수 가설 →
   depth의 한계 → RGB-D·관측 범위 실험 → 경계·물체 소속·근접 관계 → DINO 진단 → 남은 질문의
   연구 흐름으로 설명한다. 기존 density 구조·GT·평가 수치는 실험 상세로 보존한다.

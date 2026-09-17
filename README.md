@@ -267,6 +267,20 @@ flowchart TB
     N7 -->|"DINO layer 2·5·8·11의 결과"| N8["⑧ 네 경로 통합 후 map<br/>4×64=256 → 64개 F_S → 1개 P_S"]
 ```
 
+#### Tensor architecture
+
+아래는 위 framework를 **실제 tensor와 convolution 구조로 펼친 그림**임. A에서 RGB·mask·text가 어떤 feature를 만드는지, B에서 한 DINO layer의 정보를 어떻게 결합하는지, C에서 MatchingBlock과 네 layer의 출력을 어떻게 처리하는지 보여줌. B의 `X`, `a`, `s`는 A에서 나온 같은 값이며, ①–⑧은 아래 본문 번호와 대응함.
+
+![Similarity tensor architecture with encoders, semantic adapter, 2D matching blocks and fusion](img/similarity/similarity_tensor_architecture.png)
+
+겹쳐 그린 면은 channel이고 면 안의 가로·세로는 공간 위치임. 예를 들어 **`1537×30×40`은 30×40 지도 1,537장을 쌓은 것**임. 1,537은 `scene 768 + query 768 + cosine 1`이며, SigLIP의 1,152개를 그대로 scene에 붙인 값이 아님.
+
+C의 **3×3 Conv2d는 각 위치에서 1,537개 channel 모두의 주변 3×3칸을 읽고, 학습한 64개 filter로 숫자 64개를 만듦.** 공간은 30×40으로 유지됨. 이어지는 1×1 Conv는 같은 위치의 channel을 다시 조합함. 그림을 입체로 그렸어도 3D 공간 convolution이 아니라 가로·세로 두 축의 2D convolution임.
+
+파랑은 weight를 고정한 encoder, 주황은 학습되는 모듈, 초록은 pooling·덧셈·cosine·concat처럼 계산 방식이 정해진 연산임. 색은 학습 여부와 연산 종류를 구분하며 특정 feature의 의미를 지정하지 않음. 그림의 격자와 두께는 개념도이고, 실제 tensor 크기는 숫자로 표시함. 동일 이름의 SVG도 `img/similarity/`에 함께 보존함.
+
+학습에서 DINO target appearance는 다섯 reference camera 중 선택한 view를 사용하고, SigLIP semantic은 center reference와 text로 미리 계산한 값을 사용함. 따라서 두 encoder의 target 입력이 항상 같은 view라는 뜻은 아님. 현재 추론에서는 선택한 reference camera를 두 경로에 사용함.
+
 Banana의 이름으로 전용 모델을 고르는 구조가 아님. **모든 target이 같은 모델을 사용하며, 입력한 reference에 따라 검색 조건이 달라짐.** 이 방식으로 학습에 없던 Banana와 `packaged_food_5`의 관련 물체 영역이 활성화되는 zero-shot 동작을 정성 확인함.
 
 ### 3. 내부 모듈과 선택 이유
@@ -470,7 +484,24 @@ Banana semantic s: 1152개
 Banana appearance a: 768개 ─────┘
 ```
 
-**학습으로 정하는 것은 projection의 가중치임.** 어떤 의미 조건을 외형에 더해야 정답 similarity map과의 오차가 줄어드는지 학습함. 사람이 “Banana이면 이 좌표를 높인다”는 규칙을 지정하는 방식은 아님.
+**차원을 맞추는 것만으로 두 모델의 의미가 같아지는 것은 아님.** 1152→768은 덧셈을 할 수 있도록 출력의 길이를 맞추는 구조임. 어떤 768개 숫자를 만들어야 유용한지는 최종 similarity map의 GT 오차로 학습함.
+
+![Semantic adapter learned jointly with the matching head from the final similarity-map loss](img/similarity/similarity_semantic_adapter.png)
+
+처음에는 adapter의 `W,b`가 현재 작업에 맞춰 학습되기 전이므로, 차원만 맞는다고 유용한 보정값이 나오는 것은 아님. 그 상태에서도 query와 예측 map을 계산하고 GT와 비교할 수 있음. **예측 오차를 줄이는 방향으로 adapter와 MatchingBlock·fusion·map head의 weight를 함께 갱신함.** 이 과정이 그림의 빨간 점선임.
+
+예를 들어 학습 target이 apple이고 scene의 orange 내부 patch에 같은 fruit 관계 GT `0.8`이 주어졌다고 가정함. 아래 예측값은 원리를 설명하기 위한 가상값임.
+
+| 한 위치의 예측 | GT | 그 위치의 제곱 오차 |
+|---|---:|---:|
+| 0.3 | 0.8 | `(0.3−0.8)² = 0.25` |
+| 학습 후 0.7이 됐다고 가정 | 0.8 | `(0.7−0.8)² = 0.01` |
+
+실제 loss는 전체 patch의 제곱 오차를 평균함. 모델은 여러 scene·target에서 이 오차를 줄이도록 **SigLIP 정보를 query에 넣는 방법과, 그 query를 scene feature와 함께 읽는 방법을 공동으로 학습함.** 사람이 “fruit면 17번째 좌표를 높인다”는 규칙을 지정하지 않음.
+
+여기서 DINOv3가 SigLIP의 지식을 전달받아 다시 학습되는 것은 아님. **DINO의 scene·target feature는 그대로이고, 뒤의 adapter와 head가 두 표현을 이용하는 방법을 배움.** 고정된 DINO feature가 이미 담고 있는 시각·문맥 정보와 target 의미 조건을 함께 읽는 구조임. Target의 전역 semantic vector만으로 scene에 없던 위치별 관측 정보를 새로 만드는 연산도 아님.
+
+현재 감독은 map GT와의 MSE이며, projected SigLIP vector를 별도의 ‘정답 DINO vector’에 맞추는 feature alignment loss는 없음. 따라서 이를 **현재 map 예측 작업에 맞춰 학습한 변환**으로 설명함. 두 encoder의 모든 의미 축이 일치하도록 변환됐다고 해석하지 않음.
 
 학습 후에는 이 가중치가 고정됨. 새 Banana 사진을 넣으면 **같은 계산 규칙에 새로운 입력이 들어가므로 보정값과 query가 새로 계산됨.** Target별 projection을 고르거나 새 target용 모델을 다시 학습하지 않음. 한 layer의 projection은 기존 16개 target과 새로운 target이 함께 사용함.
 
