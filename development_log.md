@@ -1098,6 +1098,90 @@ DINO+depth는 depth보다 same-category AUROC가 +0.225025 높았고 8/8 keys에
 
 **다음 Step:** 현재 순수 patch 지표는 거의 포화되어 B/C의 추가 효과를 판별하기 어려움. 물체 내부 구분을 위한 모델 추가는 보류하고, 실제 더미의 경계·분리된 조각의 소속·다중 물체 관계 중 어떤 능력이 부족한지 평가부터 고정함. 관측 가능한 관계 label의 품질을 확인한 뒤 같은 평가·region 조건에서 물체 묶음과 공간 표현의 추가 가치를 비교함. SAM/VLM이 불필요하다는 결론은 아니며 **B/C 모델 실행·새 Complexity GT 채택·fusion은 미완료**임. 이번 공개는 README와 두 비교 그림으로 한정하고 실험 코드·checkpoint·원시 자료는 로컬에 보존함.
 
+## Phase 37 — DINO의 어려운 물체 대응과 가시 관계 정량화 공동 진단 (2026-09-18)
+
+**목적:** 같은 실제 cluttered scene에서 물체 구분과 Complexity 후보를 병행 검증함. 물체 구분은 기존 DINO readout으로 검사하고, 관계 기준은 정확한 GT 물체 ID를 주어 계산함. 여기에 GT를 16×16 block당 하나의 물체로 바꾸는 근사를 대조하여, 모델 오류와 출력 표현의 문제를 분리함.
+
+**확인 결과:** 경계 근처·외형 변화가 있는 순수 patch에서도 기존 DINO의 가시 asset 대응을 확인함. 같은 국소 count에서 서로 다른 접경 관계가 나타남도 확인함. 반면 정확한 GT를 사용해도 block마다 한 label만 남기면 접경 관계가 변함. 따라서 다음 구현은 frozen DINO를 유지하면서 혼합 patch·경계·물체 묶음의 표현을 보완하는 방향으로 좁힘.
+
+### 실행과 평가 조건
+
+- Phase 36과 같은 validation **320영상**, test **640영상**. 기존 16 pools×5 views, validation/test **4/8 scene keys**, 기존 readout **3 seeds**임.
+- 기존 test 장면의 새로운 진단임. 새로운 blind test, unseen-object 평가 또는 640개 독립 scene으로 해석하지 않음.
+- Encoder·12개 readout을 재사용하며 재학습하지 않음. 기존 저장 pair의 val 272개·test 252개 입력 X/cos 재현에서 최대 차이 **0**을 확인함.
+- 두 위치는 purity≥90%, workspace·유효 depth≥95%, 간격1–8 patches임. 양/음의 정확한 XY offset·anchor category·depth 차이 구간·negative category를 맞춤. Family당 영상별 최대64개의 양/음 묶음을 표집함.
+- Validation에서 두 종류 오류율의 평균인 balanced error가 최소인 threshold를 모델별로 고정함. Test 전에 threshold·protocol·source·checkpoint hash를 검증함.
+
+### DINO의 어려운 위치쌍 판별
+
+아래는 **same-category** 결과임. View별 지표→key 내 pool/view 평균→keys 동일 평균→3 seeds 평균이며 모든 학습 비교군에 위치 정보가 포함됨.
+
+| 평가 조건 | Pairs / views / keys | DINO AUROC | Depth AUROC | RGB-D AUROC | DINO 같은→다름 오류 | DINO 다름→같음 오류 |
+|---|---:|---:|---:|---:|---:|---:|
+| 접경에서16px보다 먼 내부 | 17,108 / 438 / 8 | 0.999963 | 0.836209 | 0.999958 | 0.056% | 1.375% |
+| 접경16px 이내의 순수 patch | 37,856 / 602 / 8 | **0.998789** | 0.747029 | 0.998715 | 0.539% | 3.161% |
+| 평균 RGB 차이가 큰 patch | 30,870 / 584 / 8 | **0.998166** | 0.766375 | 0.998197 | 1.160% | 2.685% |
+| 같은 asset의 분리된 가시 조각 | 852 / 47 / 7 | **1.000000** | 0.751869 | 1.000000 | 4.274% | 0.786% |
+
+외형 변화는 0–1 RGB patch 평균의 L2 차이≥0.15이며 무늬의 의미를 판정한 기준은 아님. 분리 조각은 같은 asset label의 서로 다른8-connected component로 정의하며, 분리 원인을 가림으로 확정하지 않음. 전체159,192 test pairs에는 different-category와 family 간 중복이 포함됨.
+
+학습 없는 DINO cosine AUROC는 위 순서로0.918370 / 0.921420 / 0.834149 / 0.958109였음. 기존 readout은 어려운 순수 patch에서도 raw cosine보다 잘 구분함. RGB-D의 DINO 대비 일관된 우위는 이 대응 과제에서 나타나지 않았음. Depth가 공간 관계에 쓸모없다는 뜻은 아님.
+
+분리 조각은 AUROC1이지만 공통 validation threshold에서 같은→다름 오류4.274%가 남음. 평가도47 views/7 keys로 제한됨. 오류율은 **위치쌍 판정 오류**이며 전체 segmentation의 물체 분할·병합률이 아님.
+
+![Phase37 fixed-anchor affinity](img/complexity/joint_anchor_affinity_20260918.png)
+
+첫 test key·category별 첫 pool·center view를 고정함. 그 장면에서 적격 patch가 가장 많은 물체의 가장 안쪽 patch를 anchor로 고름. 열은RGB / 실제 anchor 물체의 patch 내 면적 비율 / DINO affinity / RGB-D affinity임. 반경8 patches만 표시하며 score는3-seed mean logit의 sigmoid임. 보정된 면적 비율이나 확률이 아님. GT는 anchor 선택·비교에만 사용하고 predictor에 ID를 넣지 않음. 그림에는 mixed·background 등 정량 평가 밖 위치도 있어 정성 참고로 구분함. 자동 anchor/grouping 또는 어려운 사례 대표 성능을 보여 주는 그림은 아님.
+
+### 혼합 patch와 단일-label block 근사의 영향
+
+알려진 foreground128,380 patches 중 순수·유효한54,429개(**42.40%**)가 pair 평가 대상임. 두 물체가 각각 patch의10% 이상 들어 있는 경우는20,469개(**15.94%**)임. 나머지 부적격 patch에는 물체–배경 혼합·unknown·workspace/depth 조건도 포함됨.
+
+GT를16×16 block당 다수 label 하나로 바꾸고 full-pixel GT의 접경과 비교함. Unknown·background도 block 투표의 후보에 포함함.
+
+| GT-majority block 근사 | 결과 |
+|---|---:|
+| 접경 pair precision | **0.804652** |
+| 접경 pair recall | **0.845858** |
+| 물체별 접경 이웃 수 MAE | 0.584765개 |
+| 알려진 foreground pixel label 일치율 | 0.846709 |
+| Block 근사에서 사라진 object-view | 606 / 8,446 (**7.175%**) |
+
+Precision은 근사에서 생긴 접경 중 실제GT에도 있었던 비율, recall은 실제 접경 중 근사에도 남은 비율임. View→key 동일 평균이며 object-view 누락은 전체 개수 비율임. **DINO를 거치지 않은 GT 변환 실험이므로 이 값을 DINO segmentation 성능이나 달성 가능한 성능의 상한으로 해석하지 않음.** 향후 grouping을 block당 한 label로 구성할 때 생기는 손실을 확인한 것임. 기존 density pilot은 RGB-D에서 count를 직접 예측하며 이 변환을 사용하지 않으므로, 현재 density 모델의 오류 원인을 증명한 결과와 구분함.
+
+### Count에 추가되는 관계 정보
+
+수평·수직으로 이웃한 pixel이 서로 다른 알려진 물체이고 양쪽 workspace·depth가 유효할 때 가시 접경을 기록함. 같은 물체 내부의 무늬는 제외됨. 기본은 scene 전체 pair support≥8이며4/16도 검사함. 이는 영상상의 관측 접경으로, 물리적 접촉·지지·숨은 가림 GT가 아님.
+
+Count는 전체scene32px·window16px 이상인 물체를 셈. Local 관계 수도 **양쪽 물체가 같은 면적 조건을 만족**하고 두 endpoint가 window에 포함된 pair만 한 번 셈. Count에서 제외된 작은 물체 때문에 관계만 늘어나는 비교 교란을 방지함. Workspace≥95%·unknown 없음·관계의 depth 유효성을 적용하고, invalid와0관계를 구분함.
+
+![Phase37 visible relations and oracle grid](img/complexity/joint_scene_relations_20260918.png)
+
+열은RGB / pixel GT /16px GT-majority /96px count /그 count에 포함된 물체 사이의 접경 pair 수임. 장면 선택은 위와 동일하게 사전 고정함. 흰 map 영역은 정답 유효성에서 제외된 위치이며 복잡도가0이라는 뜻이 아님. 두 map은 관측량 후보로서 최종 Complexity prediction이 아님.
+
+96px에서 같은 영상·같은count≥2의 window가5개 이상인3,225개 그룹 중 **3,037개(94.17%)에서 관계 수가 달랐음.** Count와 관계가 동일한 정보를 반복하지 않는다는 결과임. 물체 종류·형상·면적까지 통제한 배치 인과 실험이나 탐색 효용 검증으로 확대하지 않음.
+
+| Window | 같은 count 그룹 / 관계가 달라진 그룹 | GT block count MAE | GT block 관계 수 MAE |
+|---|---:|---:|---:|
+| 48px | 2,151 / 2,110 | 0.452506 | 0.523765 |
+| 96px | 3,225 / 3,037 | 0.279495 | 0.728926 |
+| 160px | 2,744 / 2,552 | 0.464726 | 1.265518 |
+
+범위별 정답·유효 위치가 달라 이 표로 최적 window를 선정하지 않음. 기본 support8의 전체 가시 pair는8,852개이며 support4/16에서는9,451/7,656개였음. Scene 전체 pair의 한쪽 깊이 방향이80% 이상인 것은 δ5/10/20mm에서7,427/6,366/4,747개였음. 깊이 순서는 local 관계 수와 합치지 않음. δ는 민감도 검사 값이며 실센서 노이즈를 반영한 최종 기준이 아님.
+
+보이는 면적과 접경 이웃 수의 view→key 평균 Spearman은 **0.405692**임. 관계 수가 크기와 무관한 보편적 Complexity라는 근거는 확보하지 않았음.
+
+### 판단·검증·다음 Step
+
+**추가 encoder를 즉시 도입하기보다 frozen DINO를 유지하고, 혼합 patch·경계·물체 묶음의 표현을 보완함.** 한 patch에 여러 물체가 있다는 정보를 유지하는 소속 표현이나 RGB-D 경계 보정을 비교하고, 실제 grouping·coverage·접경 pair 보존을 함께 평가하는 것이 다음 Step임.
+
+Count와 관계는 분리된 감독 후보로 유지함. 이웃 수·앞뒤 순서를 임의 가중합한 최종 GT는 만들지 않았음. 추가VLM/SAM·다중뷰teacher·새Complexity학습·fusion·DRL은 이번 실험에 포함되지 않음.
+
+- Unit tests **11개 통과**. 기존 pair 입력 재현·shape·finite·hash를 확인함.
+- `audit.json`에서13개 score의 AUROC·threshold·오류율·scene-key/seed 집계·양/음offset균형을 독립 재계산하여 통과함. 관계 생성은 별도의 invariant·전수 fixture 검사로 확인함.
+- 직접 근거: 로컬 `outputs/complexity_joint_diagnostic_20260918_v1/`의 protocol, threshold lock, test entry, pair NPZ, metrics, coverage, relations, summary, audit와panels. 상세 보고서: `docs/complexity_results/joint_diagnostic_20260918.md`(공개`agent.md`에 본문 포함).
+- 이번 공개는 완료된Phase37 설명·그림2장·연구 문맥에 한정함. 실행코드·checkpoint·dense cache·원시NPZ는 로컬에 보존함.
+
 <!-- navigation:start -->
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Development Log** · [연구 문맥](agent.md)
 <!-- navigation:end -->

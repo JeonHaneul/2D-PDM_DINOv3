@@ -4,11 +4,11 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-09-18 (Asia/Seoul) · 연구 이력: Phase 1–36 · 현재 마지막 실험: Phase 36 A
+> 문서 기준일: 2026-09-18 (Asia/Seoul) · 연구 이력: Phase 1–37 · 현재 마지막 실험: Phase 37 공동 진단
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
-이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–36 Development Log, Complexity의 가정·실험·후속 계획 보고서 6개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
+이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–37 Development Log, Complexity의 가정·실험·후속 계획 보고서 7개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
@@ -24,21 +24,22 @@
 | Occlusion 외부 평가 | 미학습 `packaged_food_5`의 zero-shot 정량 평가 완료; 30 scene keys/150 views, coverage 내부 MAE 0.017998 | 여러 external targets·실제 RGB-D·추정 mask로 평가 확대, full16 독립 CLI 구현 |
 | Complexity density | RGB-D count MAE 0.641416 vs depth-only 0.832717; 상대 22.973% 개선 확인 | Visible-density 결과를 바탕으로 구조적 Complexity의 정의·GT 구체화 |
 | Complexity 근접도·제거 | 면적 통제 실패와 근접도 평균의 약한 제거 효과 상관(Spearman 0.078295) 확인; 해당 평균은 GT로 채택하지 않음 | 경계·물체 간 관계를 구분하는 표현과 평가 검토 |
-| Complexity 표현 A | GT로 고른 순수 patch(적격 coverage 42.40%)에서 same-category 가시 asset 대응 확인; DINO+position AUROC 0.998953 | 경계·분리된 조각·다중 물체 관계로 평가 확장 |
+| Complexity 표현 A·공동 진단 | Phase 36 내부 대응 AUROC 0.998953, Phase 37 경계 주변 순수 patch 0.998789·외형 변화 0.998166; 같은 count의 가시 관계 차이 확인 | 혼합 patch·경계·물체 묶음 표현 보완; 16px GT-majority 접경 precision/recall 0.804652/0.845858은 DINO 성능이 아님 |
 | B/C 및 최종 결합 | 비교 계획과 일부 준비 코드, stream별 feature 규격 정리 | 필요한 능력을 특정한 뒤 B/C 실행·비교; 최종 Complexity GT·fusion·DRL은 후속 구현 단계 |
 
-현재 다음 Step은 **실제 asset이 쌓인 장면에서 경계·분리된 조각의 소속·다중 물체 관계 중 기존 표현이 놓치는 능력과 관측 가능한 정답을 먼저 특정하는 것**이다. 이를 확인한 뒤 같은 region 조건에서 사전학습 표현의 추가 효과를 비교한다. 근접도→방향→최소 제거 횟수처럼 scalar 정의를 계속 대체하라는 요청이 아니다.
+현재 다음 Step은 **frozen DINO를 유지하며 혼합 patch·경계·물체 묶음의 표현을 보완하고, 실제 grouping·coverage·접경 관계 보존을 함께 평가하는 것**이다. Phase 37은 Phase 36의 기존 test 장면을 재분석한 진단이며 새 blind benchmark가 아니다. Count에 추가되는 가시 관계 정보는 확인했으나 면적·support·depth 기준의 영향이 남아 최종 Complexity scalar를 채택하지 않았다. 추가 encoder·다중 뷰 teacher·fusion·DRL은 미실행이다.
 
 | 이 문서의 위치 | 내용 |
 |---|---|
 | A. 현재 프로젝트 문맥 | 목표, 데이터, 세 stream의 입력·모델·GT·loss, 결과, 한계, 실행 규약 |
-| B. Phase 1–36 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
+| B. Phase 1–37 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
 | C1. 정의 재검토 | Count/occupancy/면적·depth 반례, 당시 최근 5년 문헌, 후보 가정 |
 | C2. 관측 근접도 | 거리 수식, GT teacher 조건, 통제 실패, 가시 표면의 한계 |
 | C3. 정적 제거 | 실제 asset 재현, Isaac 초기 실패, 공통 표본 상관과 한계 |
 | C4. 표현 A 완료 | Pair 구성, split·선택 조건, 모델·지표, 높은 AUROC의 해석 범위 |
 | C5. B/C 계획 | Region grouping과 공간 표현의 효과를 분리하는 미실행 계획 |
 | C6. 실행 가능성 조사 | 후보 모델·환경·용량·준비 상태; 실행 성공 기록과 구분 |
+| C7. Phase 37 공동 진단 | 경계·외형 변화·분리 조각 대응, 혼합 patch와 GT block 근사, 가시 관계 정량화·검증 |
 | D. 근거와 이미지 색인 | Current/legacy 구분, JSON·log·checkpoint·그림 위치, 기록 공백 |
 | E. 인수인계·작업 규칙 | Source of truth, split·문서화·사용자 방향·게시 범위 |
 
@@ -93,6 +94,8 @@
 
 2026-09-18에는 Complexity 본문 ⑥과 현재 문맥에 다중 뷰 일관성 검토를 추가함. SAM2Object·DROP-CLIP을 참고하여 다중 뷰의 물체 구분 보완 효과를 먼저 검사하고, 학습에는 여러 뷰를 쓰되 추론은 단일 RGB-D를 유지하는 방향을 검토함. 구현·학습·성능 비교는 아직 실행하지 않았으며 새 연구 Phase를 추가하지 않음.
 
+같은 날 Phase 37에서 동일 cluttered scene의 DINO 어려운 대응·GT 가시 관계·GT block 근사를 공동 진단하고 독립 재계산을 통과함. 완료된 결과·비교 그림 2장·다음 구현 방향을 한 milestone으로 정리함. 코드·checkpoint·dense cache·원시 NPZ는 로컬에 보존하며 게시 근거는 `docs/public_agent_context_joint_diagnostic_20260918.json`(LOCAL)에 기록함.
+
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 과거 보고서의 문헌·모델 호환성 조사 내용은 각 작성 당시 확인 범위다. 2026-09-18 다중 뷰 관련 두 논문은 이번 논의에서 확인한 근거이며, 해당 방법을 우리 데이터에서 실행·검증한 결과와 구분한다.
 
 ---
@@ -104,7 +107,7 @@
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-09-18 (Asia/Seoul); 마지막 실험: Phase 36 가시 asset 대응 A probe 완료, B/C 미실행·도입 보류
+> 마지막 문서 갱신: 2026-09-18 (Asia/Seoul); 마지막 실험: Phase 37 어려운 가시 asset 대응·GT 접경 관계 공동 진단 완료
 > Similarity/Occlusion의 기존 교차검증 기준일: 2026-08-28
 > 대상: `<DEV_ROOT>`
 > 목적: 이전 대화를 보지 못한 agent가 현재 코드와 데이터로 연구를 안전하게 이어가기 위한 문서
@@ -120,8 +123,10 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 경로를 적었다고 해당 파일·checkpoint가 GitHub에 게시된 것은 아니다.
 2026-09-18 첫 갱신은 새 agent용 로컬 handoff 정리였다. 이후 사용자가 교수님의 다중 뷰 제안과
 단일-view 추론 유지 방향을 GitHub Complexity 문서에 추가하도록 요청했다. 해당 검토안과 공개
-`agent.md`를 함께 갱신하며 새 연구 실행은 하지 않는다. 공개본은 생성·게시 시점의 snapshot으로,
-로컬 원본 수정과 자동 동기화되지 않는다.
+`agent.md`를 함께 갱신했고, 그 문서 작업에서는 연구를 새로 실행하지 않았다. 이후 사용자가 실제
+공동 진단을 승인하여 Phase 37을 완료했다. 공개본은 생성·게시 시점의 snapshot이며 로컬 원본 수정과
+자동 동기화되지 않는다. 이번 milestone의 게시 상태는 `docs/public_agent_context_joint_diagnostic_20260918.json`에서
+확인하며 아직 기록되지 않은 공개 commit을 완료로 추정하지 않는다.
 
 ---
 
@@ -132,19 +137,22 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 - **작업 위치:** 실제 개발은 `2D-PDM_DINOv3`, Git·공개 문서는 별도 `2D-PDM_DINOv3_git`이다.
   `AGENTS.md` → 이 문서 → `PROJECT_LOG_INDEX.md`를 끝까지 읽은 뒤 관련 코드와 run JSON을 확인한다.
 - **완료 범위:** Similarity의 no-shortcut DINO+SigLIP 구현·외부 target 정성 확인, Occlusion의
-  adaptive GT·full16·외부 target 정량 평가, Complexity density V2와 Phase 36 A probe까지다.
-  마지막 연구 실험은 2026-09-16 Phase 36 A이며, 9월 17일 문서 분할·구조도 추가는 새 Phase가 아니다.
+  adaptive GT·full16·외부 target 정량 평가, Complexity density V2·Phase 36 A·Phase 37 공동 진단까지다.
+  마지막 연구 실험은 2026-09-18 Phase 37이며, 9월 17일 문서 분할·구조도 추가는 별도의 문서 작업이다.
 - **현재 남은 항목:** Similarity의 공식 final checkpoint manifest와 확장 정량 평가,
   최신 full16 Occlusion 배포 CLI, 구조적 Complexity GT·B/C·통합 forward·fusion·decoder·DRL이다.
   기존 Similarity/Occlusion 결과를 재학습 전 단계로 되돌려 해석하지 않는다.
-- **Complexity 재개 지점:** 순수 patch 가시 asset 대응은 이미 높은 AUROC를 확인했다.
-  실제 더미의 경계·분리된 조각·다중 물체 관계에서 어떤 정보나 판별 단계가 부족한지 먼저
-  확인한다. 48/96/160px feature 집계 범위 비교는 조건부 후속 제안이며 실행하지 않았다(8절).
+- **Complexity 재개 지점:** Phase 37에서 경계 주변·외형 변화가 큰 순수 patch에서도 기존 DINO의
+  가시 asset 대응을 확인했다. Frozen DINO를 유지하며 mixed patch·경계·물체 소속/grouping 표현을
+  비교하고 coverage와 접경 관계 보존을 함께 평가한다. 48/96/160px feature 집계 범위 비교는
+  미실행 제안이며 이번 GT 관계 window 계산과 구분한다(8.9절).
 - **추가 검토안:** 다른 각도의 관측이 단일-view 물체 구분 실패를 보완하는지 확인하고, 이득이 있으면
   학습에만 활용하여 단일 RGB-D 추론을 유지하는 방향을 검토한다. Cross-view 통합·teacher/student는 미실행이다.
 - **공개 이력:** 전체 구조도 게시 commit은 `e192522`, 직전 문서 분할은 `8e39517`이다.
   게시·정적 검증 근거는 3절, 실험별 재현 근거는 13절과 `PROJECT_LOG_INDEX.md`를 따른다.
   이후 다중 뷰 검토안 게시 근거는 `docs/public_agent_context_multiview_20260918.json`에 기록한다.
+  Phase 37 문서·사진 게시와 공개 통합본 갱신은 승인되었으며 이번 기록은
+  `docs/public_agent_context_joint_diagnostic_20260918.json`에 둔다. 로컬 실험 코드는 공개하지 않는다.
 
 공개 문서는 `<REPO_ROOT>` 아래에서 목적에 맞게 읽는다.
 
@@ -154,14 +162,15 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 | `similarity_stream.md` | Semantic adapter·학습 alignment·zero-shot 의미와 Similarity 상세 |
 | `occlusion_stream.md` | Adaptive GT와 현재 full16 native68/global FiLM baseline |
 | `complexity_stream.md` | Count 가설에서 DINO 진단까지의 연구 흐름, 보존한 pilot과 미실행 제안 |
-| `development_log.md` | Phase 1–36의 상세 이력; 각 Phase 제목은 `##` |
+| `development_log.md` | Phase 1–37의 상세 이력; 각 Phase 제목은 `##`. Phase 37 게시 상태는 해당 manifest 확인 |
 | `agent.md` | 외부 GPT용 통합 문맥; 최신 로컬 원본과 생성 시점이 다를 수 있음 |
 
 > **Phase 35 이후 사용자 정정:** 우선순위는 새 scalar 정의가 아니라, Similarity의 SigLIP 결합처럼
 > 물체·공간 관계 표현을 보완하는 것이다. DINO 자체의 정보 부족과 count 학습 목표의 한계를
 > 먼저 구분한다. Phase 36 A 진단 (C4. 표현 A 완료 보고서)에서
 > 순수 patch의 가시 asset 대응은 DINO+position AUROC 0.998953으로 거의 포화됐다.
-> 다음은 경계·분리된 조각·다중 물체 관계의 구체적 누락 능력을 먼저 분리하는 것이다.
+> Phase 37에서는 어려운 순수 patch 대응과 GT 기반 가시 접경 관계를 함께 검사했다.
+> 다음은 frozen DINO를 유지한 혼합 patch·경계·물체 소속 표현의 검증이다(8.9절).
 > B/C 후속 계획 (C5. B/C 계획)은 미실행이다.
 > 아래에 남은 가림 방향/제거 횟수 제안은 당시 이력이며 새 GT·모델은 채택하지 않았다.
 
@@ -234,7 +243,7 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 | Occlusion GT | 16 targets × 3,000 scenes × 5 cameras = 240,000 maps 생성 완료 | 현재 GT를 보존하고 필요할 때만 추가 external target 생성 |
 | Occlusion model | Adaptive GT 기반 full16 10% 학습·평가 완료; scene-heldout coverage 내부 MAE 0.013997 | 검증된 baseline을 유지하며 관측 조건 변화의 영향 확인 |
 | External occlusion check | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인; 30 scenes × 5 views, MAE 0.017998 | 여러 external target과 실제 RGB mask로 평가 확대 |
-| Complexity Stream | Phase 36 A만 완료: 순수 patch 가시 asset 대응은 거의 포화; B/C 미실행·GT 미승인 | **경계·다중 물체 관계의 구체적 누락 능력을 먼저 분리한 뒤 사전학습 표현 보완 검토** |
+| Complexity Stream | Phase 37 공동 진단 완료: 어려운 순수 patch 대응·GT 접경 관계·단일-label block 근사 검사; 최종 GT 미승인 | **Frozen DINO를 유지해 혼합 patch·경계·물체 소속/grouping 표현과 접경 보존을 검증** |
 | Three-stream fusion | 미구현 | Complexity GT 타당성 검증 후 GT·평가와 ablation 설계 |
 | DRL integration | 미구현 | 2D-PDM fusion 이후 구현 |
 
@@ -253,7 +262,11 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
    가림 방향 정보 검증은 당시 후속 제안이었다. 정형 도형 실험 확대는 우선순위가 아니다.
 5. Phase 36 A probe에서 DINO+position은 same-category 가시 asset 대응 AUROC 0.998953을 얻음.
    이는 순수 patch ≥90%의 제한된 진단이며 경계·다중 물체 관계 이해의 증거가 아님.
-   B/C를 바로 추가하지 않고 구체적으로 빠진 능력과 이를 판별할 평가를 먼저 고정한다.
+   이를 바탕으로 B/C를 바로 추가하지 않고 다음 공동 진단의 조건을 고정함.
+6. Phase 37에서 DINO+position은 경계 주변 순수 patch 0.998789, 외형 변화 0.998166 AUROC를 얻음.
+   기존 16개 seen assets·같은 8 test keys의 재분석이며 새 blind 평가가 아님. 같은 count에서도
+   가시 접경 관계가 달라짐과 단일-label block 근사의 접경 손실을 확인함. Mixed patch·소속 표현을
+   다음 구현 대상으로 삼되 최종 Complexity GT·추가 encoder·fusion을 채택하지 않음.
 
 ---
 
@@ -308,7 +321,7 @@ target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlu
 중요한 현재 상태:
 
 - Working folder의 `README2.md`는 2026-08-06 수준에서 멈춘 오래된 문서다.
-- 연구 색인은 `development_log.md`의 Phase 1–36을 연결한다. 공개 문서의 최신 반영 범위와 commit은 Git HEAD에서
+- 연구 색인은 `development_log.md`의 Phase 1–37을 연결한다. 공개 문서의 최신 반영 범위와 commit은 Git HEAD에서
   확인하며, 최신 수치는 working root의 각 run JSON과 이 문서를 우선한다.
 - Git clone의 코드 일부는 working folder보다 오래됐거나 누락되어 있다.
 - 2026-08-28에는 `742d903`을 확인했으며, 2026-09-07 Complexity 코드·실험 자료·README Phase 33을
@@ -343,7 +356,12 @@ target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlu
   `publication`에 당시 push·원격 main 일치·clean 상태가 있다. 2026-09-18 첫 로컬 갱신 당시 HEAD는 이 commit이었고,
   manifest의 backbone·Similarity·Occlusion·Complexity·depth cues·renderer SHA-256 6개가 현재 파일과 일치한다.
   `docs/public_agent_context_overall_architecture_20260917.json`은 통합 `agent.md`의 원본·생성 hash 기록이며
-  게시 완료 증거는 아니다. 문서·그림 변경으로 연구 완료 범위는 Phase 36 A 그대로다.
+  게시 완료 증거는 아니다. 이 문서·그림 작업 당시 연구 완료 범위는 Phase 36 A였다.
+- 2026-09-18 사용자가 실제 공동 진단과 유의미한 milestone 공개를 승인하여 Phase 37을 완료했다.
+  공개 대상은 `complexity_stream.md`·`development_log.md`·필요한 개요와 `agent.md`, 결과 PNG 2장이다.
+  기존 55개 image asset에 두 결과 그림을 더한 inventory는 57개이며 복사·게시 확인은
+  `docs/public_agent_context_joint_diagnostic_20260918.json`에 기록한다. 공개 commit은 해당 기록으로 확인한다.
+  실험 코드·checkpoint·NPZ·dense feature와 원시 GT 관계 자료는 로컬에 보존한다.
 - 따라서 **코드는 working folder**, **공개 설명은 Git clone의 개요·stream 문서·개발 로그**를 기준으로 읽는다.
 
 `2D-PDM_DINOv3_git`은 working folder가 Git repository가 아니어서 GitHub 반영을 위해 만든 별도
@@ -1143,13 +1161,15 @@ RGB+mask 입력과 native 68-D descriptor를 사용하도록 위 legacy script�
 
 ### 8. Complexity Stream과 최종 fusion
 
-> **현재 확인 결과:** V2에서 RGB-D의 visible-density 예측 개선을, Phase 36 A에서 순수 patch의
-> 가시 asset 대응 정보를 확인했다. Phase 34는 근접도의 국소 반응과 면적 통제 실패를,
+> **현재 확인 결과:** V2에서 RGB-D의 visible-density 예측 개선을, Phase 36–37에서 순수 patch의
+> 가시 asset 대응과 어려운 위치쌍의 판별력을 확인했다. Phase 37은 GT 가시 접경과 count가
+> 서로 다른 관측 정보를 담음과 단일-label block 근사의 접경 변화를 함께 확인했다.
+> Phase 34는 근접도의 국소 반응과 면적 통제 실패를,
 > Phase 35는 물체 평균 근접도와 정적 제거 효과의 약한 상관을 확인했다.
 > 이 결과를 바탕으로 count/occupancy는 density pilot으로, 근접도는 진단 이력으로 보존한다.
-> 구조적 Complexity GT는 후속 정의·검증 단계다. 다음은 경계·분리된 조각·다중 물체 관계를
-> 구분하는 능력을 평가하고 필요한 표현 보완을 확인하는 것이다. B/C·fusion은 후속 실행 항목이며
-> 아래 09-07 실험은 이력, 현재 판단과 계획은 8.8절에서 확인한다.
+> 구조적 Complexity GT는 후속 정의·검증 단계다. 다음은 frozen DINO를 유지한 mixed patch·경계·
+> 물체 소속/grouping 표현 검증이다. 추가 VLM/SAM·다중 뷰 teacher/student·fusion은 미실행이며
+> 아래 09-07 실험은 이력, 현재 판단과 계획은 8.9절에서 확인한다.
 
 #### 설명 순서와 가정·실험의 구분 — 2026-09-17
 
@@ -1180,7 +1200,7 @@ pilot → 기존 DINO의 같은 물체 판별 진단**이다. Occupancy가 큰 �
 네 비교를 모두 맞혀 AUROC1이지만 0.5 기준의 정확도는50%다. 0.998953을 segmentation 정확도로
 쓰지 않는다. 42.40%는 순수성·workspace·유효depth 조건을 함께 만족한 비율이다.
 
-**다음 Step의 순서와 진입 조건 — 미실행:** Window 비교에 앞서 실제 cluttered asset의 어려운
+**당시 다음 Step의 순서와 진입 조건 — Phase 37로 일부 실행:** Window 비교에 앞서 실제 cluttered asset의 어려운
 위치를 선정하고, 정답 label의 모호함과 모델의 실패를 구분한다. 순수 patch에서 확인한 대응 정보를
 경계의 혼합 patch·가림으로 떨어진 조각·여러 물체의 grouping에 적용할 때 어디에서 잃는지 진단한다.
 고정 DINO feature에 정보가 남아 있으나 판별·grouping 과정에서 실패한다면 그 과정을 먼저 검토한다.
@@ -1194,7 +1214,8 @@ pilot → 기존 DINO의 같은 물체 판별 진단**이다. Occupancy가 큰 �
 판정 기준값은 validation의 분할/병합 오류율 평균으로 정하고 test 전에 선택을 고정한다. 새 비교의
 분할과 평가 쌍도 test를 열기 전에 고정한다. 이는 기존 count window의 정답을 바꾸는 비교나 DINO
 patch 크기 실험이 아니며, 해당 판별 과제의 feature 집계 범위 선택안이다. 최종 Complexity의 최적
-범위를 결정한 것으로 쓰지 않는다. 코드·pair manifest·재학습·B/C·fusion은 새로 실행하지 않았다.
+범위를 결정한 것으로 쓰지 않는다. 이 feature 집계 범위 비교·재학습·B/C·fusion은 실행하지 않았다.
+별도의 Phase 37에서는 기존 readout으로 어려운 pair를 평가하고 GT 관계 window를 계산했다(8.9절).
 
 #### 다중 뷰 일관성과 단일 RGB-D 추론 — 2026-09-18 미실행 검토안
 
@@ -1216,8 +1237,9 @@ patch 크기 실험이 아니며, 해당 판별 과제의 feature 집계 범위 
 - 같은 source pool·실제 layout의 view를 대응시키며, 다섯 view는 scene-key 단위로 같은 split에 둔다.
   다른 pool의 동일 key 문자열이나 Phase 35 추가 capture와 Phase 36 원본 dataset을 섞지 않는다.
 - Cross-view 대응·mask 통합·teacher/student 학습·성능 비교는 아직 실행하지 않았다. 먼저 물체 구분
-  표현의 보완을 확인하고 그 표현을 어떤 국소 관계·Complexity에 쓸지 후속 검증한다. Phase 36 A의
-  완료 상태와 기존 count/occupancy GT는 유지하며 새 Phase나 채택된 최종 구조로 기록하지 않는다.
+  표현의 보완을 확인하고 그 표현을 어떤 국소 관계·Complexity에 쓸지 후속 검증한다. 이 다중 뷰
+  검토안 자체를 완료 실험으로 쓰지 않는다. 별도로 완료한 Phase 37도 단일-view 진단이며
+  기존 count/occupancy GT를 바꾸거나 다중 뷰 최종 구조를 채택하지 않았다.
 
 관련 근거는 **SAM2Object(CVPR 2025)**와 **3D Feature Distillation with Object-Centric Priors
 (2024, 2025 개정; DROP-CLIP)**다. 전자는 view 일관성·mask 품질·3D 기하의 결합, 후자는
@@ -1327,8 +1349,9 @@ Occupancy MAE는 RGB-D 0.008544, depth-only 0.015244, 직접 depth occupancy 0.0
 **표현에서 구체적으로 빠진 능력을 먼저 분리한다.** 기존 실제 asset이 쌓인 cluttered scene을
 사용하고 정형 도형 배치를 주 검증으로 확대하지 않는다. Phase 34의 실패와 Phase 35의 정적
 제거 진단은 보존하며 근접도 물체 평균은 채택하지 않았다. Phase 36의 순수 patch 가시 asset
-대응은 거의 포화되어 이 과제로 B/C의 추가 효과를 판단하기 어렵다. 다음은 경계·분리된 조각의
-소속·다중 물체 관계에서 남은 실패를 확인하고, 해당 평가에서 사전학습 표현 보완을 검토한다.
+대응은 거의 포화되어 이 과제로 B/C의 추가 효과를 판단하기 어렵다. 후속 Phase 37에서는 어려운
+순수 patch 대응도 확인했고 GT block 근사의 접경 손실을 검사했다. 다음은 DINO를 유지한 혼합
+patch·경계·물체 소속 표현과 grouping 품질·coverage·접경 보존을 함께 검증한다.
 방향 GT나 최소 제거 횟수를 새 Complexity 정의로 대체하지 않는다. 이후 새 scene-object와
 camera/reference 오차, S+O 대비 S+O+C 탐색 효용은 별도 검증해야 한다.
 각 stream의 feature 차원은 현재 다음처럼 맞는다.
@@ -1382,7 +1405,7 @@ Complexity 정답으로 채택하지 않는다. 근접 feature 전체 또는 Com
 독립 Isaac 기록은 `outputs/complexity_isaac_spotcheck_20260916_v4/`이며 초기 v1–v3 실패도 보존했다.
 상세 방법·결과·한계·실행법 (C3. 정적 제거 진단)을 함께 읽는다.
 당시 다음 Step으로 관측 가림 방향 정보의 추가 가치를 제안했다. 이후 사용자 정정에 따라
-표현의 누락 능력 진단으로 우선순위를 변경했으며 현재 진행은 아래 8.8절을 따른다.
+표현의 누락 능력 진단으로 우선순위를 변경했으며 Phase 36 이후 현재 진행은 아래 8.9절을 따른다.
 
 #### 8.8 Phase 36: Frozen DINO의 가시 asset 대응 A probe (2026-09-16)
 
@@ -1409,15 +1432,100 @@ Test의 알려진 foreground 128,380 patches 중 적격은 54,429개(**42.40%**)
 다중 물체 관계 이해로 일반화하지 않는다. 거의 포화된 이진 진단으로 B/C의 추가 개선을 검증하기
 어려워 도입을 보류한다. B/C 설치·추론·비교 결과는 없으며 Complexity GT나 완성 모델도 아니다.
 
-다음 Step은 실제 더미의 경계·분리된 조각의 소속·다중 물체 관계에서 남은 구체적 실패와
+당시 다음 Step은 실제 더미의 경계·분리된 조각의 소속·다중 물체 관계에서 남은 구체적 실패와
 관측 가능한 label을 먼저 정하고, 해당 평가에서 같은 region 조건의 사전학습 표현 보완을
-검토하는 것이다. 방향 GT·최소 제거 횟수로 되돌아가지 않는다.
+검토하는 것이었다. Phase 37의 실행 결과와 최신 다음 Step은 아래를 따른다.
+방향 GT·최소 제거 횟수로 되돌아가지 않는다.
 
 근거: `outputs/complexity_representation_probe_20260916_v1/{results,coverage_summary}.json`,
 `experiments/complexity_definition/representation_probe_split_20260916.json`,
 상세 결과와 실행 상태 (C4. 표현 A 완료 보고서),
 남은 B/C 계획 (C5. B/C 계획).
 코드·readout checkpoint·원시 NPZ는 로컬 보존한다. 공개 stream 문서·개발 로그·그림의 게시 상태는 Git에서 확인한다.
+
+#### 8.9 Phase 37: 어려운 가시 asset 대응·GT 접경 관계 공동 진단 (2026-09-18)
+
+**경계 주변·외형 변화가 큰 순수 patch에서도 기존 DINO의 대응 정보를 확인했다.** 같은 국소
+count에서 가시 접경 관계가 달라짐과, pixel GT를 단일-label 16px block으로 바꾸는 과정의 접경
+손실을 함께 확인했다. 새 encoder나 최종 Complexity GT의 채택 없이 다음 구현 대상을 좁힌 실험이다.
+
+Phase 36과 같은 val 4 keys×16 pools×5 views=320영상, 기존 test 8 keys×16 pools×5 views=640영상을
+재분석했다. 모든 16개 asset은 기존 training pool에 포함된다. 새 blind test나 unseen-object
+일반화가 아니며 기존 12개 readout과 train-only normalization을 고정해 재사용했다. 추가 학습은 없다.
+
+**서로 다른 세 계산을 구분한다.**
+
+- A: Frozen DINO/depth/RGB-D readout으로 어려운 위치쌍의 same-asset 점수를 계산한다.
+- B: GT 물체 ID와 depth로 가시 접경·관계 수·접경의 깊이 순서를 계산한다. RGB-D 관계 예측이 아니다.
+- C: GT를 16×16 block의 majority label 하나로 줄이고 같은 관계를 다시 계산한다.
+  Unknown·background도 다수 label 후보에 포함한다. DINO 출력이나 DINO 표현의 성능 상한이 아니다.
+
+위치쌍은 purity≥90%, workspace·depth-valid≥95%를 요구하며 간격 1–8 patches에서 표집한다.
+양성·음성의 signed XY offset, anchor category, depth 차이 bin, negative category kind를 맞췄다.
+영상·family당 최대 64개의 양/음 묶음을 사용했다. 내부/경계 주변은 알려진 서로 다른 물체의
+접경까지 중심 거리 >16px/≤16px로 구분한다. 외형 변화는 평균 RGB의 L2 차이≥0.15(0–1 RGB)이며
+무늬의 의미를 판단한 기준이 아니다. 분리 조각은 같은 asset의 다른 8-connected component다.
+
+아래는 **same-category**, view별 지표→key 동일 평균→3 seeds 평균이다. 학습 비교군에는 모두
+position이 들어간다. Family 사이 pair 재사용이 가능하므로 독립 표본처럼 합산하지 않는다.
+
+| Family | Pairs / views / keys | DINO AUROC | Depth AUROC | RGB-D AUROC |
+|---|---:|---:|---:|---:|
+| 내부 대조 | 17,108 / 438 / 8 | 0.999963 | 0.836209 | 0.999958 |
+| 경계 주변 | 37,856 / 602 / 8 | 0.998789 | 0.747029 | 0.998715 |
+| 외형 변화 | 30,870 / 584 / 8 | 0.998166 | 0.766375 | 0.998197 |
+| 분리된 가시 조각 | 852 / 47 / 7 | 1.000000 | 0.751869 | 1.000000 |
+
+Validation에서 key→family→view 동일가중 balanced error가 최소인 threshold를 모델별로 고정했다.
+DINO의 같은→다름/다름→같음 오류는 경계 주변 0.539%/3.161%, 외형 변화 1.160%/2.685%,
+분리 조각 4.274%/0.786%다. AUROC 1도 threshold 오류 0을 뜻하지 않는다. 이 값들은 위치쌍 오류율이며
+실제 segmentation의 물체 분할·병합 비율이 아니다. 전체 test pair는 different-category와 family 중복을
+포함해 159,192개다. Raw cosine의 네 family AUROC는 0.918370/0.921420/0.834149/0.958109다.
+
+**혼합 patch와 GT block 근사.** 알려진 foreground 128,380 patches 중 적격은 54,429개(42.40%),
+두 물체가 각각 10% 이상인 mixed patch는 20,469개(15.94%)다. 나머지 부적격 전체를 두 물체 혼합이라고
+부르지 않는다. Pixel GT 대비 majority-block의 접경 pair precision/recall은 **0.804652/0.845858**,
+접경 이웃 수 MAE 0.584765개, foreground label 일치율 0.846709이며 object-view 606/8,446개가 사라졌다.
+이는 **단일 label을 강제하는 변환의 영향**이다. DINO segmentation 성능·성능 상한·정보 부재의 증거가 아니다.
+기존 density 모델은 RGB-D에서 count를 직접 예측하며 block label 변환을 쓰지 않는다. 따라서
+현재 density 실패 원인을 검증한 것이 아니라 향후 한 patch에 하나의 ID를 강제하는 grouping 설계의 손실 진단이다.
+
+**관계 수의 추가 정보.** 서로 다른 알려진 ID의 수평·수직 인접 pixel을 접경으로 정의한다.
+양쪽 workspace·유효 depth를 요구하고 scene-level 접경 support≥8을 기본으로 4/16도 검사했다.
+Count는 scene 32px 이상·window 16px 이상인 물체를 센다. 관계 수도 같은 물체 집합에서 양쪽
+endpoint가 window 안에 있는 서로 다른 pair만 센다. Window workspace≥95%, workspace 내부
+unknown 없음이 count 평가 조건이며 관계에는 알려진 물체 depth가 모두 유효해야 한다.
+이는 관측된 투영 접경이지 물리적 접촉·지지·숨은 가림 관계가 아니다.
+
+96px에서 같은 영상·같은 count≥2를 가진 window가 5개 이상인 **3,225그룹 중 3,037그룹(94.17%)**에서
+관계 수가 달랐다. Count 외의 관측 차이를 보여주며 면적·형상을 통제한 인과 실험이나 탐색 효용은 아니다.
+48/96/160px의 count MAE는 0.452506/0.279495/0.464726, 관계 수 MAE는 0.523765/0.728926/1.265518이다.
+각 window의 full GT와 block 근사를 비교한 값으로, 공통 정답·유효영역을 고정한 최적 범위 비교가 아니다.
+Support 4/8/16의 전체 접경 pair는 9,451/8,852/7,656개이며, 8,852 pairs 중 깊이 방향이 80% 이상
+일치한 pair는 δ=5/10/20mm에서 7,427/6,366/4,747개다. 면적과 접경 이웃 수의 key 평균 Spearman은
+0.405692이므로 크기와 독립적인 보편 Complexity로 해석하지 않는다.
+
+**다음 Step:** Frozen DINO를 유지하면서 mixed patch·경계·물체 소속/grouping 표현을 비교한다.
+하나의 patch에 여러 물체 정보를 유지하거나 RGB-D로 경계를 보정하는 후보를 실제 grouping 품질,
+coverage, 접경 pair 보존으로 평가한다. Count와 관계는 별도 감독 후보로 유지하며 임의 가중합의
+최종 Complexity scalar를 만들지 않는다. 단일 RGB-D 추론 조건을 유지한다. 추가 VLM/SAM,
+다중 뷰 teacher/student, 최종 Complexity 학습, three-stream fusion·DRL은 실행하지 않았다.
+Soft grouping·경계 보완은 구현 후보이며 관계를 직접 예측하는 경로도 열어 둔다.
+Segmentation을 필수 선행 단계나 최종 모델로 확정하지 않는다.
+
+**직접 근거:** `docs/complexity_results/joint_diagnostic_20260918.md`,
+`outputs/complexity_joint_diagnostic_20260918_v1/{protocol,thresholds_locked,test_entry_verification,summary,audit,completion}.json`.
+같은 run의 `dense/manifest.json`은 val 캐시 재사용·test frozen feature 준비 기록이다. 기존 pair의
+val 272개/test 252개 X·cosine 최대 차이는 0이었다. `audit.json`은 13개 score의 metric·threshold·
+key/seed 집계·pair 균형·offset·hash를 독립 재계산해 통과했다. Raw GT 관계 생성 전체의 독립 재계산은
+아니며 관계 모듈은 별도 fixture/invariant로 검사했다. Unit tests 11개가 통과했다.
+
+그림 원본은 같은 run의 `panels/joint_scene_relations.png`, `panels/joint_anchor_affinity.png`다.
+첫 test key·category별 첫 pool·center view를 사전 고정했다. Affinity의 anchor는 GT로 고른 것이며
+반경 8 patches의 3-seed mean logit sigmoid는 보정된 면적 비율·확률이 아니다. Mixed/background를
+포함하는 그림은 정량 평가 밖의 정성 참고다. 공개 복사본 이름은 `img/complexity/joint_scene_relations_20260918.png`,
+`img/complexity/joint_anchor_affinity_20260918.png`이며 게시 상태는 이번 publication manifest로 확인한다.
+`experiments/complexity_joint_diagnostic/` 코드, checkpoint, NPZ, dense cache는 로컬에만 보존한다.
 
 ### 9. 실행 환경과 기본 명령
 
@@ -1429,7 +1537,7 @@ conda activate haneul
 cd <DEV_ROOT>
 ```
 
-이전 실행에서 확인한 environment 기록(2026-09-18에는 package·CUDA를 재점검하지 않음):
+이전 실행에서 확인한 environment 기록(Phase 37의 실제 runtime 재확인 범위는 아래 참고):
 
 - Python 3.14.4
 - PyTorch 2.12.0 + CUDA 13.0 build
@@ -1442,6 +1550,9 @@ cd <DEV_ROOT>
 
 Agent sandbox에서는 `torch.cuda.is_available()`가 False로 보일 수 있다. 이를 실제 terminal의 GPU
 부재로 해석하지 말고 `nvidia-smi`와 사용자의 shell에서 다시 확인한다.
+2026-09-18 Phase 37에서는 권한 확장 후 RTX 5090의 frozen DINO 추론을 완료했다.
+`dense/manifest.json`의 실제 runtime은 torch 2.12.0+cu130, CUDA 13.0, NumPy 2.4.6, OpenCV 5.0.0이다.
+그 외 package 버전 전체를 재설치·재검증했다는 뜻은 아니다.
 
 #### Similarity training
 
@@ -1540,8 +1651,9 @@ Inference는 run protocol의 고정 workspace/empty-depth reference와 local DIN
 `pytest` package가 없어 `python -m pytest`는 실행되지 않았다. Tests가 통과했다고 보고하면 안 된다.
 이는 당시 전체 suite의 상태다. 2026-09-07 Complexity cue 수정에서는 Python `unittest`의 17개
 counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusion 전체 suite 통과로 확대하지 않는다.
-2026-09-18에는 문서·경로·기존 manifest와 결과 JSON을 정적으로 대조했다. Package 설치 상태,
-학습·GT 생성·모델 평가·test suite는 새로 실행하지 않았다.
+2026-09-18 첫 handoff 작업에서는 문서·경로·기존 manifest를 정적으로 대조했다. 이후 승인된
+Phase 37에서는 frozen feature 추론·readout 평가·GT 관계 진단과 unittest 11개를 실행했다.
+독립 `audit.json`은 통과했으며 범위는 8.9절에 명시했다. 학습이나 과거 전체 test suite의 재실행은 아니다.
 
 ---
 
@@ -1604,6 +1716,9 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 - 2026-09-18 첫 요청은 새 agent를 위한 로컬 handoff 최신화였으며 해당 작업에서 공개본은 유지했다.
   이후 요청으로 다중 뷰 논의를 공개 Complexity에 추가하고 공개 통합본도 갱신한다. 이는 문서 게시이며
   다중-view 모델의 구현·학습을 요청하거나 최종 Complexity GT를 승인한 것으로 확대하지 않는다.
+- 같은 날 후속 요청으로 실제 공동 진단을 실행했고 Phase 37의 유의미한 결과·사진 공개도 승인되었다.
+  `complexity_stream.md`와 `development_log.md`를 갱신하고 공개 `agent.md`를 맞춘다.
+  코드·checkpoint·NPZ·dense cache는 공개하지 않으며 commit·push 확인은 이번 publication manifest에 남긴다.
 - 목적 → 방법 → 왜 이 방법인가 → 결과 → 한계 → 다음 Step 흐름을 지킬 것
 - “수렴하는 경향을 보였습니다”보다 “수렴하는 경향을 보임” 같은 간결한 문체 선호
 - 단순히 model 이름이나 64-D/68-D를 쓰지 말고 각 차원이 무엇인지 설명할 것
@@ -1635,7 +1750,9 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 
 공개 stream별 이미지는 `img/similarity/`, `img/occlusion/`, `img/complexity/`의 세 폴더에 직접 저장한다.
 전체 architecture처럼 여러 stream에 공통인 그림은 `img/` root에 둔다. 기존 53개 asset은 그대로
-유지하며 공통 구조도 PNG·SVG 두 개를 추가한 inventory는 55개다. 모든 그림은 상대경로로
+유지하며 공통 구조도 PNG·SVG 두 개를 추가했을 때 inventory는 55개였다. Phase 37의 결과 PNG
+두 개를 더한 inventory는 57개이며 파일·게시 검증은 `docs/public_agent_context_joint_diagnostic_20260918.json`을 따른다.
+모든 그림은 상대경로로
 참조한다. 다른 repo에 복사하기 쉽도록 실험별 하위 폴더는 만들지 않으며 단계 구분은
 파일명으로 한다. Output의 절대경로만 Markdown에 넣으면 GitHub에 image가 나타나지 않는다.
 Markdown 표시용 PNG와 SVG 벡터 보존본을 함께 보관하되, 다른 repo의 문서 표시에는 참조된 PNG만
@@ -1657,9 +1774,10 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 5. GPU가 필요한 작업은 실제 terminal에서 CUDA visibility를 확인한다.
 6. 장시간 생성·학습 전 smoke/preflight, output root, overwrite 방지, 예상 시간을 확인한다.
 7. 결과를 볼 때 metric 정의, sample 수, target seen/unseen, scene split, camera correlation을 함께 기록한다.
-8. Current priority는 경계·분리된 조각·다중 물체 관계에서 구체적으로 누락된 능력을 분리한 뒤
-   사전학습 표현 보완을 검토하는 것이다. Phase 36 A의 순수 patch 성공을 전체 구조 이해로
-   확대하지 않는다. B/C는 미실행이며 density pilot을 보존하되 구조적 GT·fusion은 미검증이다.
+8. Current priority는 Phase 37을 바탕으로 frozen DINO를 유지해 mixed patch·경계·물체 소속/grouping
+   표현을 검증하는 것이다. 순수 patch 대응과 GT 접경 진단을 전체 구조 이해로 확대하지 않으며,
+   majority-block 결과를 DINO 성능 상한으로 쓰지 않는다. 추가 VLM/SAM·다중 뷰 teacher/student·
+   구조적 Complexity 최종 학습·fusion은 미실행이다.
 9. Occlusion 구조를 다시 복잡하게 만들기 전 adaptive GT baseline이 해결하지 못한 구체적 failure를
    actual scene/GT/prediction panel로 먼저 입증한다.
 10. 공개 반영이 요청된 작업에서는 관련 문서·그림과 필요한 코드만 Git clone에 선택적으로 복사하고
@@ -1707,11 +1825,21 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 - `experiments/complexity_definition/representation_probe_split_20260916.json`
 - `docs/complexity_results/representation_plan_20260916.md`: A 완료, B/C 미실행·도입 보류
 
+#### Complexity Phase 37 joint diagnostic evidence
+
+- `docs/complexity_results/joint_diagnostic_20260918.md`: 완료 범위·표본·metric·그림 해석·다음 Step
+- `outputs/complexity_joint_diagnostic_20260918_v1/{summary,audit,completion}.json`
+- 같은 run의 `protocol.json`, `thresholds_locked.json`, `test_entry_verification.json`, `dense/manifest.json`
+- 같은 run의 `val_pairs.npz`, `test_pairs.npz`, `*_metrics.json`, `*_relations.json`, `*_coverage.json`
+- 같은 run의 `panels/joint_scene_relations.png`, `panels/joint_anchor_affinity.png`
+- `experiments/complexity_joint_diagnostic/`: 로컬 실행·GT 관계·어려운 pair·audit·unit tests·renderer
+- `docs/public_agent_context_joint_diagnostic_20260918.json`: 공개 통합본·그림 복사·게시 상태 기록 위치
+
 #### Historical research details
 
 - Similarity snapshots: `code_260721`, `code_260727`, `code_260728_ver2-이게 shortcut없는 최종버전`
 - Occlusion archive index: `legacy/occlusion/README.md`
-- Historical Development Log: `2D-PDM_DINOv3_git/development_log.md`, Phase 1–36 (`##` 제목)
+- Historical Development Log: `2D-PDM_DINOv3_git/development_log.md`, Phase 1–37 (`##` 제목; 공개 상태는 해당 manifest 확인)
 - Phase 33–36: 이 문서 8절과 각 Complexity run의 structured evidence
 - Raw evidence routing: `PROJECT_LOG_INDEX.md`
 
@@ -1719,10 +1847,10 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 
 <a id="development-history"></a>
 
-## B. Phase 1–36 Development Log 전체
+## B. Phase 1–37 Development Log 전체
 
 > 원본: `<REPO_ROOT>/development_log.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를 시간순으로 기록함. 각 Phase는 단순 모델 목록이 아니라 **왜 문제가 되었는지 → 무엇만 바꿨는지 → 결과가 무엇을 뜻하는지 → 다음 Step은 무엇인지**를 설명함.
 
@@ -2818,18 +2946,102 @@ DINO+depth는 depth보다 same-category AUROC가 +0.225025 높았고 8/8 keys에
 
 **다음 Step:** 현재 순수 patch 지표는 거의 포화되어 B/C의 추가 효과를 판별하기 어려움. 물체 내부 구분을 위한 모델 추가는 보류하고, 실제 더미의 경계·분리된 조각의 소속·다중 물체 관계 중 어떤 능력이 부족한지 평가부터 고정함. 관측 가능한 관계 label의 품질을 확인한 뒤 같은 평가·region 조건에서 물체 묶음과 공간 표현의 추가 가치를 비교함. SAM/VLM이 불필요하다는 결론은 아니며 **B/C 모델 실행·새 Complexity GT 채택·fusion은 미완료**임. 이번 공개는 README와 두 비교 그림으로 한정하고 실험 코드·checkpoint·원시 자료는 로컬에 보존함.
 
+### Phase 37 — DINO의 어려운 물체 대응과 가시 관계 정량화 공동 진단 (2026-09-18)
+
+**목적:** 같은 실제 cluttered scene에서 물체 구분과 Complexity 후보를 병행 검증함. 물체 구분은 기존 DINO readout으로 검사하고, 관계 기준은 정확한 GT 물체 ID를 주어 계산함. 여기에 GT를 16×16 block당 하나의 물체로 바꾸는 근사를 대조하여, 모델 오류와 출력 표현의 문제를 분리함.
+
+**확인 결과:** 경계 근처·외형 변화가 있는 순수 patch에서도 기존 DINO의 가시 asset 대응을 확인함. 같은 국소 count에서 서로 다른 접경 관계가 나타남도 확인함. 반면 정확한 GT를 사용해도 block마다 한 label만 남기면 접경 관계가 변함. 따라서 다음 구현은 frozen DINO를 유지하면서 혼합 patch·경계·물체 묶음의 표현을 보완하는 방향으로 좁힘.
+
+#### 실행과 평가 조건
+
+- Phase 36과 같은 validation **320영상**, test **640영상**. 기존 16 pools×5 views, validation/test **4/8 scene keys**, 기존 readout **3 seeds**임.
+- 기존 test 장면의 새로운 진단임. 새로운 blind test, unseen-object 평가 또는 640개 독립 scene으로 해석하지 않음.
+- Encoder·12개 readout을 재사용하며 재학습하지 않음. 기존 저장 pair의 val 272개·test 252개 입력 X/cos 재현에서 최대 차이 **0**을 확인함.
+- 두 위치는 purity≥90%, workspace·유효 depth≥95%, 간격1–8 patches임. 양/음의 정확한 XY offset·anchor category·depth 차이 구간·negative category를 맞춤. Family당 영상별 최대64개의 양/음 묶음을 표집함.
+- Validation에서 두 종류 오류율의 평균인 balanced error가 최소인 threshold를 모델별로 고정함. Test 전에 threshold·protocol·source·checkpoint hash를 검증함.
+
+#### DINO의 어려운 위치쌍 판별
+
+아래는 **same-category** 결과임. View별 지표→key 내 pool/view 평균→keys 동일 평균→3 seeds 평균이며 모든 학습 비교군에 위치 정보가 포함됨.
+
+| 평가 조건 | Pairs / views / keys | DINO AUROC | Depth AUROC | RGB-D AUROC | DINO 같은→다름 오류 | DINO 다름→같음 오류 |
+|---|---:|---:|---:|---:|---:|---:|
+| 접경에서16px보다 먼 내부 | 17,108 / 438 / 8 | 0.999963 | 0.836209 | 0.999958 | 0.056% | 1.375% |
+| 접경16px 이내의 순수 patch | 37,856 / 602 / 8 | **0.998789** | 0.747029 | 0.998715 | 0.539% | 3.161% |
+| 평균 RGB 차이가 큰 patch | 30,870 / 584 / 8 | **0.998166** | 0.766375 | 0.998197 | 1.160% | 2.685% |
+| 같은 asset의 분리된 가시 조각 | 852 / 47 / 7 | **1.000000** | 0.751869 | 1.000000 | 4.274% | 0.786% |
+
+외형 변화는 0–1 RGB patch 평균의 L2 차이≥0.15이며 무늬의 의미를 판정한 기준은 아님. 분리 조각은 같은 asset label의 서로 다른8-connected component로 정의하며, 분리 원인을 가림으로 확정하지 않음. 전체159,192 test pairs에는 different-category와 family 간 중복이 포함됨.
+
+학습 없는 DINO cosine AUROC는 위 순서로0.918370 / 0.921420 / 0.834149 / 0.958109였음. 기존 readout은 어려운 순수 patch에서도 raw cosine보다 잘 구분함. RGB-D의 DINO 대비 일관된 우위는 이 대응 과제에서 나타나지 않았음. Depth가 공간 관계에 쓸모없다는 뜻은 아님.
+
+분리 조각은 AUROC1이지만 공통 validation threshold에서 같은→다름 오류4.274%가 남음. 평가도47 views/7 keys로 제한됨. 오류율은 **위치쌍 판정 오류**이며 전체 segmentation의 물체 분할·병합률이 아님.
+
+![Phase37 fixed-anchor affinity](img/complexity/joint_anchor_affinity_20260918.png)
+
+첫 test key·category별 첫 pool·center view를 고정함. 그 장면에서 적격 patch가 가장 많은 물체의 가장 안쪽 patch를 anchor로 고름. 열은RGB / 실제 anchor 물체의 patch 내 면적 비율 / DINO affinity / RGB-D affinity임. 반경8 patches만 표시하며 score는3-seed mean logit의 sigmoid임. 보정된 면적 비율이나 확률이 아님. GT는 anchor 선택·비교에만 사용하고 predictor에 ID를 넣지 않음. 그림에는 mixed·background 등 정량 평가 밖 위치도 있어 정성 참고로 구분함. 자동 anchor/grouping 또는 어려운 사례 대표 성능을 보여 주는 그림은 아님.
+
+#### 혼합 patch와 단일-label block 근사의 영향
+
+알려진 foreground128,380 patches 중 순수·유효한54,429개(**42.40%**)가 pair 평가 대상임. 두 물체가 각각 patch의10% 이상 들어 있는 경우는20,469개(**15.94%**)임. 나머지 부적격 patch에는 물체–배경 혼합·unknown·workspace/depth 조건도 포함됨.
+
+GT를16×16 block당 다수 label 하나로 바꾸고 full-pixel GT의 접경과 비교함. Unknown·background도 block 투표의 후보에 포함함.
+
+| GT-majority block 근사 | 결과 |
+|---|---:|
+| 접경 pair precision | **0.804652** |
+| 접경 pair recall | **0.845858** |
+| 물체별 접경 이웃 수 MAE | 0.584765개 |
+| 알려진 foreground pixel label 일치율 | 0.846709 |
+| Block 근사에서 사라진 object-view | 606 / 8,446 (**7.175%**) |
+
+Precision은 근사에서 생긴 접경 중 실제GT에도 있었던 비율, recall은 실제 접경 중 근사에도 남은 비율임. View→key 동일 평균이며 object-view 누락은 전체 개수 비율임. **DINO를 거치지 않은 GT 변환 실험이므로 이 값을 DINO segmentation 성능이나 달성 가능한 성능의 상한으로 해석하지 않음.** 향후 grouping을 block당 한 label로 구성할 때 생기는 손실을 확인한 것임. 기존 density pilot은 RGB-D에서 count를 직접 예측하며 이 변환을 사용하지 않으므로, 현재 density 모델의 오류 원인을 증명한 결과와 구분함.
+
+#### Count에 추가되는 관계 정보
+
+수평·수직으로 이웃한 pixel이 서로 다른 알려진 물체이고 양쪽 workspace·depth가 유효할 때 가시 접경을 기록함. 같은 물체 내부의 무늬는 제외됨. 기본은 scene 전체 pair support≥8이며4/16도 검사함. 이는 영상상의 관측 접경으로, 물리적 접촉·지지·숨은 가림 GT가 아님.
+
+Count는 전체scene32px·window16px 이상인 물체를 셈. Local 관계 수도 **양쪽 물체가 같은 면적 조건을 만족**하고 두 endpoint가 window에 포함된 pair만 한 번 셈. Count에서 제외된 작은 물체 때문에 관계만 늘어나는 비교 교란을 방지함. Workspace≥95%·unknown 없음·관계의 depth 유효성을 적용하고, invalid와0관계를 구분함.
+
+![Phase37 visible relations and oracle grid](img/complexity/joint_scene_relations_20260918.png)
+
+열은RGB / pixel GT /16px GT-majority /96px count /그 count에 포함된 물체 사이의 접경 pair 수임. 장면 선택은 위와 동일하게 사전 고정함. 흰 map 영역은 정답 유효성에서 제외된 위치이며 복잡도가0이라는 뜻이 아님. 두 map은 관측량 후보로서 최종 Complexity prediction이 아님.
+
+96px에서 같은 영상·같은count≥2의 window가5개 이상인3,225개 그룹 중 **3,037개(94.17%)에서 관계 수가 달랐음.** Count와 관계가 동일한 정보를 반복하지 않는다는 결과임. 물체 종류·형상·면적까지 통제한 배치 인과 실험이나 탐색 효용 검증으로 확대하지 않음.
+
+| Window | 같은 count 그룹 / 관계가 달라진 그룹 | GT block count MAE | GT block 관계 수 MAE |
+|---|---:|---:|---:|
+| 48px | 2,151 / 2,110 | 0.452506 | 0.523765 |
+| 96px | 3,225 / 3,037 | 0.279495 | 0.728926 |
+| 160px | 2,744 / 2,552 | 0.464726 | 1.265518 |
+
+범위별 정답·유효 위치가 달라 이 표로 최적 window를 선정하지 않음. 기본 support8의 전체 가시 pair는8,852개이며 support4/16에서는9,451/7,656개였음. Scene 전체 pair의 한쪽 깊이 방향이80% 이상인 것은 δ5/10/20mm에서7,427/6,366/4,747개였음. 깊이 순서는 local 관계 수와 합치지 않음. δ는 민감도 검사 값이며 실센서 노이즈를 반영한 최종 기준이 아님.
+
+보이는 면적과 접경 이웃 수의 view→key 평균 Spearman은 **0.405692**임. 관계 수가 크기와 무관한 보편적 Complexity라는 근거는 확보하지 않았음.
+
+#### 판단·검증·다음 Step
+
+**추가 encoder를 즉시 도입하기보다 frozen DINO를 유지하고, 혼합 patch·경계·물체 묶음의 표현을 보완함.** 한 patch에 여러 물체가 있다는 정보를 유지하는 소속 표현이나 RGB-D 경계 보정을 비교하고, 실제 grouping·coverage·접경 pair 보존을 함께 평가하는 것이 다음 Step임.
+
+Count와 관계는 분리된 감독 후보로 유지함. 이웃 수·앞뒤 순서를 임의 가중합한 최종 GT는 만들지 않았음. 추가VLM/SAM·다중뷰teacher·새Complexity학습·fusion·DRL은 이번 실험에 포함되지 않음.
+
+- Unit tests **11개 통과**. 기존 pair 입력 재현·shape·finite·hash를 확인함.
+- `audit.json`에서13개 score의 AUROC·threshold·오류율·scene-key/seed 집계·양/음offset균형을 독립 재계산하여 통과함. 관계 생성은 별도의 invariant·전수 fixture 검사로 확인함.
+- 직접 근거: 로컬 `outputs/complexity_joint_diagnostic_20260918_v1/`의 protocol, threshold lock, test entry, pair NPZ, metrics, coverage, relations, summary, audit와panels. 상세 보고서: `docs/complexity_results/joint_diagnostic_20260918.md`(공개`agent.md`에 본문 포함).
+- 이번 공개는 완료된Phase37 설명·그림2장·연구 문맥에 한정함. 실행코드·checkpoint·dense cache·원시NPZ는 로컬에 보존함.
+
 ---
 
 ## C. Complexity 가정·진단·실행 계획 상세 기록
 
-아래 여섯 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
+아래 일곱 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
 
 <a id="definition-review"></a>
 
 ### C1. Complexity 정의와 문헌 재검토
 
 > 원본: `<DEV_ROOT>/docs/complexity_results/definition_review_20260908.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 > 2026-09-16 상태 주석: 아래는 09-08 당시의 가정과 문헌 검토다. 후속 Phase 34에서 면적 통제에
 > 실패했고, Phase 35에서 물체 평균 근접도의 정적 제거 효용 상관은 약했다. Phase 36 A는 순수
@@ -2973,7 +3185,7 @@ Similarity는 target과의 시각·의미 관계, Occlusion은 해당 target이 
 ### C2. Phase 34 관측 표면 근접도 진단
 
 > 원본: `<DEV_ROOT>/docs/complexity_results/relational_diagnostic_20260908.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 > 2026-09-16 후속 상태: 아래 정적 제거 제안은 Phase 35에서 수행했고, 물체 평균 근접도는
 > 채택 근거가 부족했다. 이후 Phase 36 A 표현 진단까지 완료했다. 당시의 다음 Step과 현재
@@ -3090,7 +3302,7 @@ MPLCONFIGDIR=/tmp/complexity_mpl <CONDA_ROOT>/envs/haneul/bin/python \
 ### C3. Phase 35 실제 더미의 정적 제거 진단
 
 > 원본: `<DEV_ROOT>/docs/complexity_results/clutter_removal_20260916.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 > 2026-09-16 후속 상태: 아래 방향 정보 제안 이후 사용자 정정으로 표현 보완의 필요성 진단을
 > 우선했다. Phase 36 A까지 완료했고 B/C는 미실행이다. 방향 GT·최소 제거 횟수는 채택하지 않았다.
@@ -3179,7 +3391,7 @@ MPLCONFIGDIR=/tmp/complexity_mpl <CONDA_ROOT>/envs/haneul/bin/python \
 ### C4. Phase 36 A 표현 진단 완료 보고서
 
 > 원본: `<DEV_ROOT>/docs/complexity_results/representation_probe_20260916.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 2026-09-16. **현재 DINO feature에서 가시 asset 대응 정보는 잘 읽힌다.** 이 결과는 Complexity
 정답을 확정하거나 공간 관계 이해를 검증한 결과가 아니다. A/B/C 계획 중 A 진단만 완료했다.
@@ -3295,7 +3507,7 @@ B/C 구현 일부와 계획은 로컬에 보존했다. SAM2 tiny 약156MB 다운
 ### C5. A/B/C 계획과 현재 미실행 범위
 
 > 원본: `<DEV_ROOT>/docs/complexity_results/representation_plan_20260916.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 2026-09-16 갱신. 사용자 설명을 반영한 A/B/C 계획 중 **A 진단만 완료**했다.
 B/C는 미실행이며 새 GT·모델은 채택하지 않았다. 실제 결과는
@@ -3418,7 +3630,7 @@ B/C의 region은 RGB-D에서 추정하고 공유한다. GT mask로 영역을 제
 ### C6. 추가 모델 실행 가능성 조사와 준비 상태
 
 > 원본: `<DEV_ROOT>/docs/complexity_results/spatial_model_feasibility_20260916.md`
-> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C4를 우선한다.
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
 
 > 후속 상태: 아래 최소 smoke는 당시 실행 가능성 조사에서 제안한 경로다. 이후 Phase 36 A의
 > 순수 patch 진단이 거의 포화되어 그 과제로 B/C를 도입하는 것은 보류했다. 현재 다음 Step은
@@ -3516,6 +3728,122 @@ latency/peak VRAM이다. 실제 모델 출력·속도·메모리는 아직 측�
 
 ---
 
+<a id="joint-diagnostic"></a>
+
+### C7. Phase 37 물체 대응·가시 관계 공동 진단
+
+> 원본: `<DEV_ROOT>/docs/complexity_results/joint_diagnostic_20260918.md`
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A/C7을 우선한다.
+
+2026-09-18. **경계에 가까운 순수 patch·외형 차이가 큰 patch에서도 기존 DINO 표현의 가시 asset 대응을 확인함. 같은 국소 count에서 서로 다른 접경 관계가 관측됨도 확인함.** 한편 GT를 16×16 block당 한 label로 줄이는 과정만으로 접경이 사라지거나 새로 생기는 것을 정량화함. 다음 구현의 우선순위는 frozen DINO를 유지하면서 혼합 patch·경계·물체 묶음의 표현을 보완하는 것임. 추가 encoder·최종 Complexity scalar·fusion을 채택한 실험은 아님.
+
+#### 목적과 범위
+
+물체 구분 오류와 Complexity 정의의 문제를 동일한 실제 cluttered asset scene에서 분리함.
+
+- **A: RGB-D 표현 평가.** 기존 Phase 36의 frozen encoder·12개 readout을 재사용하여 어려운 위치쌍을 판별함. 추가 학습 없음.
+- **B: GT 관계 진단.** 색 충돌을 unknown으로 제외한 물체 ID·depth로 count, 관측 접경, 접경의 깊이 순서를 계산함. GT 계산이며 RGB-D만으로 관계를 추론한 결과는 아님.
+- **C: 단일-label block 근사.** 정확한 pixel GT를 각 16×16 영역의 다수 label 하나로 바꾼 뒤 관계를 다시 계산함. DINO 예측이나 DINO feature의 표현 한계가 아니라, patch마다 물체 하나를 강제하는 변환의 영향임.
+
+Phase 36과 동일한 validation 4 keys×16 pools×5 views=320영상, test 8 keys×16 pools×5 views=640영상을 사용함. 모든 16개 기존 asset은 학습 pool에 포함되어 있음. 이미 확인한 test 장면의 새 진단이며 새로운 blind benchmark나 unseen-object 평가가 아님. 같은 key의 view·pool은 함께 집계함.
+
+#### A. 물체 대응 평가
+
+두 위치 모두 하나의 알려진 물체가 patch 면적의 90% 이상, workspace·유효 depth 각각 95% 이상인 조건임. 위치쌍 간격은 기존 학습 범위인 1–8 patches로 유지함. 각 family에서 양성·음성의 signed XY offset, anchor category, depth 차이 구간, 음성의 same/different category를 맞춤. 영상·family마다 최대 64개의 양/음 묶음을 표집함.
+
+| Family | 선정 규칙 |
+|---|---|
+| 내부 대조 | 양쪽 patch 중심이 알려진 서로 다른 물체의 접경에서 16px보다 멂 |
+| 경계 주변 | 한쪽 이상 중심이 해당 접경에서 16px 이내. 여전히 purity≥90%인 patch임 |
+| 외형 변화 | 두 patch의 평균 RGB 차이의 L2 norm≥0.15; RGB는 0–1. 양/음에 같은 조건을 적용함. 무늬의 의미를 판정한 기준은 아님 |
+| 분리된 가시 조각 | 양성은 같은 asset의 서로 다른 8-connected visible component에 속함. 조각이 나뉜 원인을 가림이라고 확정하지 않음 |
+
+출력은 same-asset logit임. 기존 train-only 정규화·clip·modality 제외 규칙과 checkpoint를 유지함. Validation에서 scene key→family→view에 동일 비중을 주는 balanced error가 최소인 threshold를 모델별로 선택한 뒤 test 전에 고정함. Balanced error는 같은 물체를 다르다고 판단한 비율과 다른 물체를 같다고 판단한 비율의 평균임.
+
+아래는 **same-category 조건**, view별 지표→key 평균→keys 동일 평균→3 seeds 평균임. DINO/RGB-D/depth 비교군은 모두 position 입력을 포함함. Family 간 같은 pair가 재사용될 수 있어 표본을 독립 관측으로 합산하지 않음.
+
+| 평가 | Pairs / views / keys | DINO AUROC | Depth AUROC | RGB-D AUROC | DINO 같은→다름 | DINO 다름→같음 |
+|---|---:|---:|---:|---:|---:|---:|
+| 내부 대조 | 17,108 / 438 / 8 | 0.999963 | 0.836209 | 0.999958 | 0.056% | 1.375% |
+| 경계 주변 | 37,856 / 602 / 8 | **0.998789** | 0.747029 | 0.998715 | 0.539% | 3.161% |
+| 외형 변화 | 30,870 / 584 / 8 | **0.998166** | 0.766375 | 0.998197 | 1.160% | 2.685% |
+| 분리된 가시 조각 | 852 / 47 / 7 | **1.000000** | 0.751869 | 1.000000 | 4.274% | 0.786% |
+
+전체 test pair는 different-category와 family 중복을 포함해 159,192개임. 학습 없는 DINO cosine의 같은 순서 AUROC는 0.918370 / 0.921420 / 0.834149 / 0.958109임. 기존 학습 readout이 raw cosine보다 일관되게 높은 판별력을 보임. RGB-D의 DINO 대비 일관된 우위는 이 대응 과제에서 나타나지 않았으며, depth의 공간 관계 역할까지 부정하는 결과는 아님.
+
+분리 조각은 순위 AUROC 1이지만 공통 validation threshold 적용 시 같은→다름 오류가 남음. 표본도 47 views/7 keys로 작음. 전체 물체 연결을 완벽히 해결했다고 해석하지 않음. 위 오류율은 **위치쌍 판정 오류율**이며 실제 segmentation의 물체 병합·분할 비율은 아님.
+
+#### Coverage와 GT block 근사
+
+알려진 foreground를 포함한 128,380 patches 중 순수성·입력 유효성 조건을 만족한 것은 54,429개(**42.40%**)임. 서로 다른 두 물체가 각각 10% 이상 들어 있는 patch는 20,469개(**15.94%**)임. 나머지 부적격 patch에는 물체–배경 혼합·unknown·workspace/depth 조건 등이 포함되므로 모두 두 물체 혼합이라고 부르지 않음.
+
+GT block 근사는 unknown·background도 후보에 포함하여 block마다 다수 label 하나를 선택함. 물체 ID를 정확히 알아도 이 변환으로 얇은 조각·작은 틈·접경이 변할 수 있음.
+
+| Pixel GT 대비 16px GT-majority 결과 | 값 |
+|---|---:|
+| 접경 pair precision | **0.804652** |
+| 접경 pair recall | **0.845858** |
+| 물체별 접경 이웃 수 MAE | 0.584765개 |
+| 알려진 foreground pixel의 label 일치율 | 0.846709 |
+| Block 근사에서 사라진 object-view | 606 / 8,446 = 7.175% |
+
+Precision은 block 근사에서 생긴 접경 중 원래 GT에도 있었던 비율, recall은 원래 접경 중 block 근사에도 남은 비율임. View→key 동일 평균이며 object-view 누락은 전체 개수 비율로 별도 집계함. **80.47%/84.59%는 DINO의 segmentation 성능도, DINO로 달성할 수 있는 성능의 상한도 아님.** 하나의 feature가 여러 물체 정보를 담거나 더 높은 해상도로 decode할 가능성과 구분함. 기존 density pilot은 RGB-D에서 count를 직접 예측하며 이 block-label 변환을 사용하지 않음. 이번 결과는 향후 grouping을 이렇게 구성할 때의 손실이며 현재 density 모델의 오류 원인을 증명한 것은 아님.
+
+#### B. 가시 관계의 정량화와 확인 결과
+
+수평·수직으로 이웃한 두 pixel이 서로 다른 알려진 물체 ID이고, 양쪽 모두 workspace 안이며 유효 depth일 때 접경을 기록함. 같은 물체의 글자·무늬 경계는 포함하지 않음. 한 물체 쌍의 전체 scene 접경 support≥8을 기본 조건으로 삼고 4/16도 함께 검사함. Support는 서로 다른 두 물체에 속하는 수평·수직 이웃 pixel 쌍의 수임. 이는 영상에서의 가시 인접 관계이며 물리적 접촉·지지 또는 숨은 가림 관계가 아님.
+
+각 48/96/160px window에서 다음을 계산함.
+
+1. **Count:** scene 전체 32px 이상, 해당 window 16px 이상 보이는 알려진 물체 수.
+2. **Count와 같은 물체 집합의 관계 수:** 두 물체가 각각 위 count 조건을 만족하고, 접경 양쪽 endpoint가 window 안에 함께 있는 서로 다른 물체 쌍의 수. 같은 pair는 한 번 셈.
+3. **깊이 순서:** scene 전체의 각 pair에 대해 `depth(second)-depth(first)`를 계산하고 ±δ 밖/안의 비율을 각각 앞·뒤·불명확으로 기록함. Local 관계 수와 합산하지 않음.
+
+Window 면적의 95% 이상이 workspace이고 workspace 내부 unknown이 없는 경우 count를 평가함. 관계 평가는 추가로 해당 window의 알려진 물체 depth가 모두 유효해야 함. 배경을 평균에 섞어 값을 낮추는 방식이 아님. Invalid와 0관계를 구분함.
+
+**96px에서 같은 영상·같은 count≥2를 갖는 window가 5개 이상인 3,225개 그룹 중 3,037개(94.17%)에서 관계 수가 달랐음.** Count와 관계 수가 동일한 정보를 반복하지 않는다는 관측임. 물체 종류·형상·면적까지 고정한 인과 실험이나, 관계 수가 높은 쪽이 반드시 더 복잡하거나 탐색에 유리하다는 증거는 아님.
+
+| Window | 같은 count 그룹 / 관계 수가 달라진 그룹 | GT block 근사의 count MAE | 관계 수 MAE |
+|---|---:|---:|---:|
+| 48px | 2,151 / 2,110 | 0.452506 | 0.523765 |
+| 96px | 3,225 / 3,037 | 0.279495 | 0.728926 |
+| 160px | 2,744 / 2,552 | 0.464726 | 1.265518 |
+
+오차는 각 크기의 full-pixel GT와 block 근사를 비교한 값임. 범위별 정답·공통 유효 위치가 달라 최적 window 순위로 사용하지 않음. 96px 공통 유효 foreground window는 75,134개임. 같은 count 그룹 통계는 그 부분집합을 사용함.
+
+추가로 후보의 민감도를 확인함.
+
+- Scene 접경 support 4/8/16에서 전체 가시 pair 수는 **9,451 / 8,852 / 7,656**개임.
+- 기본 8,852 pairs에서 한쪽 앞뒤 방향이 80% 이상인 pair는 δ=5/10/20mm일 때 **7,427 / 6,366 / 4,747**개임. δ는 이번 진단의 sensitivity 값이며 실제 depth 센서 노이즈에 맞춘 최종 기준은 아님.
+- 보이는 물체 면적과 접경 이웃 수의 view별 Spearman을 key 단위로 평균하면 **0.405692**임. 관계 수를 크기와 무관한 보편적 Complexity로 바로 해석하지 않음.
+
+#### 그림과 선택 규칙
+
+`panels/joint_scene_relations.png`: RGB / pixel GT / GT-majority block / 96px count / 동일 count 물체 집합의 접경 pair 수. 첫 test key·각 category의 첫 pool·center view를 사전에 고정함. 빈 영역은 GT 유효성 제외임.
+
+`panels/joint_anchor_affinity.png`: 같은 고정 장면에서 적격 patch가 가장 많은 물체를 고르고, 그 물체의 접경에서 가장 먼 적격 patch를 anchor로 선택함. RGB / 실제 anchor-asset 면적 비율 / DINO score / RGB-D score를 표시함. 학습 pair 범위인 반경 8 patches만 표시함. GT는 anchor 선정·비교에 사용하며 물체 ID 자체는 predictor 입력이 아님. Score는 3-seed mean logit의 sigmoid로, 보정된 면적 비율이나 확률이 아님. 그림에는 mixed·background 등 정량 평가 밖 위치도 포함되어 정성 참고로만 읽음. 어려운 장면의 대표 표본이나 자동 anchor/grouping 성능으로 주장하지 않음.
+
+#### 판단과 다음 Step
+
+1. **Frozen DINO 유지.** 경계 근처·외형 변화의 순수 patch 대응을 새 학습 없이 확인했음. 추가 encoder의 필요성을 이 결과에서 도출하지 않음.
+2. **혼합 patch와 경계·물체 묶음 표현을 다음 구현 대상으로 삼음.** 한 patch당 하나의 물체만 확정하는 방식 대신 여러 물체 정보를 유지하는 소속 표현이나 RGB-D 경계 보정을 비교함. 실제 grouping 품질·coverage와 접경 pair 보존을 함께 평가해야 함. 관계를 직접 예측하는 경로도 비교할 수 있어 완성된 segmentation을 필수 선행 단계로 고정하지 않음.
+3. **Count와 관계를 분리된 감독 후보로 유지.** 관계 정보가 count 외의 관측 차이를 담음을 확인했지만 면적·support·depth 기준의 영향이 남음. 방향이나 이웃 수를 임의 가중합한 최종 Complexity GT는 만들지 않음.
+4. 단일 RGB-D 추론을 유지함. 다중 뷰 teacher, 추가 VLM/SAM, 최종 Complexity 학습, fusion·DRL은 이번 실험에 포함되지 않음. 향후 관계 표현이 `Similarity+Occlusion`에 추가했을 때 탐색에 주는 효과를 별도로 검증함.
+
+#### 검증과 재현 근거
+
+- Run: `outputs/complexity_joint_diagnostic_20260918_v1/`
+- `protocol.json`, `thresholds_locked.json`, `test_entry_verification.json`: 평가 전 고정한 조건·validation threshold·test 진입 hash 검증.
+- `dense/manifest.json`: val 캐시 재사용, test frozen feature 추론. 기존 저장 pair의 val 272개·test 252개 입력 X/cos를 재현했으며 최대 차이 0. 모든 cache의 shape·finite·가중치·source·고정 reference 검사.
+- `val_pairs.npz`, `test_pairs.npz`, `*_metrics.json`, `*_relations.json`, `*_coverage.json`, `summary.json`: 원시 판별 점수와 표본·관계·집계.
+- `audit.json`: 13개 score의 AUROC·threshold·위치쌍 오류·scene-key/seed 집계·표본 균형·offset·hash를 독립 재계산하여 통과. Raw GT·relation 생성 자체를 모두 다시 계산한 audit은 아니며, 관계 모듈은 별도 invariant·전수 fixture 검사로 검증함.
+- `experiments/complexity_joint_diagnostic/`: 로컬 실행·GT 관계·어려운 pair·검증·그림 코드. Unit tests 11개 통과. Code·checkpoint·NPZ·dense cache는 공개하지 않음.
+- `report_joint_reviewed.py`: 잠긴 계산 코드를 보존하면서 그림 제목·caption 해석을 검토한 별도 renderer. 이미지 2장을 시각 검토함.
+
+Frozen test feature 준비 약37초, validation 데이터 처리·저장 약38초, test 약75초였음. 최종 집계·그림·audit 시간은 별도임. Epoch polling이나 재학습 없이 완료함.
+
+---
+
 <a id="evidence-index"></a>
 
 ## D. 근거·로그·체크포인트·이미지 색인 전체
@@ -3523,7 +3851,7 @@ latency/peak VRAM이다. 실제 모델 출력·속도·메모리는 아직 측�
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-09-18 (Asia/Seoul); 공개 문서·이미지 55개는 재확인, archive inventory는 이전 점검 기록
+> 마지막 문서 갱신: 2026-09-18 (Asia/Seoul); Phase 37 완료, 기존 55개+결과 PNG 2개=57개; 공개 게시 상태는 이번 manifest 확인
 > 목적: 새 agent가 요약된 결론뿐 아니라 그 결론의 코드, 수치, 이미지와 이전 실험을 직접 추적하도록 안내
 
 ### 1. 이 문서가 보장하는 범위
@@ -3558,17 +3886,18 @@ source로 사용하지 않는다. 원문 대화까지 영구 보존해야 한다
 
 | 항목 | 현재 기준과 직접 근거 |
 |---|---|
-| 마지막 완료 연구 | Phase 36 A probe; `outputs/complexity_representation_probe_20260916_v1/results.json`, `coverage_summary.json` |
-| 이후 변경 | Stream별 문서 분할, Similarity·Occlusion·전체 tensor architecture와 설명 정리; 새 연구 Phase 없음 |
+| 마지막 완료 연구 | Phase 37 어려운 가시 asset 대응·GT 접경 관계 공동 진단; `outputs/complexity_joint_diagnostic_20260918_v1/{summary,audit}.json` |
+| 이전 문서 작업 | Stream별 문서 분할, Similarity·Occlusion·전체 tensor architecture와 설명 정리; 이 작업은 연구 Phase와 별도 |
 | 9월 17일 공개 구조도 | `e19252205f35033a3d503ee74dcd741eeb67b194`; 당시 push·원격 일치 기록은 `docs/overall_architecture_review_20260917.json`의 `publication` |
 | 9월 18일 다중 뷰 검토안 | `complexity_stream.md` 3절 ⑥; 공개 문맥 생성·검증·게시 기록은 `docs/public_agent_context_multiview_20260918.json` |
 | 문서 분할 근거 | `8e39517` 및 `docs/public_agent_context_document_split_20260917.json` |
 | 코드 대조 | 위 architecture review에 기록한 backbone·Similarity·Occlusion·Complexity·depth cues·renderer의 SHA-256 6개가 9월 18일 현재 파일과 일치 |
-| 현재 다음 Step | 실제 더미의 경계·분리된 조각·다중 물체 관계에서 기존 표현의 누락 능력 확인. 동일 위치쌍·정답·공통 유효영역을 고정한 집계 범위 비교는 아직 제안 단계 |
-| 로컬/공개 문맥 | 첫 로컬 갱신 이후 다중 뷰 논의의 공개 추가 요청에 따라 `agent.md`를 재생성함. 로컬 수정과 자동 동기화되는 구조는 아님 |
+| 현재 다음 Step | Frozen DINO를 유지한 mixed patch·경계·물체 소속/관계 표현 검증. Grouping·경계 보완과 관계 직접 예측을 후보로 비교하며 최종 구조·GT는 미확정 |
+| Phase 37 공개 기록 | `complexity_stream.md`·`development_log.md`·`agent.md`와 결과 PNG 2장; 게시 상태는 `docs/public_agent_context_joint_diagnostic_20260918.json`에서 확인. Commit 추정 금지 |
+| 로컬/공개 문맥 | Phase 37 실행·문서/사진 공개 승인에 따라 완료 기록과 통합본을 갱신함. 로컬 수정과 자동 동기화되는 구조는 아님 |
 
-이번 갱신은 기존 근거의 위치·상태를 재확인한 인수인계 작업이다. 학습·GT 생성·모델 평가는
-새로 실행하지 않았으며, 과거 실험의 표본·수치·채택 여부는 변경하지 않았다.
+9월 18일 첫 갱신은 기존 근거의 위치·상태를 재확인한 문서 작업이었다. 이후 승인된 Phase 37에서
+frozen feature 추론·어려운 pair 평가·GT 관계 진단을 완료했다. 추가 학습이나 과거 실험 수치의 소급 수정은 없다.
 
 ### 2. Source-of-truth
 
@@ -3588,7 +3917,7 @@ Working folder와 GitHub clone은 자동 동기화되지 않는다.
 공개 문서 root: <REPO_ROOT>
 전체 개요: README.md
 상세 설명: similarity_stream.md, occlusion_stream.md, complexity_stream.md
-Phase 1–36 이력: development_log.md
+Phase 1–37 이력: development_log.md
 통합 연구 문맥: agent.md
 ```
 
@@ -3607,8 +3936,8 @@ Phase 1–36 이력: development_log.md
 <REPO_ROOT>/development_log.md
 ```
 
-아래 색인은 Phase 1–36을 공개 `development_log.md`와 로컬 실행 근거에 연결한다. 공개 문서의 최신 반영
-범위·commit은 Git에서 확인한다. Complexity Phase 33–36은 `PROJECT_CONTEXT.md` 8절과
+아래 색인은 Phase 1–37을 공개 `development_log.md`와 로컬 실행 근거에 연결한다. 공개 문서의 최신 반영
+범위·commit은 Git에서 확인한다. Complexity Phase 33–37은 `PROJECT_CONTEXT.md` 8절과
 각 working-root run의 실제 결과를 우선한다.
 
 | Phase | 핵심 내용 | 자세한 기록 |
@@ -3639,6 +3968,7 @@ Phase 1–36 이력: development_log.md
 | 34 | 관측 표면 근접도 반례 진단, 면적 통제 실패·GT 미승인 | `development_log.md` Phase 34 사진·결과·실패 기록; 로컬 relational diagnostic v2와 후속 기하 audit |
 | 35 | 실제 cluttered 10 layouts 정적 제거 진단; 물체 평균 근접도 효용 상관 약함 | `development_log.md` Phase 35 사진·표; 로컬 clutter replay v1 공통표본 분석과 Isaac v4 |
 | 36 | Frozen DINO의 순수 patch 가시 asset 대응 A probe; 거의 포화, B/C 미실행·도입 보류 | `development_log.md` Phase 36, Context 8.8, 로컬 representation probe 보고서·results·coverage |
+| 37 | 기존 DINO의 어려운 순수 patch 대응·GT 가시 접경·단일-label block 근사 공동 진단; 추가 학습 없음 | `development_log.md` Phase 37, Context 8.9, 로컬 joint diagnostic 보고서·summary·audit |
 
 `PROJECT_CONTEXT.md`의 `6.7`과 `7.13`은 위 기록을 현재 판단에 필요한 수준으로 압축한 표다.
 2026-09-16 Phase 35 공개 commit은 `1c63f1b`(README와 비교 그림 4장)이다.
@@ -3753,6 +4083,13 @@ Complexity에 추가하도록 요청했다. `complexity_stream.md` 3절 ⑥에 �
 Development Log Phase 1–36과 기존 이미지·실험 수치는 보존한다. 공개 `agent.md`도 갱신하며
 검증·게시 기록은 `docs/public_agent_context_multiview_20260918.json`에 남긴다.
 
+이후 사용자가 실제 공동 진단과 유의미한 milestone의 공개를 승인하여 Phase 37을 완료했다.
+기존 `complexity_stream.md`와 `development_log.md`에 방법·결과·그림·다음 Step을 반영하고
+`agent.md`를 맞춘다. 결과 PNG 2장은 `img/complexity/joint_scene_relations_20260918.png`,
+`img/complexity/joint_anchor_affinity_20260918.png`다. 게시 commit·원격 확인은
+`docs/public_agent_context_joint_diagnostic_20260918.json`에 기록하며 미기록 commit은 추정하지 않는다.
+실험 코드·checkpoint·NPZ·dense cache는 공개하지 않는다.
+
 세 stream 문서의 현재 본문과 `development_log.md`의 과거 실험 기록을 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
 
@@ -3763,8 +4100,8 @@ Development Log Phase 1–36과 기존 이미지·실험 수치는 보존한다.
 - Size-only/119-of-120 multi-scale 결과와 RGB extent roadmap은 과거 진단 단계다. Current release
   Occlusion baseline은 native 68-D global FiLM full16 run이다. 이후 Complexity V2 pilot도 완료했으며
   Phase 35에서 물체 평균 근접도의 정적 제거 효용을 검사했으나 채택 근거가 부족했다.
-  이후 Phase 36 A에서 순수 patch 대응을 확인했다. 현재 다음 Step은 경계·다중 물체 관계의
-  구체적 누락 능력을 먼저 분리한 뒤 사전학습 표현의 보완 효과를 검토하는 것이다.
+  이후 Phase 36–37에서 순수 patch의 가시 asset 대응을 확인하고 GT 관계 진단을 완료했다.
+  현재 다음 Step은 DINO를 유지한 mixed patch·경계·물체 소속/관계 표현 검증이다.
 - README `Core Files`가 나열하는 `generate_occlusion_map.py`, `evaluate_occlusion_checkpoint.py`와 일부
   test는 Git clone에 없고 working root에만 있다. 실행은 working root를 기준으로 한다.
 
@@ -3909,7 +4246,49 @@ Full16 이전에 root에 남아 있는 두 training run도 역사 자료다.
 두 폴더에는 protocol/history/training summary, completion manifest, checkpoint hash가 있으나 현재
 full16 baseline은 아니다.
 
-### 7. Complexity Phase 33–36 근거
+### 7. Complexity Phase 33–37 근거
+
+#### 2026-09-18 Phase 37 공동 진단 — 완료, 최종 Complexity GT 미승인
+
+- `docs/complexity_results/joint_diagnostic_20260918.md`: 방법·표본·수치·그림 선택·판단·다음 Step.
+- `outputs/complexity_joint_diagnostic_20260918_v1/`: 모든 run 원본. 기존 Phase 36의 val
+  4 keys/320 views, 같은 test 8 keys/640 views, all16 seen assets를 재분석했다. 새 blind test가 아니다.
+- `completion.json`: 이번 로컬 진단의 완료 범위·최종 검증 기록. 공개 commit/push 확인은 별도 publication manifest를 따른다.
+- `protocol.json`, `thresholds_locked.json`, `test_entry_verification.json`: 사전 평가 조건,
+  validation의 scene key→family→view 동일가중 balanced-error 최소 threshold, test 진입 hash 확인.
+- `dense/manifest.json`, `dense/input_inventory.json`, `dense/{val,test}_pair_audit.json`: val V2 캐시
+  참조와 test frozen layer11 추론, 동일 rows·로컬 weight·source·fixed reference·shape/finite 검증.
+  기존 pair val 272개/test 252개의 X·cosine 최대 차이는 0이며 새 학습은 없다.
+- `val_pairs.npz`, `test_pairs.npz`, `val_metrics.json`, `test_metrics.json`: 기존 12개 frozen readout과
+  raw cosine의 점수·표집. 전체 test는 159,192 pairs이며 family 중복을 포함한다.
+- `summary.json`: same-category DINO+position AUROC는 경계 주변 0.998789
+  (37,856 pairs/602 views/8 keys), 외형 변화 0.998166(30,870/584/8), 분리 조각 1.000000(852/47/7).
+  Purity≥90%·workspace/depth-valid≥95%의 view→key 동일 평균→3 seeds 평균이다.
+  분리 조각의 validation threshold 같은→다름 오류는 4.274%로 순위 AUROC와 구분한다.
+- `test_coverage.json`: 알려진 foreground 128,380 patches 중 적격 54,429개, 서로 다른 두 물체가
+  각각 10% 이상인 mixed patch 20,469개. 모든 부적격을 두 물체 혼합이라고 부르지 않는다.
+- `val_relations.json`, `test_relations.json`, `summary.json/relations`: GT ID·depth로 계산한 관측 접경과
+  깊이 순서, 단일-label majority-block 근사 비교. 기본 접경 support≥8에서 pair precision/recall
+  0.804652/0.845858, 이웃 수 MAE 0.584765개, 사라진 object-view 606/8,446이다.
+  DINO 예측·성능 상한이 아니며, block label 변환을 쓰지 않는 기존 density 모델의 실패 원인 검증도 아니다.
+  향후 한 patch에 하나의 ID를 강제하는 grouping 설계의 손실 진단으로 읽는다.
+- 96px에서 같은 영상·count≥2이고 window≥5인 3,225그룹 중 3,037그룹에서 접경 pair 수가 다르다.
+  Count와 관계는 같은 물체 집합으로 계산했으나 면적/형상 통제나 탐색 효용은 검증하지 않았다.
+  관계 수·깊이 방향을 최종 Complexity scalar로 채택하지 않는다.
+- `audit.json`: 독립 재계산 통과. 13개 score의 AUROC·오류·threshold 최적성·scene/seed 집계,
+  표집 양/음·offset·hash를 확인했다. Raw GT label·purity·component·관계 생성 전체의 재계산은 아니다.
+  관계 모듈의 별도 invariant/fixture와 metric 테스트를 포함해 unittest 11개가 통과했다.
+- `experiments/complexity_joint_diagnostic/`: `prepare_dense.py`, `hard_pairs.py`, `relations.py`,
+  `joint_relations_summary.py`, `run_joint.py`, `audit_joint.py`, `test_metrics.py`, `test_relations.py`,
+  `report_joint.py`, `report_joint_reviewed.py`. 잠긴 계산 source와 검토 후 renderer를 구분한다.
+- `panels/joint_scene_relations.png`: 첫 test key·category별 첫 pool·center view의 RGB/pixel GT/
+  majority-block/count/관계 수 비교. `panels/joint_anchor_affinity.png`: GT가 고른 anchor와 반경 8 patches의
+  3-seed mean-logit sigmoid. 실제 segmentation·자동 anchor·확률 보정 성능으로 해석하지 않는다.
+- 다음은 frozen DINO를 유지해 mixed patch·경계·물체 소속/관계 표현을 비교하는 것이다.
+  Soft grouping·경계 보완은 후보이며 관계 직접 예측도 열어 둔다. Segmentation을 필수 선행 단계로
+  확정하지 않는다. 추가 VLM/SAM·다중 뷰 teacher/student·최종 모델/GT·fusion은 미실행이다.
+- 문서·결과 PNG 2장의 공개는 승인되었다. 코드·checkpoint·NPZ·dense cache는 로컬에만 남긴다.
+  실제 게시 상태는 `docs/public_agent_context_joint_diagnostic_20260918.json`에서 확인한다.
 
 #### 2026-09-16 Phase 36 가시 asset 대응 — A 완료, B/C 미실행
 
@@ -3930,8 +4309,8 @@ full16 baseline은 아니다.
 - A 이진 진단의 성능이 거의 포화되어 B/C 추가 가치를 판별하기 어렵다. B/C 설치·추론·평가는
   미실행이고 도입을 보류한다. SAM/VLM의 일반적 불필요나 Complexity 완성으로 확대하지 않는다.
 - `docs/complexity_results/representation_plan_20260916.md`: A 완료 상태와 남은 B/C 계획.
-  현재 다음 Step은 경계·분리된 조각의 소속·다중 물체 관계의 구체적 누락 능력과 label 품질을
-  먼저 확인한 뒤 사전학습 표현 보완을 검토하는 것이다. 방향·제거 횟수 GT로 돌아가지 않는다.
+  당시 다음 Step은 경계·분리된 조각의 소속·다중 물체 관계의 구체적 누락 능력과 label 품질을
+  확인하는 것이었다. 후속 실행과 현재 판단은 위 Phase 37을 따른다. 방향·제거 횟수 GT로 돌아가지 않는다.
   다운로드 관련 실행 경위는 상세 완료 보고서를 참조한다.
 
 #### 2026-09-16 Phase 35 cluttered scene 정적 제거 — GT NOT APPROVED
@@ -3950,7 +4329,7 @@ full16 baseline은 아니다.
 - 추가 17-asset capture 10 layouts, 두 capture run·세 generation batch의 상관된 관측이다.
   원본16-only 또는 770개 독립 scene, 실제 집기·target 발견·RGB-D 추론 성능으로 확대하지 않는다.
 - 물체 평균 근접도 채택/학습 보류. 관측 가림 방향의 추가 가치 검증은 당시 후속 제안이었다.
-  이후 사용자 정정에 따른 표현 진단과 현재 다음 Step은 위 Phase 36 기록을 따른다.
+  이후 사용자 정정에 따른 표현 진단은 위 Phase 36, 현재 다음 Step은 Phase 37 기록을 따른다.
   코드·원시 자료는 로컬에 보존하고 공개 `development_log.md` Phase 35와 `img/complexity/`에 사진·표를 보존한다.
 
 #### 2026-09-08 Phase 34 국소 근접도 진단 — GT NOT APPROVED
@@ -4091,8 +4470,10 @@ Archive GT도 현재 production GT와 섞지 않는다.
 ### 9. 공개 문서 이미지 색인
 
 2026-09-16 공개 파일 45개와 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG 8개를 보존하고,
-전체 architecture PNG·SVG 2개를 추가하여 현재 inventory는 55개다. 새 파일은 설명용 구조도이며
-정성 예측 결과를 추가한 것은 아니다. 공통 그림은 `img/` root, stream별 그림은 기존 세 폴더에 둔다.
+전체 architecture PNG·SVG 2개를 추가했을 때 inventory는 55개였다. 구조도 추가는 정성 예측
+결과를 추가한 것이 아니었다. 2026-09-18 Phase 37 결과 PNG 2개를 더해 현재 반영 대상은 57개다.
+복사·파일 검증·게시 상태는 `docs/public_agent_context_joint_diagnostic_20260918.json`을 따른다.
+공통 그림은 `img/` root, stream별 그림은 기존 세 폴더에 둔다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
 
 공개 Markdown의 표시 파일은 PNG다. SVG는 같은 그림의 확대·벡터 편집용 보존본으로,
@@ -4161,7 +4542,7 @@ README 표시에는 사용하지 않는다. 다른 repo에 문서를 복사할 �
 - `img/occlusion/occlusion_film_conditioning.png`
 - `img/occlusion/occlusion_film_conditioning.svg`
 
-#### `img/complexity/` — 18개
+#### `img/complexity/` — 20개 (기존 18개 + Phase 37 결과 2개)
 
 - `img/complexity/book_1_five_views.png`
 - `img/complexity/clutter_comparison.png`
@@ -4181,6 +4562,12 @@ README 표시에는 사용하지 않는다. 다른 repo에 문서를 복사할 �
 - `img/complexity/replay_five_views.png`
 - `img/complexity/representation_comparison.png`
 - `img/complexity/toy_1_five_views.png`
+- `img/complexity/joint_scene_relations_20260918.png`
+- `img/complexity/joint_anchor_affinity_20260918.png`
+
+Phase 37 원본은 `outputs/complexity_joint_diagnostic_20260918_v1/panels/` 아래 날짜 접미사가
+없는 동명 PNG 2장이다. 선택 규칙·GT 기반 block 그림과 anchor 그림의 정량/정성 범위는 7절과
+`docs/complexity_results/joint_diagnostic_20260918.md`에 있다. 실험 코드·원시 배열의 공개를 뜻하지 않는다.
 
 현재 full16의 `img/occlusion/full16_book_1_five_cameras.png`는 epoch 3 checkpoint,
 `book_1`, `scene00010_env0279`의 다섯 camera 결과다. 원본은
@@ -4217,9 +4604,10 @@ Banana query 패널의 Book/Avocado/Orange 파일명은 scene 쪽 이름이며 t
 3. 현재 결과라면 current run JSON을, 과거 판단이라면 `development_log.md`의 Phase와 archive JSON을 함께 읽는다.
 4. sample 수, split, target seen/unseen, camera 범위, metric 정의를 확인한다.
 5. 새 실행 전 output path와 overwrite 방지를 확인한다.
-6. 현재 사용자 우선순위가 바뀌지 않았다면 실제 asset의 경계·분리된 조각·다중 물체 관계에서
-   기존 표현의 구체적 누락 능력을 먼저 확인하고 보완할 사전학습 표현을 검토한다. A의 순수
-   patch 성공과 미실행 B/C를 구분하고, 구조적 GT 승인 전 fusion 학습으로 넘어가지 않는다.
+6. 현재 사용자 우선순위가 바뀌지 않았다면 Phase 37을 바탕으로 DINO를 유지한 mixed patch·경계·
+   물체 소속/관계 표현을 검증한다. GT-majority block의 손실을 DINO 상한·기존 density 실패로
+   해석하지 않으며 grouping이나 segmentation을 필수 선행으로 확정하지 않는다. 추가 VLM/SAM·
+   다중 뷰 teacher/student·최종 구조적 GT·fusion은 미실행이다.
 7. 진행 보고는 주요 milestone 중심으로 남긴다. 예상 실행 시간에 맞춰 대기하고 짧은 간격의
    반복 polling 및 epoch 로그 중계를 피한다.
 
@@ -4273,21 +4661,27 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 
 - `PROJECT_CONTEXT.md`: 현재 목표, 데이터, architecture, 주요 실험 이력, 검증 결과, 알려진 한계와
   다음 Step을 설명하는 실행용 handoff
-- `PROJECT_LOG_INDEX.md`: Phase 1–36의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
+- `PROJECT_LOG_INDEX.md`: Phase 1–37의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
   찾아가기 위한 근거 자료 색인
 
 ### Current handoff snapshot — 2026-09-18
 
-- 마지막 완료 연구는 Phase 36 A 표현 진단이다. 이후 문서 분할·아키텍처 그림 추가는 문서화 작업이며
-  새 실험·GT 승인·Complexity 최종 모델·fusion 구현 완료를 의미하지 않는다.
+- 마지막 완료 연구는 Phase 37의 어려운 가시 asset 대응·GT 접경 관계 공동 진단이다.
+  기존 Phase 36의 12개 frozen readout과 같은 validation/test 장면을 재사용했으며 새 학습은 없다.
+  `docs/complexity_results/joint_diagnostic_20260918.md`와 새 run의 `summary.json`·`audit.json`을 읽는다.
 - 공개 문서의 전체 architecture 게시 기준은 `e192522`, 문서 분할은 `8e39517`이다.
   실행은 개발 폴더의 코드·run metadata, 설명은 공개 clone의 분리된 문서에서 확인한다.
-- 현재 연구 재개 지점은 실제 cluttered scene의 경계·분리된 조각·다중 물체 관계 진단이다.
-  기존 A의 높은 AUROC를 그대로 반복하기보다 구체적인 누락 능력을 확인하는 비교를 준비한다.
-  제안된 공통 위치쌍·feature 집계 범위 비교와 B/C는 아직 실행하지 않았다.
+- 현재 연구 재개 지점은 frozen DINO를 유지한 혼합 patch·경계·물체 소속/grouping 표현의 검증이다.
+  Phase 37에서 경계 주변·외형 변화가 큰 순수 patch의 대응을 확인했다. GT-majority block 변환의
+  접경 손실을 DINO 성능 상한으로 해석하지 않는다. Feature 집계 범위 비교·추가 VLM/SAM·
+  다중 뷰 teacher/student·최종 Complexity 학습·fusion은 아직 실행하지 않았다.
 - 9월 18일 첫 갱신은 로컬 인수인계 정리였고, 이후 사용자가 다중 뷰 논의를 GitHub Complexity에
   추가하도록 요청했다. 해당 검토안과 공개 `agent.md`를 함께 갱신한다. 게시 근거는
   `docs/public_agent_context_multiview_20260918.json`에 둔다. 로컬 원본과 공개본은 자동 동기화되지 않는다.
+- 이후 사용자가 실제 공동 진단과 유의미한 milestone의 문서·사진 공개를 승인해 Phase 37을 완료했다.
+  공개 문서는 기존 `complexity_stream.md`·`development_log.md`·`agent.md`를 갱신한다.
+  게시 상태는 `docs/public_agent_context_joint_diagnostic_20260918.json`에서 확인하며 commit은 추측하지 않는다.
+  코드·checkpoint·NPZ·dense cache는 로컬 보존한다.
 - 교수님의 다중 뷰 합의 제안은 물체 구분을 보완할 후보로 기록한다. 사용자는 추론 시 여러 camera가
   필수인 구조를 우려하므로 다중 뷰를 학습·검증에 쓰고 단일 RGB-D 추론을 유지하는 방향을 우선 검토한다.
   Cross-view 대응·mask 통합·teacher/student 학습은 미실행이다. 실제 가시 표면의 대응·mask 품질·
@@ -4345,8 +4739,7 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   순수 patch ≥90% 조건의 결과이며 알려진 foreground patch 중 42.40%만 적격이었다.
   색 mapping 충돌은 unknown으로 제외했다. 물체 경계·모든 물체 관계·Complexity 완성으로 확대하지 않는다.
   이 이진 진단은 거의 포화되어 B/C의 추가 효과를 검증하기 어려우므로 도입을 보류한다.
-  다음 Step은 경계·분리된 조각의 소속·다중 물체 관계의 구체적 누락 능력을 먼저 분리하고,
-  그 평가에서 사전학습 표현의 보완 효과를 검토하는 것이다.
+  당시 후속 과제였던 어려운 대응·가시 관계 진단은 Phase 37에서 진행했다. 현재 다음 Step은 아래를 따른다.
   `docs/complexity_results/representation_probe_20260916.md`가 A의 완료 기록이며
   `representation_plan_20260916.md`의 B/C는 미실행 계획이다. 다운로드 관련 경위도 완료 기록을 참조한다.
   Occupancy는 보조 정보이며
@@ -4355,7 +4748,25 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   이후 로컬 진단은 `docs/complexity_results/relational_diagnostic_20260908.md`를 읽는다.
   근접도 점검 13/14 만족은 Complexity GT 승인이나 RGB-D 추론 성능 검증이 아니다.
   Fusion과 DRL 효용이 검증됐다고 보고하지 않는다.
-- 이 세 handoff 원본은 로컬 실행 문맥으로 유지한다. 공개 `agent.md`에는 최신 내용과 Phase 1–36,
+- Phase 37은 all16 seen assets, Phase 36과 같은 val 4 keys/320 views와 기존 test 8 keys/640 views의
+  재분석이다. Same-category, purity≥90% 조건의 DINO+position AUROC는 경계 주변 0.998789
+  (37,856 pairs/602 views/8 keys), 외형 변화 0.998166(30,870/584/8)이다. View→key 동일 평균→
+  3 seeds 평균이며 새 blind test·unseen-object·실제 segmentation 성능으로 확대하지 않는다.
+  두 물체가 각각 10% 이상인 mixed patch는 알려진 foreground 128,380개 중 20,469개다.
+  Pixel GT를 16×16 block의 단일 majority label로 바꾼 접경 pair precision/recall은
+  0.804652/0.845858이며 **DINO 예측이나 성능 상한이 아니다.**
+  기존 density 모델은 RGB-D에서 count를 직접 예측하며 block label 변환을 쓰지 않으므로,
+  이 근사 결과를 기존 density 실패 원인의 검증으로 쓰지 않는다. 향후 한 patch에 하나의 ID를
+  강제하는 grouping 설계의 손실 진단이다.
+  96px에서 같은 영상·같은 count≥2의 window가 5개 이상인 3,225그룹 중 3,037그룹에서 접경 pair 수가
+  달랐다. GT ID·depth로 계산한 관측 차이이며 관계 수의 탐색 효용이나 최종 Complexity GT 승인이 아니다.
+  Frozen DINO를 유지해 mixed patch·경계·물체 소속을 표현하고, grouping 품질·coverage·접경 보존을
+  함께 평가한다. Soft grouping·경계 보완은 후보이며 관계 직접 예측도 열어 둔다.
+  Segmentation을 필수 선행 단계나 최종 모델로 확정하지 않는다. 단일 RGB-D 추론 조건을 유지하며
+  추가 encoder나 다중 뷰 fusion을 완료로 쓰지 않는다.
+  근거는 `outputs/complexity_joint_diagnostic_20260918_v1/`이며 독립 audit 통과 범위는 NPZ 표집·지표·
+  threshold·집계·hash다. Raw GT 관계 생성 전체를 다시 계산한 audit으로 확대하지 않는다.
+- 이 세 handoff 원본은 로컬 실행 문맥으로 유지한다. 공개 `agent.md`에는 최신 내용과 Phase 1–37,
   가정·진단·미실행 계획을 통합한다. 개인 machine의 절대경로는 역할별 경로 기호로 바꾸고,
   공개 근거와 로컬에만 남은 artifact를 구분한다. 문서 게시를 코드·checkpoint 공개로 확대하지 않는다.
   주요 milestone에서 로컬 문맥과 공개 `agent.md`를 함께 갱신한다.

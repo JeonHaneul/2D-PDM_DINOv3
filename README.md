@@ -211,7 +211,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
 | Complexity pilot | RGB-D visible-density 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 경계·물체 관계를 반영하는 구조적 Complexity 정의와 GT |
-| Complexity 표현 진단 | 순수 내부 patch의 seen-asset 대응 확인; DINO+position AUROC 0.998953 | 경계·다중 물체 관계 평가 후 추가 모델 B/C의 보완 효과 |
+| Complexity 표현·관계 진단 | Phase 37에서 경계 주변 순수 patch 대응 AUROC 0.998789, count와 다른 가시 관계 정보 확인 | Frozen DINO를 유지하며 혼합 patch·경계·물체 묶음 표현 검증; 최종 Complexity GT는 연구 중 |
 | Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | 최종 GT·loss·decoder 구현, 통합 학습·ablation |
 | Exploration / deployment | Stream별 관측 입력·출력과 탐색 prior 연결 방향 정리 | DRL 통합 구현 후 탐색 효용·실제 RGB-D 적용 평가 |
 
@@ -242,7 +242,8 @@ Similarity의 unseen-target 정성 동작, Occlusion의 GT 생성·full16·외�
 - [ ] Similarity 기준 checkpoint와 재현 설정을 확정하고 정량 unseen target 평가 수행
 - [ ] Occlusion을 여러 외부 target과 실제 reference mask 추정 조건에서 평가
 - [ ] 고정 camera reference에 대한 의존성과 camera/환경 변화의 영향을 검증
-- [ ] 실제 더미에서 Complexity의 경계·다중 물체 관계 능력 진단을 정의
+- [x] 실제 더미에서 경계 주변·분리 조각 대응과 GT 기반 가시 관계를 공동 진단 (Phase 37)
+- [ ] 혼합 patch·경계·물체 묶음 표현을 보완하고 관계 보존·coverage를 평가
 - [ ] 부족한 능력이 확인된 조건에서 물체 묶음·공간 사전학습 표현을 공정하게 비교
 - [ ] Complexity의 출력 의미와 GT 타당성을 확정
 - [ ] Fusion의 GT·loss·decoder를 정의하고 S+O 대비 S+O+C를 비교
