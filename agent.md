@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-09-17 (Asia/Seoul) · 연구 이력: Phase 1–36 · 현재 마지막 실험: Phase 36 A
+> 문서 기준일: 2026-09-18 (Asia/Seoul) · 연구 이력: Phase 1–36 · 현재 마지막 실험: Phase 36 A
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
@@ -91,7 +91,9 @@
 - 공개 문서 분할: README에는 전체 개요·입출력·fusion·현재 상태·roadmap을 남기고 세 stream과 Development Log를 최상위의 별도 Markdown으로 이동함. 본문·그림 경로를 보존하고 각 문서의 위·아래에 상호 이동 링크를 추가함. 본 통합본은 `development_log.md`에서 과거 이력을 읽음.
 - 전체 architecture 설명도 추가: 공통 frozen DINO 규격, Similarity 1537·Occlusion 1793 interaction과 각 F64, Complexity density pilot의 learned55+direct9, 계획된 concat192·fusion·decoder·DRL을 연결함. 현재 stream별 실행과 미구현 통합 forward를 구분함. 기존 53개 asset을 유지하고 `img/` root의 `overall_architecture.png/.svg` 2개를 추가했으며 새 연구 Phase·실험 결과는 아님.
 
-앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 특히 문헌·모델 호환성 조사 내용은 각 보고서 작성 당시 확인 범위이며, 이번 문서 통합에서 웹 문헌이나 실행 성능을 새로 검증한 것은 아니다.
+2026-09-18에는 Complexity 본문 ⑥과 현재 문맥에 다중 뷰 일관성 검토를 추가함. SAM2Object·DROP-CLIP을 참고하여 다중 뷰의 물체 구분 보완 효과를 먼저 검사하고, 학습에는 여러 뷰를 쓰되 추론은 단일 RGB-D를 유지하는 방향을 검토함. 구현·학습·성능 비교는 아직 실행하지 않았으며 새 연구 Phase를 추가하지 않음.
+
+앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 과거 보고서의 문헌·모델 호환성 조사 내용은 각 작성 당시 확인 범위다. 2026-09-18 다중 뷰 관련 두 논문은 이번 논의에서 확인한 근거이며, 해당 방법을 우리 데이터에서 실행·검증한 결과와 구분한다.
 
 ---
 
@@ -102,7 +104,7 @@
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-09-17 (Asia/Seoul); 마지막 실험: Phase 36 가시 asset 대응 A probe 완료, B/C 미실행·도입 보류
+> 마지막 문서 갱신: 2026-09-18 (Asia/Seoul); 마지막 실험: Phase 36 가시 asset 대응 A probe 완료, B/C 미실행·도입 보류
 > Similarity/Occlusion의 기존 교차검증 기준일: 2026-08-28
 > 대상: `<DEV_ROOT>`
 > 목적: 이전 대화를 보지 못한 agent가 현재 코드와 데이터로 연구를 안전하게 이어가기 위한 문서
@@ -113,13 +115,47 @@
 
 세부 Phase 기록과 실제 log/JSON/checkpoint/image의 위치는 `PROJECT_LOG_INDEX.md`에서 찾는다.
 두 문서를 함께 읽어야 요약된 판단과 그 근거를 모두 추적할 수 있다.
-2026-09-16 최신 사용자 요청으로 이 실행 문맥·근거 색인·작업 지침과 Phase 1–36 상세 기록을
-GitHub root의 `agent.md`로 통합한다. 공개본은 외부 GPT의 연구 질의응답용이며 로컬 artifact의
+2026-09-16 사용자 요청으로 이 실행 문맥·근거 색인·작업 지침과 Phase 1–36 상세 기록을
+GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질의응답용이며 로컬 artifact의
 경로를 적었다고 해당 파일·checkpoint가 GitHub에 게시된 것은 아니다.
+2026-09-18 첫 갱신은 새 agent용 로컬 handoff 정리였다. 이후 사용자가 교수님의 다중 뷰 제안과
+단일-view 추론 유지 방향을 GitHub Complexity 문서에 추가하도록 요청했다. 해당 검토안과 공개
+`agent.md`를 함께 갱신하며 새 연구 실행은 하지 않는다. 공개본은 생성·게시 시점의 snapshot으로,
+로컬 원본 수정과 자동 동기화되지 않는다.
 
 ---
 
 ### 1. 처음 읽는 agent를 위한 핵심 요약
+
+#### 재개 스냅샷 — 2026-09-18
+
+- **작업 위치:** 실제 개발은 `2D-PDM_DINOv3`, Git·공개 문서는 별도 `2D-PDM_DINOv3_git`이다.
+  `AGENTS.md` → 이 문서 → `PROJECT_LOG_INDEX.md`를 끝까지 읽은 뒤 관련 코드와 run JSON을 확인한다.
+- **완료 범위:** Similarity의 no-shortcut DINO+SigLIP 구현·외부 target 정성 확인, Occlusion의
+  adaptive GT·full16·외부 target 정량 평가, Complexity density V2와 Phase 36 A probe까지다.
+  마지막 연구 실험은 2026-09-16 Phase 36 A이며, 9월 17일 문서 분할·구조도 추가는 새 Phase가 아니다.
+- **현재 남은 항목:** Similarity의 공식 final checkpoint manifest와 확장 정량 평가,
+  최신 full16 Occlusion 배포 CLI, 구조적 Complexity GT·B/C·통합 forward·fusion·decoder·DRL이다.
+  기존 Similarity/Occlusion 결과를 재학습 전 단계로 되돌려 해석하지 않는다.
+- **Complexity 재개 지점:** 순수 patch 가시 asset 대응은 이미 높은 AUROC를 확인했다.
+  실제 더미의 경계·분리된 조각·다중 물체 관계에서 어떤 정보나 판별 단계가 부족한지 먼저
+  확인한다. 48/96/160px feature 집계 범위 비교는 조건부 후속 제안이며 실행하지 않았다(8절).
+- **추가 검토안:** 다른 각도의 관측이 단일-view 물체 구분 실패를 보완하는지 확인하고, 이득이 있으면
+  학습에만 활용하여 단일 RGB-D 추론을 유지하는 방향을 검토한다. Cross-view 통합·teacher/student는 미실행이다.
+- **공개 이력:** 전체 구조도 게시 commit은 `e192522`, 직전 문서 분할은 `8e39517`이다.
+  게시·정적 검증 근거는 3절, 실험별 재현 근거는 13절과 `PROJECT_LOG_INDEX.md`를 따른다.
+  이후 다중 뷰 검토안 게시 근거는 `docs/public_agent_context_multiview_20260918.json`에 기록한다.
+
+공개 문서는 `<REPO_ROOT>` 아래에서 목적에 맞게 읽는다.
+
+| 문서 | 읽을 내용 |
+|---|---|
+| `README.md` | 연구 전체 개요, 전체 tensor 구조도, stream 결합 계획과 현재 상태 |
+| `similarity_stream.md` | Semantic adapter·학습 alignment·zero-shot 의미와 Similarity 상세 |
+| `occlusion_stream.md` | Adaptive GT와 현재 full16 native68/global FiLM baseline |
+| `complexity_stream.md` | Count 가설에서 DINO 진단까지의 연구 흐름, 보존한 pilot과 미실행 제안 |
+| `development_log.md` | Phase 1–36의 상세 이력; 각 Phase 제목은 `##` |
+| `agent.md` | 외부 GPT용 통합 문맥; 최신 로컬 원본과 생성 시점이 다를 수 있음 |
 
 > **Phase 35 이후 사용자 정정:** 우선순위는 새 scalar 정의가 아니라, Similarity의 SigLIP 결합처럼
 > 물체·공간 관계 표현을 보완하는 것이다. DINO 자체의 정보 부족과 count 학습 목표의 한계를
@@ -171,6 +207,9 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 `img/overall_architecture.png`와 `.svg`, 로컬 renderer는
 `docs/render_overall_architecture_20260917.py`다. 현재 stream별 실행을 설명하는 구조도이며,
 **세 stream을 함께 호출하는 통합 forward와 fusion·decoder·DRL은 미구현**이다.
+문서 표시에는 PNG를 사용하고 SVG는 벡터 보존본으로 둔다. SVG 글자는 path로 저장될 수 있으므로
+문구·tensor·연결을 수정할 원본은 Python renderer다. 다른 repo에 설명을 공유할 때는 Markdown과
+참조된 PNG를 같은 상대경로에 복사하면 충분하다. SVG와 renderer의 역할·관리 규칙은 11절에 있다.
 
 - Scene RGB의 공통 frozen DINOv3 ViT-B/16 규격은 layer별 `B×768×30×40`이다. Similarity와
   Occlusion은 layer 2/5/8/11, Complexity density pilot은 layer 11을 사용한다. 공통 encoder
@@ -261,9 +300,10 @@ target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlu
 
 1. 현재 root 실행 코드와 run의 `protocol.json`, `summary.json`, metadata
 2. 이 `PROJECT_CONTEXT.md`
-3. Git clone의 최신 공개 문서: `README.md`, `similarity_stream.md`, `occlusion_stream.md`,
+3. `PROJECT_LOG_INDEX.md`가 가리키는 원시 근거
+4. Git clone의 최신 공개 문서: `README.md`, `similarity_stream.md`, `occlusion_stream.md`,
    `complexity_stream.md`, `development_log.md`
-4. 오래된 `2D-PDM_DINOv3/README2.md`, 코드 주석, `code_2607xx`, `legacy/occlusion`
+5. 오래된 `2D-PDM_DINOv3/README2.md`, 코드 주석, `code_2607xx`, `legacy/occlusion`
 
 중요한 현재 상태:
 
@@ -295,7 +335,15 @@ target의 실제 예측으로 확인한다. Similarity의 정성 결과와 Occlu
   stream별 상세 설명, `development_log.md`는 Phase 1–36의 이력이다. 상세 내용과 연구 결과를
   축약하지 않고 이동했으며, Phase 제목은 `###`에서 `##`로 바뀌었다. 문서별 상호 navigation과
   `agent.md` 진입 링크를 유지하고 기존 `img/...` 상대경로는 변경하지 않는다.
-  문서화 기록은 `docs/public_agent_context_document_split_20260917.json`이다. 새 연구 Phase가 아니다.
+  게시 commit은 `8e39517e0594c49a9ef18e03fef11a45a2e8fa86`이며, 본문·Phase·이미지 보존 및
+  게시 기록은 `docs/public_agent_context_document_split_20260917.json`이다. 새 연구 Phase가 아니다.
+- 같은 날 전체 tensor 구조도 PNG·SVG와 관련 설명을
+  `e19252205f35033a3d503ee74dcd741eeb67b194`로 게시했다. `docs/overall_architecture_review_20260917.json`은
+  기존 53개 이미지 보존·추가 후 55개 inventory·상대경로·코드 대조·그림 검토를 기록하며,
+  `publication`에 당시 push·원격 main 일치·clean 상태가 있다. 2026-09-18 첫 로컬 갱신 당시 HEAD는 이 commit이었고,
+  manifest의 backbone·Similarity·Occlusion·Complexity·depth cues·renderer SHA-256 6개가 현재 파일과 일치한다.
+  `docs/public_agent_context_overall_architecture_20260917.json`은 통합 `agent.md`의 원본·생성 hash 기록이며
+  게시 완료 증거는 아니다. 문서·그림 변경으로 연구 완료 범위는 Phase 36 A 그대로다.
 - 따라서 **코드는 working folder**, **공개 설명은 Git clone의 개요·stream 문서·개발 로그**를 기준으로 읽는다.
 
 `2D-PDM_DINOv3_git`은 working folder가 Git repository가 아니어서 GitHub 반영을 위해 만든 별도
@@ -441,7 +489,7 @@ Target RGB + segmentation mask
   ├─ bbox crop + 25% padding → 224×224
   ├─ frozen DINOv3
   │   └─ mask-weighted pooling → layer별 appearance a_l: B×768
-  └─ center crop → frozen SigLIP image 1152-D
+  └─ center reference의 bbox crop + 25% padding → frozen SigLIP image 1152-D
       + instance/category text prompt 1152-D
       └─ normalized mean semantic s: B×1152
           └─ layer별 learned Linear 1152→768
@@ -467,8 +515,8 @@ semantic 입력이 달라지고 같은 학습 weight가 새 hybrid query를 계�
 Layer별 scene–target interaction:
 
 ```text
-cos_l(u,v) = cosine(scene_l(u,v), q_l)       # 위치마다 scalar 한 개
-Z_l(u,v) = Concat(scene 768, query 768, cosine 1)
+cos_l(u,v) = (cosine(scene_l(u,v), q_l) + 1) / 2  # 위치마다 [0,1] scalar 한 개
+Z_l(u,v) = Concat(scene 768, query 768, shifted cosine 1)
           = 1,537 channels at each 30×40 location
 ```
 
@@ -1132,7 +1180,14 @@ pilot → 기존 DINO의 같은 물체 판별 진단**이다. Occupancy가 큰 �
 네 비교를 모두 맞혀 AUROC1이지만 0.5 기준의 정확도는50%다. 0.998953을 segmentation 정확도로
 쓰지 않는다. 42.40%는 순수성·workspace·유효depth 조건을 함께 만족한 비율이다.
 
-**다음 비교안 — 미실행 제안:** 실제 cluttered asset scene에서 같은 위치쌍과 GT 정답을 고정하고,
+**다음 Step의 순서와 진입 조건 — 미실행:** Window 비교에 앞서 실제 cluttered asset의 어려운
+위치를 선정하고, 정답 label의 모호함과 모델의 실패를 구분한다. 순수 patch에서 확인한 대응 정보를
+경계의 혼합 patch·가림으로 떨어진 조각·여러 물체의 grouping에 적용할 때 어디에서 잃는지 진단한다.
+고정 DINO feature에 정보가 남아 있으나 판별·grouping 과정에서 실패한다면 그 과정을 먼저 검토한다.
+주변 문맥 범위 부족이 구체적 실패 원인으로 의심될 때 아래 집계 범위 비교를 진행할 수 있다.
+평가할 실패가 특정되지 않은 상태에서 최적 window나 추가 backbone을 먼저 선택하지 않는다.
+
+**조건부 비교안 — 미실행 제안:** 실제 cluttered asset scene에서 같은 위치쌍과 GT 정답을 고정하고,
 고정 DINO feature의 주변 집계 범위만48/96/160px로 바꿔 같은 구조의 판별기로 비교한다. 외형 변화,
 경계 근처, 가림으로 분리된 조각의 세 유형 각각에 같은/다른 물체 쌍을 둔다. 비교군 공통 유효
 위치·입력 차원·학습 조건을 맞추고 유형별 validation AUROC를 동일 가중 평균하여 범위를 선택한다.
@@ -1140,6 +1195,37 @@ pilot → 기존 DINO의 같은 물체 판별 진단**이다. Occupancy가 큰 �
 분할과 평가 쌍도 test를 열기 전에 고정한다. 이는 기존 count window의 정답을 바꾸는 비교나 DINO
 patch 크기 실험이 아니며, 해당 판별 과제의 feature 집계 범위 선택안이다. 최종 Complexity의 최적
 범위를 결정한 것으로 쓰지 않는다. 코드·pair manifest·재학습·B/C·fusion은 새로 실행하지 않았다.
+
+#### 다중 뷰 일관성과 단일 RGB-D 추론 — 2026-09-18 미실행 검토안
+
+교수님은 view에 따라 불안정한 segmentation을 여러 각도의 공통 부분·합의로 보완하는 방향을
+제안했다. 사용자는 실제 추론에 여러 camera가 필수인 구조를 우려한다. 공개 `complexity_stream.md`
+3절 ⑥에 제안의 목적·좌표/가시성·학습/추론 분리·최근 문헌·검증 순서를 정리했다.
+
+- 현재 다섯 camera는 각각 단일-view sample이며 공동 입력하는 모델이 아니다.
+- 서로 다른 영상의 mask를 그대로 교집합하지 않는다. Depth·camera 보정으로 공통 3D 표면에
+  대응시키고 실제로 보이는 영역에서 일관성을 평가한다. 가림·화면 밖은 반대 증거로 세지 않는다.
+- 모든 view의 교집합은 작은 물체·심한 가림을 배제할 수 있다. 품질과 평가 coverage를 함께 보며,
+  같은 모델의 상관된 오류와 서로 다른 표면을 같은 물체로 묶는 문제도 구분한다.
+- 우선 검토할 방향은 학습 때만 다중 뷰 표현·대응을 사용하고 student에는 한 view RGB-D를 주는 것이다.
+  추론에서는 student만 사용한다. 다른 view에서만 보이는 정보를 항상 복원할 수 있다는 뜻은 아니며,
+  현재 pilot의 fixed workspace·empty-depth reference 조건을 자동으로 제거하는 변경도 아니다.
+- 실패 확인 → 다른 view의 추가 정보 검증 → 같은 단일-view student에 추가 감독을 준 효과 비교 순서다.
+  시뮬레이션의 검증된 object ID·pose·기하를 준거로 삼고, 색 충돌이 있는 segmentation 색이나
+  다중-view 합의를 곧바로 GT로 채택하지 않는다. 병합/분할 오류와 coverage, teacher와 student 성능을 분리한다.
+- 같은 source pool·실제 layout의 view를 대응시키며, 다섯 view는 scene-key 단위로 같은 split에 둔다.
+  다른 pool의 동일 key 문자열이나 Phase 35 추가 capture와 Phase 36 원본 dataset을 섞지 않는다.
+- Cross-view 대응·mask 통합·teacher/student 학습·성능 비교는 아직 실행하지 않았다. 먼저 물체 구분
+  표현의 보완을 확인하고 그 표현을 어떤 국소 관계·Complexity에 쓸지 후속 검증한다. Phase 36 A의
+  완료 상태와 기존 count/occupancy GT는 유지하며 새 Phase나 채택된 최종 구조로 기록하지 않는다.
+
+관련 근거는 **SAM2Object(CVPR 2025)**와 **3D Feature Distillation with Object-Centric Priors
+(2024, 2025 개정; DROP-CLIP)**다. 전자는 view 일관성·mask 품질·3D 기하의 결합, 후자는
+다중-view 물체 단위 CLIP 표현을 학습 목표로 사용하면서 단일 RGB-D의 부분 point cloud로 추론하는
+사례다. 두 논문은 본 Complexity GT나 현재 다섯 고정 view의 효과를 검증한 근거가 아니다.
+
+- SAM2Object: `https://openaccess.thecvf.com/content/CVPR2025/html/Zhao_SAM2Object_Consolidating_View_Consistency_via_SAM2_for_Zero-Shot_3D_Instance_CVPR_2025_paper.html`
+- DROP-CLIP: `https://arxiv.org/abs/2406.18742`
 
 #### 8.1 Phase 33: RGB-D visible-clutter pilot (2026-09-07)
 
@@ -1343,7 +1429,7 @@ conda activate haneul
 cd <DEV_ROOT>
 ```
 
-확인된 environment:
+이전 실행에서 확인한 environment 기록(2026-09-18에는 package·CUDA를 재점검하지 않음):
 
 - Python 3.14.4
 - PyTorch 2.12.0 + CUDA 13.0 build
@@ -1450,10 +1536,12 @@ Inference는 run protocol의 고정 workspace/empty-depth reference와 local DIN
 
 #### Verification state
 
-2026-08-28에 root의 주요 Python 파일은 `py_compile`을 통과했다. 현재 conda environment에는
+2026-08-28에 root의 주요 Python 파일은 `py_compile`을 통과했다. 당시 conda environment에는
 `pytest` package가 없어 `python -m pytest`는 실행되지 않았다. Tests가 통과했다고 보고하면 안 된다.
 이는 당시 전체 suite의 상태다. 2026-09-07 Complexity cue 수정에서는 Python `unittest`의 17개
 counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusion 전체 suite 통과로 확대하지 않는다.
+2026-09-18에는 문서·경로·기존 manifest와 결과 JSON을 정적으로 대조했다. Package 설치 상태,
+학습·GT 생성·모델 평가·test suite는 새로 실행하지 않았다.
 
 ---
 
@@ -1507,12 +1595,15 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
   둔다. 본문을 축약하지 않으며 각 문서와 `agent.md`의 위·아래 navigation 및 관련 문서 참조에는
   상대경로 하이퍼링크를 사용한다. 이전 링크 최소화 선호로 navigation을 제거하지 않는다.
   문서 분할 때 모든 `img/...` 상대경로와 이미지 파일은 그대로 유지한다.
-- 최신 요청: 로컬 handoff와 로그 색인을 현재까지 갱신하고 GitHub `agent.md` 하나로 연구 문맥을
+- 2026-09-16 공개 통합 요청: 로컬 handoff와 로그 색인을 갱신하고 GitHub `agent.md` 하나로 연구 문맥을
   공개한다. 외부 GPT가 목표·가정·실험·결과·한계·다음 Step을 읽을 수 있도록 상세 기록을 포함한다.
   공개 문서와 로컬 원시 artifact의 접근 가능성을 구분하고, 이후 주요 milestone마다 함께 갱신한다.
   로컬 `python docs/build_public_agent_context.py`로 통합본을 재생성할 수 있다. 먼저 원본 문서와
   개요·stream 문서·개발 로그의 완료 상태를 갱신한 뒤 실행하고, 생성된 `agent.md`의 참조 경로·과거/현재 구분·공개 범위를
   확인한다. 이 builder와 publication manifest는 로컬 관리 파일이며 실험 코드 게시 대상이 아니다.
+- 2026-09-18 첫 요청은 새 agent를 위한 로컬 handoff 최신화였으며 해당 작업에서 공개본은 유지했다.
+  이후 요청으로 다중 뷰 논의를 공개 Complexity에 추가하고 공개 통합본도 갱신한다. 이는 문서 게시이며
+  다중-view 모델의 구현·학습을 요청하거나 최종 Complexity GT를 승인한 것으로 확대하지 않는다.
 - 목적 → 방법 → 왜 이 방법인가 → 결과 → 한계 → 다음 Step 흐름을 지킬 것
 - “수렴하는 경향을 보였습니다”보다 “수렴하는 경향을 보임” 같은 간결한 문체 선호
 - 단순히 model 이름이나 64-D/68-D를 쓰지 말고 각 차원이 무엇인지 설명할 것
@@ -1547,6 +1638,11 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
 유지하며 공통 구조도 PNG·SVG 두 개를 추가한 inventory는 55개다. 모든 그림은 상대경로로
 참조한다. 다른 repo에 복사하기 쉽도록 실험별 하위 폴더는 만들지 않으며 단계 구분은
 파일명으로 한다. Output의 절대경로만 Markdown에 넣으면 GitHub에 image가 나타나지 않는다.
+Markdown 표시용 PNG와 SVG 벡터 보존본을 함께 보관하되, 다른 repo의 문서 표시에는 참조된 PNG만
+같은 상대경로로 가져가도 충분하다. SVG를 확대·벡터 도구에서 사용할 수 있지만 글자가 path이면
+텍스트로 직접 편집되지 않는다. 문구·차원·배치의 편집 원본은 로컬 `docs/render_*_20260917.py`이며,
+renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정확한 대응은 `PROJECT_LOG_INDEX.md`
+9절에 있다. Renderer는 문서 표시를 위한 필수 공개 파일이 아니며 이미지 공유와 별도로 관리한다.
 
 ---
 
@@ -1566,8 +1662,9 @@ counterexample/invariant 검사를 통과했다. 개별 검증을 과거 Occlusi
    확대하지 않는다. B/C는 미실행이며 density pilot을 보존하되 구조적 GT·fusion은 미검증이다.
 9. Occlusion 구조를 다시 복잡하게 만들기 전 adaptive GT baseline이 해결하지 못한 구체적 failure를
    actual scene/GT/prediction panel로 먼저 입증한다.
-10. Public 문서를 수정할 때 working code의 변경을 Git clone에 선택적으로 복사하고 diff를 확인한
-    후에만 commit/push한다.
+10. 공개 반영이 요청된 작업에서는 관련 문서·그림과 필요한 코드만 Git clone에 선택적으로 복사하고
+    diff를 확인한 후 commit/push한다. 로컬 handoff 최신화가 자동으로 코드 복사·공개본 재생성·게시를
+    뜻하지 않는다.
 
 ---
 
@@ -3426,7 +3523,7 @@ latency/peak VRAM이다. 실제 모델 출력·속도·메모리는 아직 측�
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-09-17 (Asia/Seoul); 공개 이미지 경로·archive inventory는 이전 점검 기록
+> 마지막 문서 갱신: 2026-09-18 (Asia/Seoul); 공개 문서·이미지 55개는 재확인, archive inventory는 이전 점검 기록
 > 목적: 새 agent가 요약된 결론뿐 아니라 그 결론의 코드, 수치, 이미지와 이전 실험을 직접 추적하도록 안내
 
 ### 1. 이 문서가 보장하는 범위
@@ -3438,7 +3535,7 @@ latency/peak VRAM이다. 실제 모델 출력·속도·메모리는 아직 측�
 2. `PROJECT_CONTEXT.md`: 목표, 현재 architecture, 검증된 결과, 한계, 현재 다음 Step
 3. `PROJECT_LOG_INDEX.md`: 상세 개발 기록과 실제 artifact 위치
 
-2026-09-16 최신 사용자 요청에 따라 이 세 문서의 내용, README Phase 1–36과 Complexity 상세
+2026-09-16 사용자 요청에 따라 이 세 문서의 내용, 현재 `development_log.md`의 Phase 1–36과 Complexity 상세
 가정·실험 보고서를 공개 `agent.md`로 통합한다. 원본은 로컬에서 유지하며, 공개본에서는 개인
 machine 절대경로를 역할별 기호로 바꾼다. 로컬 artifact 이름은 웹에서 내려받을 수 있다는 뜻이 아니다.
 
@@ -3456,6 +3553,22 @@ machine 절대경로를 역할별 기호로 바꾼다. 로컬 artifact 이름은
 `<SESSION_ARCHIVE>/`에 남아 있을 수 있지만, session artifact이므로 연구 근거의 유일한
 source로 사용하지 않는다. 원문 대화까지 영구 보존해야 한다면 사용자가 대화 export를 별도로
 제공해야 한다.
+
+#### 2026-09-18 재개 기준
+
+| 항목 | 현재 기준과 직접 근거 |
+|---|---|
+| 마지막 완료 연구 | Phase 36 A probe; `outputs/complexity_representation_probe_20260916_v1/results.json`, `coverage_summary.json` |
+| 이후 변경 | Stream별 문서 분할, Similarity·Occlusion·전체 tensor architecture와 설명 정리; 새 연구 Phase 없음 |
+| 9월 17일 공개 구조도 | `e19252205f35033a3d503ee74dcd741eeb67b194`; 당시 push·원격 일치 기록은 `docs/overall_architecture_review_20260917.json`의 `publication` |
+| 9월 18일 다중 뷰 검토안 | `complexity_stream.md` 3절 ⑥; 공개 문맥 생성·검증·게시 기록은 `docs/public_agent_context_multiview_20260918.json` |
+| 문서 분할 근거 | `8e39517` 및 `docs/public_agent_context_document_split_20260917.json` |
+| 코드 대조 | 위 architecture review에 기록한 backbone·Similarity·Occlusion·Complexity·depth cues·renderer의 SHA-256 6개가 9월 18일 현재 파일과 일치 |
+| 현재 다음 Step | 실제 더미의 경계·분리된 조각·다중 물체 관계에서 기존 표현의 누락 능력 확인. 동일 위치쌍·정답·공통 유효영역을 고정한 집계 범위 비교는 아직 제안 단계 |
+| 로컬/공개 문맥 | 첫 로컬 갱신 이후 다중 뷰 논의의 공개 추가 요청에 따라 `agent.md`를 재생성함. 로컬 수정과 자동 동기화되는 구조는 아님 |
+
+이번 갱신은 기존 근거의 위치·상태를 재확인한 인수인계 작업이다. 학습·GT 생성·모델 평가는
+새로 실행하지 않았으며, 과거 실험의 표본·수치·채택 여부는 변경하지 않았다.
 
 ### 2. Source-of-truth
 
@@ -3618,13 +3731,27 @@ RGB/target 평균·depth scale·68-D mask geometry·global FiLM·1793→64 Match
 축약하지 않았으며 Phase 제목은 `###`에서 `##`로 변경했다. 각 문서와 `agent.md` 사이의
 navigation에는 상대경로 하이퍼링크를 사용하고 기존 `img/...` 상대경로와 이미지 파일은 유지한다.
 이 변경은 새 연구 Phase나 실행 결과가 아닌 문서화 milestone이다. 기록은
-`docs/public_agent_context_document_split_20260917.json`이며 게시 상태·commit은 해당 기록과 Git으로 확인한다.
+`docs/public_agent_context_document_split_20260917.json`이며 게시 commit은 `8e39517`이다.
 
 같은 날 전체 tensor architecture 설명도를 `img/overall_architecture.png`와 `.svg`로 추가했다.
 공통 frozen DINO 규격에서 세 stream의 `F_S/F_O/F_C: B×64×30×40`까지와, 계획된 concat192·
 fusion·decoder·DRL 연결을 구분한다. Complexity는 density pilot이며 통합 forward는 미구현이다.
 Renderer는 로컬 `docs/render_overall_architecture_20260917.py`에 보존한다. 기존 53개 이미지
 asset은 유지하고 공통 그림 2개를 더했으며 새 실험·연구 Phase를 추가한 것이 아니다.
+게시 commit은 `e192522`다. `docs/public_agent_context_overall_architecture_20260917.json`은
+공개 `agent.md` 생성 원본·hash 기록이며, PNG/SVG·기존 자료 보존·게시 완료 근거는
+`docs/overall_architecture_review_20260917.json`에 있다. 두 파일의 역할을 구분한다.
+
+2026-09-18에는 로컬 `AGENTS.md`·`PROJECT_CONTEXT.md`·이 색인을 최신 인수인계 기준으로
+보강했다. 최근 문서 구조·그림 원본·PNG/SVG 용도·재개 지점을 정리했으며 새 Phase를 만들지 않았다.
+검증 범위와 문서 hash는 `docs/local_handoff_refresh_20260918.json`에 남긴다.
+
+이후 같은 날 사용자가 교수님의 다중 뷰 합의 제안과 단일 RGB-D 추론 유지 방향을 GitHub
+Complexity에 추가하도록 요청했다. `complexity_stream.md` 3절 ⑥에 좌표 대응·가시성·합의의
+한계, 학습/추론 입력 분리, SAM2Object·DROP-CLIP의 관련 근거, 실패 진단부터 student 비교까지의
+순서를 정리했다. 2절 흐름도와 Q8도 연결했다. Cross-view 통합·학습·성능 비교는 미실행이며
+Development Log Phase 1–36과 기존 이미지·실험 수치는 보존한다. 공개 `agent.md`도 갱신하며
+검증·게시 기록은 `docs/public_agent_context_multiview_20260918.json`에 남긴다.
 
 세 stream 문서의 현재 본문과 `development_log.md`의 과거 실험 기록을 구분해 읽는다. 2026-09-16 문서 재구성은
 현재 구조·모듈·GT·핵심 설계 과정·FAQ를 stream 본문에 모으고, 다음 과거 조건은 이력으로 보존한다.
@@ -3968,6 +4095,23 @@ Archive GT도 현재 production GT와 섞지 않는다.
 정성 예측 결과를 추가한 것은 아니다. 공통 그림은 `img/` root, stream별 그림은 기존 세 폴더에 둔다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
 
+공개 Markdown의 표시 파일은 PNG다. SVG는 같은 그림의 확대·벡터 편집용 보존본으로,
+README 표시에는 사용하지 않는다. 다른 repo에 문서를 복사할 때는 참조된 PNG를 같은 상대경로에
+두면 표시할 수 있다. 구조도 SVG의 글자는 path이므로 문구 수정은 아래 Python renderer에서
+수행하고 PNG·SVG를 함께 다시 생성한다. Renderer는 로컬 관리 자료다.
+
+| 공개 그림 basename | 로컬 renderer (`docs/` 아래) |
+|---|---|
+| `img/overall_architecture` | `render_overall_architecture_20260917.py` |
+| `img/similarity/similarity_tensor_architecture` | `render_similarity_tensor_architecture_20260917.py` |
+| `img/similarity/similarity_semantic_adapter` | `render_similarity_semantic_adapter_20260917.py` |
+| `img/occlusion/occlusion_tensor_architecture` | `render_occlusion_tensor_architecture_20260917.py` |
+| `img/occlusion/occlusion_film_conditioning` | `render_occlusion_film_conditioning_20260917.py` |
+
+각 basename에 `.png`·`.svg`가 있다. 기본 출력은 `/tmp/`이며 문서나 공개 파일로 자동 복사되지 않는다.
+예: `MPLCONFIGDIR=/tmp/pdm_mpl_arch <CONDA_ROOT>/envs/haneul/bin/python docs/render_overall_architecture_20260917.py`.
+재생성 후 그림 배치·차원·화살표를 확인하고 필요한 공개 asset만 교체한다.
+
 #### `img/` root 공통 그림 — 2개
 
 - `img/overall_architecture.png`
@@ -4132,6 +4276,23 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 - `PROJECT_LOG_INDEX.md`: Phase 1–36의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
   찾아가기 위한 근거 자료 색인
 
+### Current handoff snapshot — 2026-09-18
+
+- 마지막 완료 연구는 Phase 36 A 표현 진단이다. 이후 문서 분할·아키텍처 그림 추가는 문서화 작업이며
+  새 실험·GT 승인·Complexity 최종 모델·fusion 구현 완료를 의미하지 않는다.
+- 공개 문서의 전체 architecture 게시 기준은 `e192522`, 문서 분할은 `8e39517`이다.
+  실행은 개발 폴더의 코드·run metadata, 설명은 공개 clone의 분리된 문서에서 확인한다.
+- 현재 연구 재개 지점은 실제 cluttered scene의 경계·분리된 조각·다중 물체 관계 진단이다.
+  기존 A의 높은 AUROC를 그대로 반복하기보다 구체적인 누락 능력을 확인하는 비교를 준비한다.
+  제안된 공통 위치쌍·feature 집계 범위 비교와 B/C는 아직 실행하지 않았다.
+- 9월 18일 첫 갱신은 로컬 인수인계 정리였고, 이후 사용자가 다중 뷰 논의를 GitHub Complexity에
+  추가하도록 요청했다. 해당 검토안과 공개 `agent.md`를 함께 갱신한다. 게시 근거는
+  `docs/public_agent_context_multiview_20260918.json`에 둔다. 로컬 원본과 공개본은 자동 동기화되지 않는다.
+- 교수님의 다중 뷰 합의 제안은 물체 구분을 보완할 후보로 기록한다. 사용자는 추론 시 여러 camera가
+  필수인 구조를 우려하므로 다중 뷰를 학습·검증에 쓰고 단일 RGB-D 추론을 유지하는 방향을 우선 검토한다.
+  Cross-view 대응·mask 통합·teacher/student 학습은 미실행이다. 실제 가시 표면의 대응·mask 품질·
+  관측 coverage를 확인하고 합의를 정답 보장이나 Complexity GT로 취급하지 않는다.
+
 ### Source of truth
 
 충돌하는 설명이 있으면 다음 우선순위를 적용한다.
@@ -4153,7 +4314,7 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   `development_log.md`에는 주요 milestone의 **비교 사진·수치 결과·실패와 한계**를 함께 게시한다.
   로그에 필요한 이미지 asset 업로드는 허용된다. 실험 결과 공개와 방법의 최종 채택을 혼동하지 않는다.
   미검증 실험 코드·checkpoint·대용량 원시 자료는 로컬에 보존한다.
-  2026-09-16 최신 사용자 요청에 따라 handoff 내용은 공개 `agent.md`로 통합·게시한다.
+  2026-09-16 사용자 요청에 따라 handoff 내용은 공개 `agent.md`로 통합·게시한다.
 - GitHub push, 대규모 데이터 생성, 장시간 학습, 삭제는 사용자 요청 범위를 먼저 확인한다.
 - 모든 16개 기존 target은 training pool에 유지한다. Zero-shot 평가는 added external target으로 한다.
 - 다섯 camera view는 같은 scene key 단위로 split하여 leakage를 막는다.
@@ -4287,6 +4448,9 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 - 전체 architecture 그림의 공통 frozen DINO는 같은 backbone 규격·weight를 뜻한다. 현재는
   stream별 실행이며 세 stream 통합 forward·fusion·decoder·DRL은 미구현이다. Complexity의
   learned55 + direct9는 보존한 density pilot으로 표시하고 최종 구조·GT로 확정하지 않는다.
+- 공개 Markdown은 PNG를 표시한다. SVG는 확대·벡터 편집용 보존본이며 문서 표시의 필수 파일이 아니다.
+  다른 repo로 문서를 옮길 때는 참조된 PNG와 상대경로를 유지하면 된다. 현재 구조도 SVG의 글자는
+  path로 저장되어 있으므로 문구·구조 변경은 로컬 `docs/render_*_20260917.py`에서 수정·재생성한다.
 - GitHub 수식에서 지원되지 않는 `operatorname` 매크로를 사용하지 않는다.
 - 진행 로그는 준비 완료·실험 완료·해석 변경 같은 주요 milestone 중심으로 전달한다.
   예상 실행 시간에 맞춰 대기한 뒤 확인하며, 짧은 간격의 반복 polling과 epoch 로그 중계를 피한다.
