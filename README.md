@@ -29,7 +29,7 @@
 |---|---|---|
 | Similarity | Target과 외형·의미가 관련된 가시 영역 찾기 | DINOv3 + SigLIP 구현, unseen-target zero-shot 동작 정성 확인; 여러 target의 정량 평가 남음 |
 | Occlusion | 해당 target이 가려질 수 있는 위치 추론 | Adaptive GT 생성·full16 가림확률 예측·외부 target의 zero-shot 정량 평가 완료; 여러 target·실제 관측 조건으로 평가 확장 |
-| Complexity | 더미 내부 물체 간 구조 차이 표현 | GT 접경·depth 관계의 정적 제거 효과 예측 정보 확인; RGB-D 접경 모델은 RGB 대비 일관된 개선이 없어 최종 구조·GT 검증 계속 |
+| Complexity | 단일 RGB-D에서 더미 내부의 물체·관계 표현 생성 | RGB-D 접경 예측을 평가했으며 현재 결합 모델은 미채택; GT 관계 벡터를 외부 입력으로 사용하는 경로는 제외 |
 
 ### 전체 아키텍처
 
@@ -47,11 +47,13 @@
 
 **⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 stream은 같은 `30×40` 위치마다 서로 다른 64개 숫자를 제공함. 이를 같은 위치끼리 이어 붙이면 **`64+64+64=192채널`**이며 공간 격자는 유지됨. 그림에서 오른쪽으로 갈라지는 prediction head는 각 stream의 GT를 예측하는 경로이고, 아래 fusion은 그 head 이전의 feature를 받도록 계획함. 이후 learned fusion·decoder로 최종 target 위치 map을 만들고 탐색 정책에 연결할 예정임. 현재 density `F_C`의 최종 채택은 Complexity 정의·관계 표현 검증 후 판단함.
 
-Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측과 GT 관계의 정적 제거 효과 예측을 별도로 평가함. 관계 정보의 유용성은 확인했으나 접경 모델은 채택 기준을 통과하지 못하여, 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임.
+Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측과 GT 관계의 정적 제거 효과 예측을 별도로 평가함. GT 관계의 제거 회귀는 참고 진단이며 실환경 추론 성과에 포함하지 않음. RGB-D 접경 모델도 채택 기준을 통과하지 못하여 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
 ### 입력과 감독 정보
+
+**Complexity 후속 구현의 외부 입력은 단일 RGB와 depth임.** 필요한 물체·관계 표현은 관측에서 모델 내부가 생성하며, GT 물체 ID·개수·관계 숫자를 별도로 제공하지 않음. GT는 학습 감독과 출력 평가에만 사용함. 아래 fixed reference는 보존한 density pilot의 기존 입력이며 후속 모델의 필수 입력으로 승계하지 않음.
 
 **Scene은 현재 서랍의 관측 영상**, **target reference는 찾을 물체를 별도로 촬영한 영상**임. Reference mask는 그 별도 영상에서 target이 차지하는 영역이며, scene 속 가려진 target의 위치를 알려 주는 mask가 아님.
 
@@ -211,7 +213,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
 | Complexity pilot | RGB-D visible-density 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 경계·물체 관계를 반영하는 구조적 Complexity 정의와 GT |
-| Complexity 표현·관계 진단 | Phase 37 경계 주변 순수 patch 대응 AUROC 0.998789; Phase 38 GT 접경·depth 관계 추가 시 정적 제거 노출 비율의 순위 상관 0.550088→0.801487 (701조건·49 views·10 layouts) | GT 관계의 효용을 실제 RGB-D 예측 관계에서도 보존하는지 검증 |
+| Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | RGB-D에서 물체·관계 표현을 내부 생성하는 전체 경로 검증. GT 숫자 입력의 제거 회귀는 참고 진단으로만 보존 |
 | Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 기하 경계 위치와 물체 소속·전경 판단 결합을 보완 |
 | Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | 최종 GT·loss·decoder 구현, 통합 학습·ablation |
 | Exploration / deployment | Stream별 관측 입력·출력과 탐색 prior 연결 방향 정리 | DRL 통합 구현 후 탐색 효용·실제 RGB-D 적용 평가 |
@@ -245,7 +247,7 @@ Similarity의 unseen-target 정성 동작, Occlusion의 GT 생성·full16·외�
 - [ ] 고정 camera reference에 대한 의존성과 camera/환경 변화의 영향을 검증
 - [x] 실제 더미에서 경계 주변·분리 조각 대응과 GT 기반 가시 관계를 공동 진단 (Phase 37)
 - [x] 원본 해상도 RGB/Depth/RGB-D 접경 예측과 GT 관계의 추가 제거 예측 정보를 평가 (Phase 38)
-- [ ] Depth의 경계 위치 정보와 물체 소속·전경 판단을 결합하고, 예측 관계의 보존·coverage·제거 예측 효용을 평가
+- [ ] 단일 RGB-D에서 물체·관계 표현을 생성하는 추론 경로를 구현하고, GT 입력 없이 얻은 예측의 coverage·관계 보존·효용을 평가
 - [ ] 부족한 능력이 확인된 조건에서 물체 묶음·공간 사전학습 표현을 공정하게 비교
 - [ ] Complexity의 출력 의미와 GT 타당성을 확정
 - [ ] Fusion의 GT·loss·decoder를 정의하고 S+O 대비 S+O+C를 비교

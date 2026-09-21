@@ -26,10 +26,10 @@
 | Complexity 근접도·제거 | 면적 통제 실패와 근접도 평균의 약한 제거 효과 상관(Spearman 0.078295) 확인; 해당 평균은 GT로 채택하지 않음 | 경계·물체 간 관계를 구분하는 표현과 평가 검토 |
 | Complexity 표현 A·공동 진단 | Phase 36 내부 대응 AUROC 0.998953, Phase 37 경계 주변 순수 patch 0.998789·외형 변화 0.998166; 같은 count의 가시 관계 차이 확인 | 혼합 patch·경계·물체 묶음 표현 보완; 16px GT-majority 접경 precision/recall 0.804652/0.845858은 DINO 성능이 아님 |
 | Complexity RGB-D 접경 | Phase 38 exact F1 RGB 0.313310 / RGB-D 0.314580, 3 seeds 중 1개만 개선하여 decoder 미채택 | Depth 경계 위치와 물체 소속·전경 판단을 함께 보완 |
-| Complexity 관계 효용 | GT 관계 추가로 정적 노출 예측 순위 상관 0.550088→0.801487; 701조건·49 views·10 layouts holdout | 실제 RGB-D 예측 관계에서도 추가 정보가 유지되는지 검증 |
+| Complexity GT 관계 참고 진단 | 5-D GT 숫자 입력 회귀는 과거 진단으로 보존하며 실환경 경로에서 제외 | 단일 RGB-D에서 내부 생성한 물체·관계 표현만 추론에 사용 |
 | B/C 및 최종 결합 | 비교 계획과 일부 준비 코드, stream별 feature 규격 정리 | 필요한 능력을 특정한 뒤 B/C 실행·비교; 최종 Complexity GT·fusion·DRL은 후속 구현 단계 |
 
-현재 다음 Step은 **depth 경계 위치와 물체 소속·전경 판단을 결합하고 실제 예측 관계의 효용을 확인하는 것**이다. Phase 38에서 GT 관측 관계가 면적·count 이상의 정적 제거 예측 정보를 제공함을 확인했다. 반면 RGB-D 접경 decoder의 RGB 대비 F1 차이 +0.001270의 95% 구간은 [-0.000137,+0.002688]로, 3 seeds 중 1개만 개선되어 채택하지 않았다. 경계 평가는 Phase 36–37의 기존 test 장면을 재사용했다. 관계 utility는 별도의 GT 기반17-asset capture 진단이며 경계 모델 출력이나 실제 탐색 성공을 평가한 결과가 아니다. 최종 Complexity scalar·추가 encoder·다중 뷰 teacher·fusion·DRL은 미실행이다.
+현재 다음 Step은 **단일 RGB-D에서 물체·관계 표현을 내부 생성하는 전체 추론 경로를 구현·검증하는 것**이다. GT segmentation·물체 ID·개수·관계 벡터·GT 선정 후보/crop/anchor는 추론 입력과 후처리에서 제외한다. GT는 학습 loss·출력 평가에만 사용하며, 예측한 영역·관계는 오류를 포함해 평가한다. GT 관계의 5-D Ridge 회귀는 참고 기록이고 후속 모델이나 실환경 성능 근거가 아니다. Phase 38에서 GT 관측 관계가 면적·count 이상의 정적 제거 예측 정보를 제공함을 확인했다. 반면 RGB-D 접경 decoder의 RGB 대비 F1 차이 +0.001270의 95% 구간은 [-0.000137,+0.002688]로, 3 seeds 중 1개만 개선되어 채택하지 않았다. 경계 평가는 Phase 36–37의 기존 test 장면을 재사용했다. 관계 utility는 별도의 GT 기반17-asset capture 진단이며 경계 모델 출력이나 실제 탐색 성공을 평가한 결과가 아니다. 최종 Complexity scalar·추가 encoder·다중 뷰 teacher·fusion·DRL은 미실행이다.
 
 | 이 문서의 위치 | 내용 |
 |---|---|
@@ -102,6 +102,8 @@
 
 2026-09-21 Phase 38에서 원본 RGB-D 접경 9-head 비교와 GT 관측 관계의 정적 제거 효용을 완료함. Unit tests18개와 경계·utility 독립 감사를 통과했고, decoder 채택 기준 실패 및 GT 관계의 추가 정보를 함께 기록함. README·Complexity·Development Log·본 통합본과 PNG3장을 갱신하며 코드·checkpoint·원시 배열은 로컬 보존함. 기존57개 이미지는 유지하고 전체60개가 됨. 게시 근거는 `docs/public_agent_context_depth_boundary_20260921.json`(LOCAL)임.
 
+2026-09-21 후속 사용자 정정: GT로만 계산한 관계 숫자를 실환경 입력으로 요구하는 경로를 제외함. 관측 RGB-D에서 모델 내부가 생성하는 관계 표현과 학습/평가용 GT를 구분함. Phase38 수치·그림은 그대로 보존하고 이 정정으로 새 연구 Phase를 추가하지 않음. 게시 근거는 `docs/public_agent_context_rgbd_input_contract_20260921.json`(LOCAL)임.
+
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 과거 보고서의 문헌·모델 호환성 조사 내용은 각 작성 당시 확인 범위다. 2026-09-18 다중 뷰 관련 두 논문은 이번 논의에서 확인한 근거이며, 해당 방법을 우리 데이터에서 실행·검증한 결과와 구분한다.
 
 ---
@@ -137,6 +139,10 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 ---
 
 ### 1. 처음 읽는 agent를 위한 핵심 요약
+
+**2026-09-21 사용자 정정 — 실환경 추론 입력:** Complexity의 외부 입력은 단일 scene RGB와 depth로 제한함. 물체 영역·소속·접경·관계 feature가 필요하면 이 관측에서 모델 내부가 예측·생성해야 함. GT segmentation·asset ID·GT 물체 개수·GT 관계 벡터·GT로 고른 crop/anchor/물체 후보를 추론 입력이나 후처리에 제공하지 않음. GT는 학습 loss와 추론 완료 후 평가에만 사용함. RGB-D에서 예측한 영역·관계는 사용할 수 있으나 그 오류를 포함한 전체 경로를 평가해야 함. Phase 38의 GT 기반 5-D Ridge 실험은 과거 참고 진단으로 보존하며 실환경 경로·관계 표현 모델의 성능 근거·다음 구현의 입력에서 제외함. 이 정정은 새 모델 구현·새 실험 완료를 뜻하지 않음.
+
+**실행 경로 구분:** 현재 `BoundaryDecoder.forward(rgb, depth, dino)`와 예측 경계의 depth 순서 계산은 GT 없이 가능한 연산임. 다만 `run_boundary_fp32.py`의 평가 runner는 GT cache를 읽으므로 실환경용 독립 실행 경로와 구분함. 후속 검증은 GT 자료 없이 RGB-D를 로드하여 예측 파일을 완성한 뒤 별도 평가기가 GT를 읽는 방식으로 구성해야 함. 기존 GT utility는 관계뿐 아니라 면적·count baseline부터 GT 의존이므로 수치 일부만 교체해 실환경 경로로 간주하지 않음.
 
 #### 재개 스냅샷 — 2026-09-21 · Phase 38 완료
 
@@ -3081,6 +3087,8 @@ Count와 관계는 분리된 감독 후보로 유지함. 이웃 수·앞뒤 순�
 
 ### Phase 38 — RGB-D 원본 접경 학습과 GT 관측 관계의 제거 효용 (2026-09-21)
 
+> **실환경 입력 조건 정정:** 아래 GT 관계→5-D Ridge 회귀는 참고 진단이며 RGB-D 추론의 성과나 후속 입력으로 사용하지 않음. 이후 구현은 단일 RGB-D에서 관계 표현을 생성하고 그 예측값으로 평가함. GT는 학습 loss·평가에만 사용함. 새 실험이나 Phase 추가가 아니라 완료 기록의 적용 범위를 명확히 한 정정임.
+
 작성일: 2026-09-21. RGB-D 전체 영상 접경 예측과 관측 관계의 정적 제거 효용을 함께 평가함. 경계 모델의 RGB 대비 일관된 개선 gate는 통과하지 못했으며, GT 관계의 추가 예측 정보는 확인함.
 
 #### 1. 목적과 두 실험의 구분
@@ -4435,6 +4443,10 @@ MPLCONFIGDIR=/tmp/pdm_utility_matplotlib \
 
 ### 1. 이 문서가 보장하는 범위
 
+**2026-09-21 사용자 정정 — 실환경 추론 입력:** Complexity의 외부 입력은 단일 scene RGB와 depth로 제한함. 물체 영역·소속·접경·관계 feature가 필요하면 이 관측에서 모델 내부가 예측·생성해야 함. GT segmentation·asset ID·GT 물체 개수·GT 관계 벡터·GT로 고른 crop/anchor/물체 후보를 추론 입력이나 후처리에 제공하지 않음. GT는 학습 loss와 추론 완료 후 평가에만 사용함. RGB-D에서 예측한 영역·관계는 사용할 수 있으나 그 오류를 포함한 전체 경로를 평가해야 함. Phase 38의 GT 기반 5-D Ridge 실험은 과거 참고 진단으로 보존하며 실환경 경로·관계 표현 모델의 성능 근거·다음 구현의 입력에서 제외함. 이 정정은 새 모델 구현·새 실험 완료를 뜻하지 않음.
+
+**실행 경로 구분:** 현재 `BoundaryDecoder.forward(rgb, depth, dino)`와 예측 경계의 depth 순서 계산은 GT 없이 가능한 연산임. 다만 `run_boundary_fp32.py`의 평가 runner는 GT cache를 읽으므로 실환경용 독립 실행 경로와 구분함. 후속 검증은 GT 자료 없이 RGB-D를 로드하여 예측 파일을 완성한 뒤 별도 평가기가 GT를 읽는 방식으로 구성해야 함. 기존 GT utility는 관계뿐 아니라 면적·count baseline부터 GT 의존이므로 수치 일부만 교체해 실환경 경로로 간주하지 않음.
+
 `PROJECT_CONTEXT.md`는 실행에 필요한 내용을 압축한 handoff이며, 이 문서는 근거 자료의 위치를
 연결하는 색인이다. 다음 세 문서를 순서대로 읽는다.
 
@@ -5278,6 +5290,10 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
   찾아가기 위한 근거 자료 색인
 
 ### Current handoff snapshot — 2026-09-21
+
+**2026-09-21 사용자 정정 — 실환경 추론 입력:** Complexity의 외부 입력은 단일 scene RGB와 depth로 제한함. 물체 영역·소속·접경·관계 feature가 필요하면 이 관측에서 모델 내부가 예측·생성해야 함. GT segmentation·asset ID·GT 물체 개수·GT 관계 벡터·GT로 고른 crop/anchor/물체 후보를 추론 입력이나 후처리에 제공하지 않음. GT는 학습 loss와 추론 완료 후 평가에만 사용함. RGB-D에서 예측한 영역·관계는 사용할 수 있으나 그 오류를 포함한 전체 경로를 평가해야 함. Phase 38의 GT 기반 5-D Ridge 실험은 과거 참고 진단으로 보존하며 실환경 경로·관계 표현 모델의 성능 근거·다음 구현의 입력에서 제외함. 이 정정은 새 모델 구현·새 실험 완료를 뜻하지 않음.
+
+**실행 경로 구분:** 현재 `BoundaryDecoder.forward(rgb, depth, dino)`와 예측 경계의 depth 순서 계산은 GT 없이 가능한 연산임. 다만 `run_boundary_fp32.py`의 평가 runner는 GT cache를 읽으므로 실환경용 독립 실행 경로와 구분함. 후속 검증은 GT 자료 없이 RGB-D를 로드하여 예측 파일을 완성한 뒤 별도 평가기가 GT를 읽는 방식으로 구성해야 함. 기존 GT utility는 관계뿐 아니라 면적·count baseline부터 GT 의존이므로 수치 일부만 교체해 실환경 경로로 간주하지 않음.
 
 - 전체 RGB-D에서 원본 해상도의 물체 간 접경을 예측하는 9개 head와 GT 관측 관계의 정적 제거 효용을 평가함. 정식 경계 run은 `outputs/complexity_depth_boundary_20260921_v2/`임.
 - RGB exact F1 **0.313310**, RGB-D **0.314580**. 차이 +0.001270의 paired-key 95% 구간은 `[-0.000137,+0.002688]`, 3 seeds 중 1개만 개선되어 **현재 결합 decoder는 미채택**임. Depth 단차 baseline F1 0.351372도 flat 접경 recall0·같은 물체 단차 FPR0.970060이라는 오류가 있음.
