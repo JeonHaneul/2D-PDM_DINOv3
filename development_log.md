@@ -1182,22 +1182,11 @@ Count와 관계는 분리된 감독 후보로 유지함. 이웃 수·앞뒤 순�
 - 직접 근거: 로컬 `outputs/complexity_joint_diagnostic_20260918_v1/`의 protocol, threshold lock, test entry, pair NPZ, metrics, coverage, relations, summary, audit와panels. 상세 보고서: `docs/complexity_results/joint_diagnostic_20260918.md`(공개`agent.md`에 본문 포함).
 - 이번 공개는 완료된Phase37 설명·그림2장·연구 문맥에 한정함. 실행코드·checkpoint·dense cache·원시NPZ는 로컬에 보존함.
 
-## Phase 38 — RGB-D 원본 접경 학습과 GT 관측 관계의 제거 효용 (2026-09-21)
+## Phase 38 — RGB-D 원본 접경 학습 (2026-09-21)
 
-> **실환경 입력 조건 정정:** 아래 GT 관계→5-D Ridge 회귀는 참고 진단이며 RGB-D 추론의 성과나 후속 입력으로 사용하지 않음. 이후 구현은 단일 RGB-D에서 관계 표현을 생성하고 그 예측값으로 평가함. GT는 학습 loss·평가에만 사용함. 새 실험이나 Phase 추가가 아니라 완료 기록의 적용 범위를 명확히 한 정정임.
+사용자 요청에 따라 Phase 38의 GT 관계 회귀 성과 주장·수치·그림을 공개 문서에서 철회함. 실제 RGB-D 접경 학습 결과는 보존하며, 철회된 실험 원본은 로컬 archive로만 유지함.
 
-작성일: 2026-09-21. RGB-D 전체 영상 접경 예측과 관측 관계의 정적 제거 효용을 함께 평가함. 경계 모델의 RGB 대비 일관된 개선 gate는 통과하지 못했으며, GT 관계의 추가 예측 정보는 확인함.
-
-### 1. 목적과 두 실험의 구분
-
-Phase 37에서 frozen DINO의 순수 patch 물체 구분 정보는 강했으며, 향후 표현에서 mixed patch와 원본 해상도 접경을 보존할 필요가 제기됨. 이번 단계는 RGB와 metric depth를 함께 사용해 **서로 다른 물체가 영상에서 맞닿는 위치**를 예측하고, 별도로 그런 관측 관계가 면적·개수 이상의 정적 제거 효용 정보를 갖는지 확인함.
-
-| 실험 | 입력·출력 | 확인 범위 |
-|---|---|---|
-| 경계 학습 | 전체 RGB-D 및 frozen DINO → 원본 해상도 right/down 접경 score | GT mask 없이 보이는 inter-asset 경계를 검출하는 능력 |
-| 제거 utility | GT asset ID·관측 depth 관계 → 정적 제거 후 노출 비율 회귀 | 관계를 정확히 알 때 면적·개수 이상의 예측 정보가 있는지 |
-
-두 결과는 서로 다른 자료·평가를 사용함. Utility에는 학습한 경계 모델의 예측을 넣지 않음. Pixel 접경 검출만으로 물체별 node와 edge를 가진 **완성된 관계 그래프**가 만들어지는 것도 아님. ID grouping·관계 집계·숨겨진 관계·최종 Complexity GT·다른 stream과의 fusion은 별도 단계임.
+전체 RGB-D 및 frozen DINO에서 오른쪽·아래쪽 물체 간 접경을 예측함. GT는 감독·평가에만 사용함. 작은 RGB-D decoder의 RGB 대비 일관된 개선은 확인하지 못했으며 미채택 상태임. 원본 해상도 접경만으로 물체 ID grouping이나 완성된 관계 그래프가 만들어지지는 않음.
 
 ### 2. 자료와 고정된 분할
 
@@ -1258,7 +1247,7 @@ v1은 BF16 기반 학습·validation pilot로 보존하며 해당 run에서는 t
 
 v2는 구조·분할·12 epoch 조건을 유지하고 세 modality 모두 decoder의 autocast를 끈 **IEEE FP32**, TF32 off로 실행함. 원본 depth cache는 계속 FP32이며 frozen DINO 저장 cache는 기존 FP16 그대로임. 따라서 “전체 파이프라인과 backbone까지 처음부터 FP32로 재계산함”으로 표현하지 않음.
 
-정밀도 감사 근거는 `outputs/complexity_depth_boundary_20260921_v1/data/train_depth_precision_audit.json`임. v1 경계 pilot의 수치를 v2 최종 test와 섞어 평균하거나 유리한 precision 결과를 선택하지 않음. v1 아래 보존된 제거 utility는 이 decoder precision 변경과 별개 실험임.
+정밀도 감사 근거는 `outputs/complexity_depth_boundary_20260921_v1/data/train_depth_precision_audit.json`임. v1 경계 pilot의 수치를 v2 최종 test와 섞어 평균하거나 유리한 precision 결과를 선택하지 않음.
 
 ### 6. 학습·threshold·평가 규칙
 
@@ -1312,59 +1301,19 @@ Test의 유효 양성 518,528 edges 중 flat 50,104, step 346,624, mixed 426,325
 
 ![Phase 38 fixed scene comparison](img/complexity/rgbd_boundary_fixed_scenes_20260921.png)
 
-열은 RGB/depth/GT/RGB head/Depth head/RGB-D head/직접 단차임. 노랑=GT, 초록=정확한 예측, 빨강=오검출, 파랑=누락임.
+열은 RGB/depth/GT/RGB head/Depth head/RGB-D head/직접 단차임. 노랑=GT, 초록=정확한 예측, 빨강=오검출, 파랑=누락임. 표시선만 1px 팽창함.
 
 ![Phase 38 boundary metrics](img/complexity/rgbd_boundary_metrics_20260921.png)
 
 학습 head는 image→key→3 seeds, 직접 단차는 image→key 집계임.
 
-Unit tests **18개 통과**, 경계 `audit.json` 및 utility 독립 감사 **통과**. 경계 감사는 cached GT 960장 재구성, raw bin/hist 9,600건, scope별 curve 19,200건, test exact/조건별 count 6,400건, hash 78개와 validation threshold·집계·bootstrap을 독립 재계산함. 2px tolerance는 사전 고정 16장×10모델=160건을 KD-tree로 재계산함. 원본 segmentation decoding·DINO forward·학습 재실행까지 수행한 감사는 아님. 모델 개선 gate 실패 판정도 그대로 일치함.
+Unit tests **18개 통과**, 경계 `audit.json` 독립 감사 **통과**. 경계 감사는 cached GT 960장 재구성, raw bin/hist 9,600건, scope별 curve 19,200건, test exact/조건별 count 6,400건, hash 78개와 validation threshold·집계·bootstrap을 독립 재계산함. 2px tolerance는 사전 고정 16장×10모델=160건을 KD-tree로 재계산함. 원본 segmentation decoding·DINO forward·학습 재실행까지 수행한 감사는 아님. 모델 개선 gate 실패 판정도 그대로 일치함.
 
-**다음 Step:** 단차 좌표를 보존하는 기하 정보와 물체 소속·전경 판단을 결합할 필요가 구체화됨. 직접 단차 기준선과 이번 feature concat decoder는 각각의 실패 유형을 확인한 비교군으로 유지함. Depth 단차가 없는 접경도 평가에 유지하며, 물체–배경/같은 물체의 내부 단차/서로 다른 물체를 구분하는 방법을 비교하고 실제 예측 관계의 utility 보존을 확인함. 접경 모듈·grouping·직접 관계 예측 가운데 어느 구조를 채택할지는 아직 결정하지 않음.
+**다음 Step:** 단차 좌표를 보존하는 기하 정보와 물체 소속·전경 판단을 결합할 필요가 구체화됨. 직접 단차 기준선과 이번 feature concat decoder는 각각의 실패 유형을 확인한 비교군으로 유지함. Depth 단차가 없는 접경도 평가에 유지하며, 물체–배경/같은 물체의 내부 단차/서로 다른 물체를 구분하는 방법을 비교하고 RGB-D만으로 생성한 물체 소속·관계 표현의 오류를 평가함. 접경 모듈·grouping·직접 관계 예측 가운데 어느 구조를 채택할지는 아직 결정하지 않음.
 
+### 근거 위치
 
-### 8. 완료된 보조 진단: 관측 관계의 제거 utility
-
-Phase 35의 별도 17-asset 보조 capture를 재사용함. `fruit_1` 2개와 `packaged_food_1` 8개 layout의 과거 공통 상관 평가 가능 집합 **701 object-view cases / 49 views / 10 layouts**를 고정함. 원래 16-pool 경계 학습 자료의 test 결과와 혼합하지 않음.
-
-결과값은 `새로 보인 다른 물체 pixel / 제거 전 해당 물체의 replay visible pixel`임. 물체 하나만 정적으로 숨기고 다른 물체는 고정한 노출 비율이며, grasp·낙하·검색 성공은 평가하지 않음. 모든 701개 원래 endpoint를 저장된 replay layer로 재현하여 검증했고 새 렌더는 수행하지 않음.
-
-Count와 국소 관계 모두 동일한 96px window, global object area ≥32px / window intersection ≥16px 조건과 공통 유효 object pixel 평균을 사용함. 관측 GT 접경 support ≥8인 이웃의 degree, 후보가 10mm 초과 앞/뒤인 비율 차이의 이웃별 합, 10mm 이하 불명확 비율의 이웃 평균을 입력함. 17개 mapping 색은 충돌이 없고 기존 cap16 count와 실제 선택 표본의 차이는 float32 평균 오차 수준임.
-
-회귀는 layout 전체와 그 모든 camera를 제외하는 10-fold LOLO, 고정 ridge `alpha=1`임. 학습 layout만으로 정규화·회귀 계수를 구하고 layout→view→object 균등 weight를 사용함. Area baseline을 모든 모델에 포함함. 평가는 view 안 object Spearman → layout 평균 → 10-layout 평균임.
-
-| Primary 입력 | Spearman ↑ | 노출 비율 MAE ↓ |
-|---|---:|---:|
-| Log area + count96 | 0.550088 | 0.275112 |
-| 위 입력 + local degree | 0.631521 | 0.253211 |
-| 위 입력 + local depth-order/ambiguous | **0.801487** | **0.212034** |
-
-관계 전체 추가 차이는 `+0.251400`, 10/10 layouts에서 양수이며 paired-layout 95% 구간은 `[+0.188974,+0.315823]`임. Degree 위의 추가 차이 `+0.169966`은 **signed order와 ambiguous 두 feature의 공동 효과**이며 방향 단독 ablation이 아님. 전체 영상의 관계를 사용하는 별도 민감도 모델은 `0.752548`임. 이 값은 동일 96px 범위 비교의 primary로 바꾸지 않음.
-
-Primary area는 제거 전 replay 면적, count/관계는 원본 관측 면적·label을 사용한 source 차이가 있음. 제거 후 outcome 입력 누출은 아니지만 관측 입력의 일관성을 위해, primary를 유지한 채 observed area만 교체한 분석을 한 번 추가함. 관측/replay 면적의 절대 상대 차이 median/p95/max는 `0.05348%/0.30030%/2.98507%`였으며 baseline `0.550088`, 관계 모델 `0.801487`, 10/10 개선과 구간은 동일함.
-
-GT ID와 관측 관계가 주어진 oracle utility이며 **predicted boundary를 이용한 utility 결과가 아님**. 10 layouts가 asset·capture batch를 공유하고 과거 자료를 재사용하므로 bootstrap 구간은 이 집합의 기술적 요약임. 독립 augmented least-squares 재계산은 원래 예측과 최대 `7.494e-15` 차이였고, train-only 정규화·layout holdout·상관·bootstrap·artifact hash 감사를 통과함.
-
-![Phase 38 observed relation utility](img/complexity/observed_relations_utility_20260921.png)
-
-GT 관계를 이용한 제거 효과 예측과 layout별 비교임.
-
-### 9. 근거 위치와 후속 판단의 범위
-
-| 근거 | 로컬 경로 |
-|---|---|
-| 경계 v2 protocol·split·precision | `outputs/complexity_depth_boundary_20260921_v2/protocol.json` |
-| Source snapshot·validation lock | 같은 run의 `source_snapshot/`, `validation_lock.json` |
-| 모델·학습 이력·score/평가 저장 | 같은 run의 `models/` |
-| 데이터·cache manifest·precision 감사 | `outputs/complexity_depth_boundary_20260921_v1/data/` |
-| 모델·GT·metric·FP32 runner | `experiments/complexity_depth_boundary_20260921/` |
-| Utility protocol·CSV·결과·독립 감사 | `outputs/complexity_depth_boundary_20260921_v1/utility/` |
-| Utility 상세 정의·면적 보완·SHA | `docs/complexity_results/depth_boundary_utility_20260921.md` |
-| 원본 capture와 10-layout utility 그림 | `outputs/complexity_depth_boundary_20260921_v1/panels/observed_relations_utility.png` |
-
-경계 예측 결과와 oracle utility를 연결하려면, 예측 접경으로 관계를 구성했을 때의 오류·물체 대응·degree 및 앞뒤 요약의 보존 정도를 확인해야 함. 관측 depth의 직접 앞뒤 계산을 다시 학습해 맞힌 점수로 관계의 타당성을 대신하지 않음. 전체 물체 segmentation/관계 그래프, 새 asset 일반화, 실제 제거 행동, 최종 Complexity GT 및 fusion의 효과는 이번 결과의 자동 결론이 아님.
-
-이번 게시에는 문서·PNG 3장만 포함하며 코드·checkpoint·원시 배열은 로컬에 보존함.
+정식 run은 `outputs/complexity_depth_boundary_20260921_v2/`이며 protocol·validation lock·summary·audit·checkpoint·두 경계 그림을 보존함. 모델 코드는 `experiments/complexity_depth_boundary_20260921/`에 있음. 이 문서는 공개 범위를 제한한 경계 보고서이며 원래 run의 불변 통합 보고서와 구분함.
 
 <!-- navigation:start -->
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Development Log** · [연구 문맥](agent.md)
