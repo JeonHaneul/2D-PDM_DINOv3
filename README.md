@@ -212,10 +212,10 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion GT | Target/yaw별 adaptive pose grid로 full16 240,000 maps 생성; fixed grid의 target별 coverage 누락 보완 | 새 target·관측 조건에서 geometry와 coverage 확인 |
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
-| Complexity pilot | RGB-D visible-density 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 경계·물체 관계를 반영하는 구조적 Complexity 정의와 GT |
-| Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | RGB-D에서 물체·관계 표현을 내부 생성하는 전체 경로 검증. GT 관계 회귀의 성과·수치·그림은 공개에서 철회 |
-| Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 기하 경계 위치와 물체 소속·전경 판단 결합을 보완 |
-| Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | 최종 GT·loss·decoder 구현, 통합 학습·ablation |
+| Complexity pilot | RGB-D visible label-group count 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 물체별 instance GT와 reference 없는 단일 RGB-D의 지역 count 예측을 첫 검증 방향으로 설정; 최종 모델 미채택 |
+| Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | 관계 복원을 지역 count 학습의 필수 선행 단계로 두지 않음. GT 관계 회귀의 성과·수치·그림은 공개 철회 상태 유지 |
+| Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 같은 물체 내부 단차·물체–배경·평평한 물체 간 접경의 실패를 보존 |
+| Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | Complexity 방법 검증·선택 이후 최종 GT·loss·decoder 구현, 통합 학습·ablation |
 | Exploration / deployment | Stream별 관측 입력·출력과 탐색 prior 연결 방향 정리 | DRL 통합 구현 후 탐색 효용·실제 RGB-D 적용 평가 |
 
 ### Core Files
