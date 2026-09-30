@@ -454,21 +454,25 @@ Phase 38 이후에는 **관계 표현의 생성부터 최종 평가까지 단일
 
 독립 수치 검산과 unit tests 18개를 통과함. 정밀도 수정·GT·학습·평가 상세는 `development_log.md` Phase 38과 공개 `agent.md` C8에 보존함. 코드·checkpoint·원시 배열은 로컬에 둠.
 
-### ⑨ 단일 RGB-D의 지역별 가시 물체 수 예측 — 2026-09-29 첫 검증 방향
+### ⑨ 단일 RGB-D의 지역별 가시 물체 수 예측 — 2026-09-30 첫 비교 완료
 
 첫 검증 범위는 **같은 크기의 영상 영역 안에 보이는 서로 다른 물체 수**임. 같은 더미에서 물체가 밀집한 부분을 나타내는 보조 표현을 학습하려는 방향이며, 최종 Complexity 모델이나 전체 탐색 성능을 확정한 상태는 아님. 여러 물체가 있다는 정보와 가림·배치 관계 전체를 복원하는 과제를 구분함.
+
+**Phase 39 판단:** 실제 물체 ID로 만든 GT를 이용해 960영상을 새로 수집하고, 원래 16개 물체의 학습하지 않은 32개 배치·160영상에서 RGB·depth·RGB-D를 비교함. 모든 경로가 학습 자료의 위치별 평균보다 더미 내부 순위·상위 영역 선택을 개선하여 지역 count 후보를 지지함. 그러나 RGB-D는 RGB 대비 사전 개선 기준을 통과하지 못해 현재 depth 결합의 추가 이득은 확인하지 못함. RGB 기준 후보를 유지하며 최종 Complexity는 미채택임.
+
+RGB 결과에는 frozen DINO와 원본 RGB 세부 경로가 함께 포함됨. DINO 단독 성능이나 depth 전체의 정보 한계로 해석하지 않음. 공통 test key 2개·seen assets의 소규모 비교이므로 외부 물체·새 관측과 작은 가시 물체 등의 오류 검증을 남김. 수치·고정 비교와 큰 오류 그림·처리시간 조건은 [Development Log의 Phase 39](development_log.md#2026-09-30--phase-39--원본-instance-gt와-지역-count의-새-배치-비교)에 보존함. Fusion은 아직 진행하지 않음.
 
 #### 입력과 예측 경로
 
 ```text
-RGB → 고정 DINOv3 → RGB 특징 ────────────┐
-                                         ├→ 특징 결합·decoder → F_C: 64×30×40
-Depth + 유효 pixel 정보 → 경량 encoder ──┘                 └→ 영역 크기별 count map
+RGB → 고정 DINOv3 → RGB 문맥 특징 ────────┐
+RGB → 경량 세부 특징 경로 ────────────────┼→ 특징 결합·decoder → F_C: 64×30×40
+Depth + 유효 pixel 정보 → 경량 encoder ───┘                 └→ 영역 크기별 count map
 
 IsaacSim 물체별 instance segmentation → 지역 count GT → 학습 loss / 별도 평가
 ```
 
-DINOv3는 RGB의 외형·문맥 특징을 제공하고, depth encoder는 관측 깊이와 결측 위치에서 기하 특징을 학습함. DINOv3는 고정하고 depth encoder와 decoder/head를 학습하는 구성을 첫 비교 대상으로 둠. `64×30×40`은 중간 특징의 channel과 공간 규격이며, 각 위치의 count는 그 위치 주변 영역에 보이는 물체 수를 나타냄.
+DINOv3는 RGB의 외형·문맥 특징을 제공하고, depth encoder는 관측 깊이와 결측 위치에서 기하 특징을 학습함. DINOv3는 고정하고 원본 RGB 세부 경로·depth encoder·decoder/head를 학습함. 첫 비교는 완료했으나 최종 구조로 채택한 것은 아님. `64×30×40`은 중간 특징의 channel과 공간 규격이며, 각 위치의 count는 그 위치 주변 영역에 보이는 물체 수를 나타냄.
 
 작은 영역과 큰 영역의 count를 함께 예측함. 예를 들어 같은 위치 주변의 작은 영역에는 A·B가, 큰 영역에는 A·B·C·D가 보이면 각각의 정답은 2와 4가 됨. 영역 크기가 같을 때 count 순위는 영상 면적당 밀도의 순위와 같음. 서로 다른 크기의 count를 그대로 비교하여 복잡도 순위로 해석하지 않으며, 지도 전체를 더해 scene의 총 물체 수를 구하지 않음.
 
@@ -496,7 +500,7 @@ Count는 물체 중심이 영역 안에 있는지보다 **해당 영역과 겹�
 
 Phase 33은 저장된 색상 label-group count와 고정 camera reference를 사용한 결과임. 새 비교에서는 물체별 ID를 보존한 GT와 reference 없는 단일 RGB-D 경로를 검증함. 따라서 기존 MAE를 새 물체 count 정의의 성능으로 옮겨 쓰지 않으며, 기존 pilot의 구조·수치·한계는 4·5절에 보존함.
 
-1. **GT 확인:** 원본 ID와 개별 물체의 대응, 배경·unknown, 분리된 가시 조각과 복제품을 확인하고 지역 count를 독립 검산함.
+1. **GT 확인:** 원본 ID와 개별 물체의 대응, 배경·unknown 및 지역 count를 검산함. Phase 39의 16px 최소 가시 면적은 초기 고정값이며 train/validation 민감도 검사만 완료함. 모든 복제품·가림 조건의 성능이 검증됐다는 뜻은 아님.
 2. **비교 조건 고정:** 영역 크기·가시 면적·유효 위치·scene-key split·학습 조건을 먼저 기록함. 기존 16개 target은 training pool에 유지하고, 같은 scene의 다섯 view를 다른 split에 나누지 않음.
 3. **직접 예측 평가:** 고정 DINO와 depth encoder의 count 예측을 검증함. 같은 정답·평가 영역에서 RGB·depth 정보의 기여를 구분함.
 4. **채택 판단:** 장면 안의 지역 순위, 혼잡한 상위 영역 포착, count 오차와 처리시간을 함께 확인함. 작은 물체·심한 가림 및 별도로 추가한 unseen 물체를 평가한 뒤 Complexity 방법을 판단함.

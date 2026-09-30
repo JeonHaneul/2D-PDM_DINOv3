@@ -4,11 +4,11 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-09-29 (Asia/Seoul) · 정식 연구 이력: Phase 1–38 · 최신 방향: 단일 RGB-D 지역 count 첫 구현·검증; 최종 Complexity 미채택
+> 문서 기준일: 2026-09-30 (Asia/Seoul) · 정식 연구 이력: Phase 1–39 · 최신 결과: 새 배치 지역 count 후보 지지·depth 추가 효과 미확인; 최종 Complexity 미채택
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
-이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–38 Development Log, Complexity의 가정·실험·후속 계획 보고서 8개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
+이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–39 Development Log, Complexity의 가정·실험·후속 계획 보고서 9개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
@@ -22,21 +22,23 @@
 | Occlusion GT | Target/yaw별 adaptive pose, 70% 이상 가림 판정, 16×3,000×5 = 240,000 maps 생성 | 새로운 target·관측 조건의 geometry/coverage; 실제 배치 가능성까지 다룰 경우 충돌·지지·안정성 |
 | Occlusion 학습 | Native68 global FiLM + raw target broadcast, full16 epoch 3; scene-heldout coverage 내부 MAE 0.013997로 가림확률 예측 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | Occlusion 외부 평가 | 미학습 `packaged_food_5`의 zero-shot 정량 평가 완료; 30 scene keys/150 views, coverage 내부 MAE 0.017998 | 여러 external targets·실제 RGB-D·추정 mask로 평가 확대, full16 독립 CLI 구현 |
-| Complexity density | RGB-D count MAE 0.641416 vs depth-only 0.832717; 상대 22.973% 개선 확인 | Visible-density 결과를 바탕으로 구조적 Complexity의 정의·GT 구체화 |
+| Complexity Phase 33 density | RGB-D label-group count MAE 0.641416 vs depth-only 0.832717; 상대 22.973% 개선 확인 | 당시 정의의 결과이며 새 instance count 성능과 구분함 |
 | Complexity 근접도·제거 | 면적 통제 실패와 근접도 평균의 약한 제거 효과 상관(Spearman 0.078295) 확인; 해당 평균은 GT로 채택하지 않음 | 경계·물체 간 관계를 구분하는 표현과 평가 검토 |
 | Complexity 표현 A·공동 진단 | Phase 36 내부 대응 AUROC 0.998953, Phase 37 경계 주변 순수 patch 0.998789·외형 변화 0.998166; 같은 count의 가시 관계 차이 확인 | 혼합 patch·경계·물체 묶음 표현 보완; 16px GT-majority 접경 precision/recall 0.804652/0.845858은 DINO 성능이 아님 |
 | Complexity RGB-D 접경 | Phase 38 exact F1 RGB 0.313310 / RGB-D 0.314580, 3 seeds 중 1개만 개선하여 decoder 미채택 | 과거 결과로 보존하며 전체 RGB-D 능력의 부재로 확대하지 않음 |
-| Complexity 지역 count | 실제 instance GT 저장·고정 RGB-D 경로의 첫 구현 및 기능 점검 | all16 새 GT로 지역 count·장면 내 순위·외부 물체·처리시간 검증; 최종 구조 미채택 |
+| Complexity 지역 count | Phase 39 새 배치 32개·160영상에서 위치 평균 대비 지역 순위·상위 선택 개선; RGB MAE 0.515799·RGB-D 0.521641 | 현재 depth 추가 효과 미확인; RGB 기준 후보 유지, 외부 물체·관측 변화 검증, 최종 구조 미채택 |
 | B/C 및 최종 결합 | 비교 계획과 일부 준비 코드, stream별 feature 규격 정리 | 필요한 능력을 특정한 뒤 B/C 실행·비교; 최종 Complexity GT·fusion·DRL은 후속 구현 단계 |
 
-현재 다음 Step은 **IsaacSim의 실제 물체 ID로 지역 count GT를 만들고, 고정 DINOv3 RGB 특징과 경량 depth encoder를 결합한 단일 RGB-D 모델을 검증하는 것**임. 추론은 RGB와 depth만 사용하며 GT·workspace·empty-depth reference를 요구하지 않음. SAM·반복 crop·추가 같은 물체 판별 loss는 첫 모델에 포함하지 않음. 이번 기능 점검은 한 장면의 학습·추론 연결 확인이며 정식 비교·unseen 성능·최종 Complexity 채택이 아님. 새 정식 수집 규모와 비교 조건을 고정한 뒤 모든16개 기존 pool에서 지역 순위·count 오차·처리시간을 확인함.
+최신 완료 연구는 **IsaacSim 원본 물체 ID로 GT를 생성한 Phase 39 지역 count 비교**임. 960영상·8/2/2 공통 key split에서 RGB·depth·RGB-D × 3 seeds를 비교했으며, 새 배치 test는 원래 16개 seen assets의 32개 배치·160영상임. 모든 경로가 학습 위치 평균을 넘었지만 RGB-D의 RGB 대비 추가 효과는 확인하지 못함. RGB에는 frozen DINO와 원본 RGB 세부 경로가 모두 포함됨. 다음 Step은 RGB 기준 후보를 유지하며 작은 가시 물체·가림·외부 물체·관측 변화와 각 경로의 기여를 확인하는 것임. 최종 Complexity는 미채택이며 fusion은 미실행임.
+
+추론은 단일 RGB-D만 사용하며 GT·workspace·empty-depth reference를 요구하지 않음. SAM·반복 crop·추가 물체 판별 loss는 사용하지 않음. 이전 한 장면의 기능 점검과 이번 새 배치 비교를 구분함. 이번 학습 GT·동일 분포 수집에서 packaged_food_5를 제외했으며 향후 외부 물체 평가는 별도 과제로 유지함. 공통 test key가 2개인 pilot이므로 넓은 일반화·유의성·배포 FPS를 주장하지 않음.
 
 GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 유지함. Phase38 경계 결과와 이전 가정·실패 기록은 보존함. 의미 있는 비교 결과는 Development Log에, 중요한 가정·방향은 Complexity 본문에 선별적으로 반영함. Complexity 방법 채택 뒤 fusion을 진행하며, 최종 확정 전 현재 연구 이력을 임의 삭제하지 않음.
 
 | 이 문서의 위치 | 내용 |
 |---|---|
 | A. 현재 프로젝트 문맥 | 목표, 데이터, 세 stream의 입력·모델·GT·loss, 결과, 한계, 실행 규약 |
-| B. Phase 1–38 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
+| B. Phase 1–39 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
 | C1. 정의 재검토 | Count/occupancy/면적·depth 반례, 당시 최근 5년 문헌, 후보 가정 |
 | C2. 관측 근접도 | 거리 수식, GT teacher 조건, 통제 실패, 가시 표면의 한계 |
 | C3. 정적 제거 | 실제 asset 재현, Isaac 초기 실패, 공통 표본 상관과 한계 |
@@ -45,6 +47,7 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 | C6. 실행 가능성 조사 | 후보 모델·환경·용량·준비 상태; 실행 성공 기록과 구분 |
 | C7. Phase 37 공동 진단 | 경계·외형 변화·분리 조각 대응, 혼합 patch와 GT block 근사, 가시 관계 정량화·검증 |
 | C8. Phase 38 RGB-D 접경 | 원본 방향별 GT·9 heads·정밀도 수정·전체 영상 F1·실패 유형·독립 검산 |
+| C9. Phase 39 지역 count | 원본 instance GT·새 배치 비교·3-seed 순위와 regret·depth 추가 효과 미확인·시간·독립 감사 |
 | D. 근거와 이미지 색인 | Current/legacy 구분, JSON·log·checkpoint·그림 위치, 기록 공백 |
 | E. 인수인계·작업 규칙 | Source of truth, split·문서화·사용자 방향·게시 범위 |
 
@@ -105,6 +108,8 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 
 2026-09-21 후속 사용자 정정: GT로만 계산한 관계 숫자를 실환경 입력으로 요구하는 경로를 제외함. 관측 RGB-D에서 모델 내부가 생성하는 관계 표현과 학습/평가용 GT를 구분함. 이후 철회 요청으로 GT 관계 회귀 수치·그림은 공개에서 삭제하고 RGB-D 경계 결과만 보존함. 새 연구 Phase를 추가하지 않음. 게시 근거는 `docs/public_agent_context_rgbd_input_contract_20260921.json`(LOCAL)임.
 
+2026-09-30 Phase 39에서 원본 instance GT의 지역 count 후보를 새 배치에서 비교함. 의미 있는 위치 기준선 대비 개선과 RGB-D 추가 효과 미확인, 고정 비교·실패 PNG2장, 독립 감사를 함께 기록함. 최종 Complexity·fusion은 미채택/미실행이며 GT 관계 회귀의 공개 철회는 유지함. 게시 근거는 `docs/public_agent_context_local_count_pilot_20260930.json`(LOCAL)임.
+
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 과거 보고서의 문헌·모델 호환성 조사 내용은 각 작성 당시 확인 범위다. 2026-09-18 다중 뷰 관련 두 논문은 이번 논의에서 확인한 근거이며, 해당 방법을 우리 데이터에서 실행·검증한 결과와 구분한다.
 
 ---
@@ -116,7 +121,7 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-09-29 (Asia/Seoul); 연구 완료: Phase 38(9월21일), GT 관계 회귀 공개 철회; 자동 물체 영역 비교는 미실행
+> 마지막 문서 갱신: 2026-09-30 (Asia/Seoul); 연구 완료: Phase 39(9월30일) 원본 instance 지역 count 비교; depth 추가 효과 미확인·최종 C 미채택; GT 관계 회귀 공개 철회 유지
 > Similarity/Occlusion의 기존 교차검증 기준일: 2026-08-28
 > 대상: `<DEV_ROOT>`
 > 목적: 이전 대화를 보지 못한 agent가 현재 코드와 데이터로 연구를 안전하게 이어가기 위한 문서
@@ -141,16 +146,25 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 
 ### 1. 처음 읽는 agent를 위한 핵심 요약
 
-#### 최신 사용자 방향 — 2026-09-29 지역별 가시 물체 수 예측
+#### 최신 연구 상태 — 2026-09-30 Phase 39 지역 count pilot 완료
 
-이번 대화의 지시가 아래 과거 재개 기준보다 우선함. Complexity 자체의 방법을 먼저 검증하며 fusion은 후속 단계임. 첫 후보는 **고정 DINOv3 RGB 특징 + 별도 경량 depth encoder → 고정 decoder → 지역 count와 64×30×40 특징**임. 이 방향의 구현·최소 검증·선별적인 GitHub 문서 갱신을 사용자가 승인함. 최종 Complexity 모델·GT 채택으로 해석하지 않음.
+이번 대화의 지시가 아래 과거 재개 기준보다 우선함. Complexity 자체의 방법을 먼저 검증하며 fusion은 후속 단계임. 첫 후보의 실제 구현은 **고정 DINOv3 RGB 특징 + 원본 RGB 세부 특징 + 별도 경량 depth encoder → 고정 연산 decoder → 지역 count와 64×30×40 특징**임. 이 방향의 구현·최소 검증·선별적인 GitHub 문서 갱신을 사용자가 승인함. 최종 Complexity 모델·GT 채택으로 해석하지 않음.
 
-- GT는 IsaacSim의 원본 instance ID를 physical object root에 연결하여 생성함. 같은 asset의 복제물은 별도 물체로 세고 한 물체의 여러 mesh·분리된 가시 조각은 합침. 배경과 unknown을 구분함. 기존 색상 label-group을 실제 instance count로 바꾸어 주장하지 않음.
+- **Phase 39 완료:** 16 pools × 12 layouts(4 envs × 3회) × 5 views의 960영상을 새로 수집하고 9개 head의 학습·독립 추론·별도 평가를 완료함. Test는 원래 16개 seen assets의 새 배치 32개·160영상이며 unseen asset 성능이 아님.
+- 원래 16개 asset과 로컬 drawer texture를 사용하고 각 새 장면에서 초기 자세·선속도·각속도를 명시적으로 초기화함. Capture는 `outputs/complexity_instance_capture_20260930_pilot/`임. 초기화 보완 전 gate는 `outputs/complexity_instance_capture_20260930_pilot_pre_reset_capture/`에 보존하며 정식 비교에서 제외함.
+- 고정 protocol은 `outputs/complexity_local_count_20260930_pilot/locked_protocol.json`, GT는 `outputs/complexity_local_count_20260930_pilot_data/`임. 공통 scene-key 8/2/2개로 train/val/test 640/160/160영상을 나눔. RGB·depth·RGB-D × seeds 0/1/2, 20 epochs·batch 8, validation 최저 loss checkpoint를 비교함.
+- Foreground-center의 세 scale·세 seed 동일 평균에서 MAE/Spearman/regret은 RGB **0.515799/0.932736/0.137594**, depth **0.943582/0.759365/0.554973**, RGB-D **0.521641/0.931473/0.137259**, 학습 위치 평균 **1.363044/0.541761/1.154210**임. 모든 학습 경로는 위치 평균 대비 사전 gate를 3/3 seeds 통과하고 RGB-D의 RGB 대비 추가 효과는 0/3 seeds로 실패함. RGB는 DINO+원본 RGB 보조 경로이며 DINO 단독 결과가 아님.
+- 새 배치에서 지역 count 후보를 지지하지만 현재 depth 결합의 추가 이득은 확인하지 못함. RGB 기준 후보를 유지하고 오류 조건·외부 물체·관측 변화의 검증을 남김. 최종 Complexity 미채택·fusion 미실행임. 두 test key의 pilot이므로 통계적 유의성·넓은 일반화 성능을 주장하지 않음.
+- 실제 결과·판정은 `outputs/complexity_local_count_20260930_pilot/summary.json`, 상세 평가는 `run/evaluation.json`, 시간은 `run/predictions/deployment_timing.json`임. 보고서는 `docs/complexity_results/local_count_pilot_20260930.md`임. GT 28,800개 window 검산·회귀 tests 34개 및 독립 수치 감사를 통과함. RTX 5090의 warm median은 RGB/depth/RGB-D **10.518/0.664/10.924ms**이나 로딩·I/O·전송을 제외한 단일 입력 반복의 모델 연산시간이며 배포 FPS가 아님.
+
+- GT는 IsaacSim의 원본 instance ID를 physical object root에 연결하여 생성함. DINOv3는 RGB 특징을 추출하는 모델이며 GT를 생성하지 않음. 같은 asset의 복제물은 별도 물체로 세고 한 물체의 여러 mesh·분리된 가시 조각은 합침. 배경과 unknown을 구분함. 기존 색상 label-group을 실제 instance count로 바꾸어 주장하지 않음.
 - 단일 RGB-D 추론에 GT·workspace mask·empty-depth reference를 입력하지 않음. SAM·반복 crop·같은 물체인지 판별하는 보조 loss는 첫 모델에 포함하지 않음. Crop 보정은 지역 count 오류의 원인이 해상도이며 확대 처리로 개선된다는 근거가 있을 때 검토함.
-- 초기 count window는 기존 48/96/160px, 최소 window 내 가시 면적은 16px로 두는 구현 검증 설정임. 정답은 원본 pixel ID에서 계산함. 이는 최적 window·가시성 기준의 채택이 아니며 1/4/16/64px 기준 변화와 작은 물체 오류를 정식 비교 전에 확인함.
-- 첫 기능 점검은 실제 더미 1 scene key·5 views임. 생성기에는 외부 packaged_food_5도 있어 이 자료와 checkpoint는 기능 점검 전용임. 정식 학습은 원래16개 asset/pool을 보존하고 external asset을 분리한 새 수집 자료로 수행해야 함. 과거 test나 기능 점검을 새 blind/unseen 성능으로 쓰지 않음.
+- 초기 count window는 기존 48/96/160px, 최소 window 내 가시 면적은 16px로 두는 구현 검증 설정임. 정답은 원본 pixel ID에서 계산함. Train/validation에서 1/4/16/64px 정의의 순위 민감도를 검산했으며 최적 window·가시성 기준의 채택은 아님. 작은 물체 등 조건별 오류는 후속 판단 과제임.
+- **이번 학습 GT·동일 분포 pilot 수집부터 `packaged_food_5`를 제외함.** 향후 별도 외부 물체 평가까지 금지한 것은 아님. 원래 16개 asset/pool만 사용하는 기준은 기능 점검에도 적용함. 외부 물체가 포함된 기존 17개 물체 자료를 기능 점검용으로 허용했던 해석은 잘못이었음. 해당 GT·학습 자료·checkpoint·예측·수치는 부적격 기록으로만 보존하고 이후 검증·학습·성능 근거에 사용하지 않음.
+- 수정한 원래 16개 물체 capture는 `outputs/complexity_instance_capture_20260929_original16_smoke/`, GT는 `outputs/complexity_local_count_20260929_original16_smoke_data/`임. 최초 capture의 회색 서랍은 원격 beige carpet texture 로딩 실패 때문이며 수정 capture에서는 복원됨.
+- 원래 16개 물체 자료로 `outputs/complexity_local_count_20260930_original16_smoke_train/`에서 처음부터 기능 학습을 다시 수행하고, `outputs/complexity_local_count_20260930_original16_smoke_predictions/`에서 GT 접근을 차단한 독립 추론을 완료함. 해당 예측 폴더의 `evaluation.json`·`correction.json`·`functional_panel.png`가 수정 실행의 근거임. 한 장면의 학습 영상 재예측이므로 정식 비교·blind/unseen 성능 검증으로 해석하지 않음.
 - 새 코드는 `experiments/complexity_local_count_20260929/`, GT 저장 helper는 `../scene_generator/instance_capture.py`, 실제 수집기는 `../scene_generator/vectorized_scene_v2.py`임. 상세 범위·실행 명령·검증 상태는 `docs/complexity_results/local_count_plan_20260929.md`를 따름.
-- GitHub `development_log.md`에는 비교·해석이 가능한 주요 결과만 추가함. `complexity_stream.md`에는 중요한 가정과 방향 변경만 반영함. 현재는 구현 방향을 게시하고 새 Phase 결과를 추가하지 않음. 미검증 코드·checkpoint·원시 자료는 로컬에 보존함.
+- GitHub `development_log.md`에는 비교·해석이 가능한 주요 결과만 추가함. `complexity_stream.md`에는 중요한 가정과 방향 변경만 반영함. Phase 39의 의미 있는 비교와 실패·한계를 개발 기록에, 현재 depth 추가 효과 미확인과 후보 유지 판단을 Complexity에 반영함. 실제 게시 상태는 `docs/public_agent_context_local_count_pilot_20260930.json`에서 확인하며 생성만으로 push 완료를 추정하지 않음. 미검증 코드·checkpoint·원시 자료는 로컬에 보존함.
 - 사용자 표현 정정: 모호한 표현을 피함. ‘같은 물체인지 판별’, ‘물체별 영역’, ‘물체 ID’처럼 구체적인 말로 설명함. 기존 공개 문서의 ~함/~임 기술 문체와 설명 깊이를 유지함. 최종 방법이 확정되면 채택한 흐름 중심으로 정리하며 지금 연구 이력을 임의 삭제하지 않음.
 
 
@@ -1949,7 +1963,7 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 
 <a id="development-history"></a>
 
-## B. Phase 1–38 Development Log 전체
+## B. Phase 1–39 Development Log 전체
 
 > 원본: `<REPO_ROOT>/development_log.md`
 > 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A의 최신 사용자 방향을 우선한다.
@@ -1968,6 +1982,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 | Occlusion 기준 모델 확정 | Fixed grid의 target별 pose 누락을 확인하고 adaptive GT로 수정 | Full16 가림확률 예측과 external target 1개의 zero-shot 성능을 정량 확인 | Phase 31–32 |
 | Complexity 정의 점검 | Count/occupancy → 관측 근접도 → 실제 더미의 정적 제거 효과 | RGB-D density 예측 개선 확인; 근접도 평균은 제거 효과와 상관이 약해 GT로 채택하지 않고 관계 표현 검증으로 진행 | Phase 33–35 |
 | Complexity 표현 진단 | 기존 feature의 정보 부족과 학습 목표의 한계를 구분 | DINO의 순수 patch 대응은 거의 포화; 다음은 경계·관계 능력과 보완 표현의 검증 | Phase 36 |
+| Complexity 후속 검증 | 어려운 대응·전체 접경·원본 instance 지역 count 비교 | 접경 결합 모델은 미채택; 새 배치의 지역 count 후보는 지지되나 depth 추가 효과는 미확인 | Phase 37–39 |
 
 ### 지표와 범위 읽는 법
 
@@ -3265,11 +3280,119 @@ Unit tests **18개 통과**, 경계 `audit.json` 독립 감사 **통과**. 경�
 
 정식 run은 `outputs/complexity_depth_boundary_20260921_v2/`이며 protocol·validation lock·summary·audit·checkpoint·두 경계 그림을 보존함. 모델 코드는 `experiments/complexity_depth_boundary_20260921/`에 있음. 이 문서는 공개 범위를 제한한 경계 보고서이며 원래 run의 불변 통합 보고서와 구분함.
 
+### 2026-09-30 · Phase 39 — 원본 instance GT와 지역 count의 새 배치 비교
+
+**단일 RGB-D에서 지역별 가시 물체 수를 직접 예측하는 후보를 새 배치에서 비교함.** 세 학습 경로 모두 학습 자료의 위치별 평균보다 지역 순위와 상위 혼잡 영역 선택이 개선됨. 다만 RGB-D는 RGB 대비 사전 개선 기준을 통과하지 못함. 지역 count를 후속 검증할 근거는 확보했으나 최종 Complexity 모델·GT를 채택하지 않았고 fusion은 실행하지 않음.
+
+#### 1. 검증 범위와 기존 결과의 구분
+
+완벽한 instance segmentation이나 가려진 전체 물체 수의 복원이 목적은 아님. 같은 크기의 영상 영역 안에 보이는 서로 다른 물체 수를 학습하여 더미 안에서 상대적으로 밀집한 곳을 표시할 수 있는지 확인함. 이 값은 Complexity의 후보 신호이며 탐색·제거 행동의 효용이나 물리적 난이도 전체의 정답이 아님.
+
+Phase 33의 색상 label-group count와 달리, 이번 GT는 IsaacSim 원본 pixel ID를 장면의 개별 물리적 물체에 연결함. GT는 학습 감독·별도 평가에만 사용하며 추론 입력으로 제공하지 않음. 따라서 철회한 **GT 관계 숫자를 회귀 입력으로 준 실험**과 구분함. 해당 공개 철회는 유지함.
+
+#### 2. 새 수집·분할과 GT
+
+원래 16개 asset을 사용하는 16 pools에서 pool별 12개 물리적 배치를 수집함. 4개 env × 3회 × 5 views로 총 192개 배치·960영상임. 같은 장면의 다섯 view는 같은 split에 묶고 pool 사이에도 공통 `sceneXXXXX_envXXXX` key의 분할을 적용함.
+
+| Split | 공통 scene keys | 물리적 배치 | 영상 |
+|---|---:|---:|---:|
+| Train | 8 | 128 | 640 |
+| Validation | 2 | 32 | 160 |
+| Test | 2 | 32 | 160 |
+
+Test는 학습하지 않은 **새 배치**이며 물체 종류는 모두 학습에서 본 원래 16개임. Test key는 `scene00002_env0001`, `scene00003_env0003`임. 미학습 asset이나 실제 센서에서의 성능으로 해석하지 않음. `packaged_food_5`는 이번 학습 GT·동일 분포 pilot 수집에서 제외함. 이는 향후 별도 외부 물체 평가까지 금지한다는 뜻이 아님.
+
+매 장면에서 물체의 초기 위치·원래 quaternion·선속도·각속도를 초기화하고 readback을 검증하여 이전 장면의 상태가 이어지지 않게 함. 최종 물체 회전은 낙하·접촉 물리 계산에서 형성됨. 서랍은 geometry·material 설정을 유지하고 texture 파일 경로를 로컬 경로로 바꾼 자료를 사용함. 초기화 보완 전 gate 및 외부 물체가 섞인 이전 17개 물체 기능 점검 자료는 정식 비교에서 제외함.
+
+원본 uint32 instance ID → 등록된 physical object root → 장면 내 물체 ID로 GT를 생성함. 한 물체의 여러 mesh·분리된 가시 조각은 한 번 세고, 같은 asset의 복제품은 서로 다른 물체로 셈. DINOv3는 GT 생성기가 아님. 배경은 0, unknown은 −1로 구분하며 완전히 가려진 물체는 현재 가시 count에 포함하지 않음.
+
+각 stride 16 위치의 원본 영상 중심에 48/96/160px 정사각형 window를 두고 **window 안에 16px 이상 보이는 서로 다른 물체 수**를 정답으로 사용함. 영상 안에 완전히 들어오고 unknown이 없는 window만 감독·평가에 사용함. 추론은 전체 격자에 값을 출력함. Depth 결측만으로 RGB의 가시 물체를 GT에서 제거하지 않음.
+
+Train/validation 800영상에서 원본 ID 기준 **28,800개 window를 독립 검산**했으며 unknown pixel은 0임. RGB·depth의 완전히 같은 파일 hash가 split 사이에 중복되지 않음을 확인함. 최소 가시 면적을 1/4/16/64px로 바꾼 민감도는 train/validation에서만 검사함. 1px·64px 정의의 순위와 기준 16px 정의의 Spearman은 scale별 **0.915–0.974**임. 이는 GT 정의의 민감도이며 모델 정확도가 아님. 16px·window 크기의 최적성이나 보편적인 Complexity 정의를 확정한 검증도 아님.
+
+#### 3. 고정 연산 모델과 학습
+
+| 경로 | 처리와 출력 |
+|---|---|
+| RGB 문맥 | Frozen DINOv3 ViT-B/16 layer 11의 `768×30×40` → 32채널 projection |
+| RGB 세부 정보 | 원본 `3×480×640` RGB의 경량 경로 → `32×30×40` |
+| Depth | `log1p(depth)`와 유효 pixel 정보의 경량 encoder → `32×30×40` |
+| 결합·출력 | 96채널 결합 → decoder → `64×30×40` 특징 및 `3×30×40` count |
+
+Head는 194,467 parameters이며 count는 softplus로 출력하고 16개 상한을 두지 않음. Frozen DINO를 제외한 RGB 세부 경로·depth encoder·decoder를 학습함. 세 비교군은 같은 parameter 구조·seed별 초기화·학습 순서를 사용하고 해당하지 않는 경로의 출력을 0으로 차단함. **RGB 결과에는 DINO와 원본 RGB 세부 특징이 모두 포함되므로 DINO 단독 성능으로 부르지 않음.**
+
+RGB·depth·RGB-D × seeds 0/1/2의 9개 head를 20 epochs, batch 8, AdamW lr `0.001`로 학습함. FP32와 TF32 off를 사용하고 DINO의 train/validation cache도 FP32임. SmoothL1은 빈 window/물체가 있는 window의 사용 가능한 두 그룹 → scale → 영상 순서로 동일 가중 평균함. Validation loss가 가장 작은 checkpoint를 선택하며 test 결과로 설정·epoch를 고르지 않음.
+
+비교 기준선 `train_position_mean`은 **training GT만**으로 scale·위치별 평균 count를 계산하며 pool·camera 사이에 공유함. 새 영상의 실제 배치를 보지 않는 위치 prior이므로 학습 모델이 고정된 더미 위치만 재현하는지 구분하는 기준임.
+
+추론 입력은 단일 scene RGB와 depth이며 GT·workspace mask·empty-depth reference·target reference가 없음. SAM·반복 crop·보조 물체 판별 loss도 사용하지 않음. 예측을 저장한 뒤 별도 평가기가 GT를 읽음. 알려진 Python 파일 I/O 경로에서 GT 폴더·capture metadata 접근을 차단하고 자체 차단 검사를 수행함. 독립 예측의 예기치 않은 차단 시도는 0건임. 이는 실행 경계의 검사이며 모든 native I/O까지 막는 운영체제 격리의 보장을 뜻하지 않음.
+
+#### 4. 평가 기준과 결과
+
+Primary는 유효 window 가운데 **원본 중심 pixel이 GT 물체인 위치**임. 이 mask는 평가에만 사용하고 모든 방법에 동일하게 적용함. 배경과 더미의 분리만으로 전체 영상 순위가 높아지는 효과를 줄이기 위한 더미 내부 비교임. 전체 유효 영역과 count>0 영역의 보조 결과도 별도로 보존함.
+
+Spearman은 같은 영상 안의 count 순위를 평가함. 상위 20% count regret은 정답 count가 가장 큰 k개 위치의 평균에서 모델이 고른 k개 위치의 **정답 count 평균**을 뺀 값이며, `k=ceil(0.2×유효 위치 수)`임. 단위는 물체 수이고 낮을수록 좋음. 선택 경계의 예측 동점은 분수 가중으로 처리함. GT 상수 영상의 Spearman은 NA와 coverage로 기록하고 regret은 정의에 따라 0임. 예측만 상수이면 순위 지표는 0임.
+
+각 지표는 camera → pool → 공통 scene key 순서로 동일 가중 평균하고, 세 scale과 세 seed도 동일 가중 평균함. 아래는 이 foreground-center primary 집계임. 기준선은 seed와 무관한 단일 결과임.
+
+| 방법 | Count MAE ↓ | 더미 내부 Spearman ↑ | 상위 20% count regret ↓ |
+|---|---:|---:|---:|
+| RGB: DINO + 원본 RGB | 0.515799 | 0.932736 | 0.137594 |
+| Depth | 0.943582 | 0.759365 | 0.554973 |
+| RGB-D | 0.521641 | 0.931473 | 0.137259 |
+| 학습 자료의 위치별 평균 | 1.363044 | 0.541761 | 1.154210 |
+
+사전 개선 기준은 **각 seed에서 두 test key 모두 순위가 높아지고 regret이 낮아지며, 이 조건을 3개 중 2개 이상 seed가 만족하는 것**임. RGB·depth·RGB-D는 위치별 평균 대비 각각 **3/3 seeds 통과**함. RGB-D의 RGB 대비 추가 효과는 **0/3 seeds로 실패**함.
+
+RGB-D는 RGB보다 MAE가 약 1.13% 높고 Spearman이 0.001263 낮으며 regret은 0.000335 낮아 거의 같은 수준임. 현재 depth 결합의 추가 이득을 확인하지 못했음. Depth 자체가 무용하거나 모든 환경에서 RGB가 우월하다는 결론이 아님. 두 test key뿐인 pilot이므로 유의성·안정적인 신뢰구간을 주장하지 않음.
+
+#### 5. 고정 사례와 큰 오류 사례
+
+![Phase 39 fixed held-out comparison](img/complexity/phase39_local_count_heldout_20260930.png)
+
+고정 사례는 각 category의 첫 pool(`book_1`, `fruit_1`, `packaged_food_1`, `toy_1`), 첫 test key `scene00002_env0001`, center view, seed 0으로 정함. 96px window의 RGB / GT / 위치 평균 / RGB head / depth head / RGB-D head를 표시함. 각 행의 map은 같은 색 범위를 사용함. 그림의 GT 유효 영역 표시는 비교용이며 모델 입력·후처리가 아님. 이 네 장면을 전체 3-seed 성능의 대체 근거로 사용하지 않음.
+
+![Phase 39 worst RGB-D count selection](img/complexity/phase39_local_count_worst_20260930.png)
+
+실패 그림은 **test의 RGB-D seed 0에서 foreground regret의 세 scale 평균이 가장 큰 영상**을 사후 선택함. `fruit_3`, `scene00002_env0001`, top view임. 전체 경향을 대표하는 무작위 사례가 아니라 큰 선택 오류를 드러내기 위한 그림이며, 표시한 96px 지도와 선택 기준인 세 scale 평균을 구분함. 높은 평균 순위가 모든 장면의 혼잡 영역 선택을 보장하지 않음을 보여주는 진단임. 이 사례만으로 작은 물체·해상도·특정 modality가 오류 원인이라고 확정하지 않음.
+
+#### 6. 처리시간과 남은 판단
+
+| 방법 | 첫 입력 연산(ms) | Warm median(ms) | Warm p95(ms) |
+|---|---:|---:|---:|
+| RGB | 291.305 | 10.518 | 11.087 |
+| Depth | 267.970 | 0.664 | 0.782 |
+| RGB-D | 335.658 | 10.924 | 11.493 |
+
+RTX 5090·FP32·TF32 off·batch 1에서 modality별 새 프로세스로 seed 0의 첫 test 입력 하나를 측정함. 첫 연산 1회 뒤 같은 입력 20회의 warm 연산을 측정함. RGB/RGB-D는 DINO를 포함하고 depth는 사용하지 않는 DINO를 실행하지 않음. 모델 로딩·파일 I/O·CPU→GPU 전송·hash·결과 저장은 제외한 **모델 연산시간**이며 배포 FPS가 아님. 9개 head가 DINO를 공유하는 비교 루프의 처리량도 단일 모델 배포시간으로 사용하지 않음.
+
+**다음 Step은 RGB 기반 지역 count를 비교 기준 후보로 유지하고 오류 조건을 분리하는 것임.** 원본 RGB 보조 경로의 기여를 분리해야 DINO 자체의 기여를 판단할 수 있음. 작은 가시 물체·심한 가림·유사 외형·depth 결측과 새로운 asset·관측 조건에서 순위와 상위 선택이 유지되는지 확인해야 함. 해상도 변경이나 crop은 오류가 실제로 그 조건에 집중되고 확대 처리의 이득이 확인될 때 검토함. 이번 결과만으로 SAM·반복 crop을 추가하거나 fusion으로 넘어가지 않음.
+
+GT는 현재 영상에서 보이는 지역 물체 수이며, 겹친 window 지도의 합은 scene 총 물체 수가 아님. 영상 면적당 밀도와 물리 면적당 밀도도 구분함. 지역 count가 같은 더미라도 관계·가림·제거 효용은 다를 수 있음. 이 차이는 다른 stream과의 향후 결합을 검토할 이유이며, 현재 count를 전체 Complexity의 완성된 정답으로 확정할 근거는 아님.
+
+#### 7. 검증과 실제 근거 경로
+
+회귀 tests 34개와 원본 GT의 28,800개 window 검산을 통과함. 독립 감사에서도 primary 집계·GT와 분리된 추론·학습 자료만 사용한 기준선 및 validation checkpoint 선택이 일치함. 수집·GT 준비·9개 head 학습·GT와 분리된 추론·별도 평가를 완료함. 한 장면의 학습 영상 재예측이었던 이전 기능 점검과 구분함. 코드·checkpoint·원시 배열은 로컬에 보존하며 공개 범위는 설명·비교 결과·두 PNG임.
+
+| 근거 | 실제 개발 폴더 기준 경로 |
+|---|---|
+| 새 capture | `outputs/complexity_instance_capture_20260930_pilot/` |
+| GT와 split manifest | `outputs/complexity_local_count_20260930_pilot_data/` |
+| 고정 조건·GT 검산 | `outputs/complexity_local_count_20260930_pilot/locked_protocol.json`, `gt_audit.json` |
+| 집계·판정 | `outputs/complexity_local_count_20260930_pilot/summary.json`, `per_scale_metrics.csv` |
+| 모델별·seed별·영역별 평가 | `outputs/complexity_local_count_20260930_pilot/run/evaluation.json` |
+| 독립 예측·연산시간 | `outputs/complexity_local_count_20260930_pilot/run/predictions/`, 같은 폴더의 `deployment_timing.json` |
+| 완료 기록 | `outputs/complexity_local_count_20260930_pilot/experiment_complete.json` |
+| 비교·실패 그림 원본 | 같은 pilot 폴더의 `heldout_comparison.png`, `heldout_worst_case.png` |
+| 구현 | `experiments/complexity_local_count_20260929/`; 실제 capture는 `../scene_generator/vectorized_scene_v2.py` |
+
+최종 Complexity 모델은 미채택이며 fusion·unseen asset 평가·실제 RGB-D 평가는 미실행임. 기존 Phase 38 RGB-D 접경 모델 미채택과 GT 관계 회귀 공개 철회도 그대로 유지함.
+
 ---
 
 ## C. Complexity 가정·진단·실행 계획 상세 기록
 
-아래 여덟 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
+아래 아홉 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
 
 <a id="definition-review"></a>
 
@@ -4211,6 +4334,126 @@ Unit tests **18개 통과**, 경계 `audit.json` 독립 감사 **통과**. 경�
 
 ---
 
+<a id="local-count-pilot"></a>
+
+### C9. Phase 39 원본 instance 지역 count 비교
+
+> 원본: `<DEV_ROOT>/docs/complexity_results/local_count_pilot_20260930.md`
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A의 최신 사용자 방향을 우선한다.
+
+> 2026-09-30 · 완료된 새 배치 pilot · 최종 Complexity 미채택
+
+**단일 RGB-D에서 지역별 가시 물체 수를 직접 예측하는 후보를 새 배치에서 비교함.** 세 학습 경로 모두 학습 자료의 위치별 평균보다 지역 순위와 상위 혼잡 영역 선택이 개선됨. 다만 RGB-D는 RGB 대비 사전 개선 기준을 통과하지 못함. 지역 count를 후속 검증할 근거는 확보했으나 최종 Complexity 모델·GT를 채택하지 않았고 fusion은 실행하지 않음.
+
+##### 1. 검증 범위와 기존 결과의 구분
+
+완벽한 instance segmentation이나 가려진 전체 물체 수의 복원이 목적은 아님. 같은 크기의 영상 영역 안에 보이는 서로 다른 물체 수를 학습하여 더미 안에서 상대적으로 밀집한 곳을 표시할 수 있는지 확인함. 이 값은 Complexity의 후보 신호이며 탐색·제거 행동의 효용이나 물리적 난이도 전체의 정답이 아님.
+
+Phase 33의 색상 label-group count와 달리, 이번 GT는 IsaacSim 원본 pixel ID를 장면의 개별 물리적 물체에 연결함. GT는 학습 감독·별도 평가에만 사용하며 추론 입력으로 제공하지 않음. 따라서 철회한 **GT 관계 숫자를 회귀 입력으로 준 실험**과 구분함. 해당 공개 철회는 유지함.
+
+##### 2. 새 수집·분할과 GT
+
+원래 16개 asset을 사용하는 16 pools에서 pool별 12개 물리적 배치를 수집함. 4개 env × 3회 × 5 views로 총 192개 배치·960영상임. 같은 장면의 다섯 view는 같은 split에 묶고 pool 사이에도 공통 `sceneXXXXX_envXXXX` key의 분할을 적용함.
+
+| Split | 공통 scene keys | 물리적 배치 | 영상 |
+|---|---:|---:|---:|
+| Train | 8 | 128 | 640 |
+| Validation | 2 | 32 | 160 |
+| Test | 2 | 32 | 160 |
+
+Test는 학습하지 않은 **새 배치**이며 물체 종류는 모두 학습에서 본 원래 16개임. Test key는 `scene00002_env0001`, `scene00003_env0003`임. 미학습 asset이나 실제 센서에서의 성능으로 해석하지 않음. `packaged_food_5`는 이번 학습 GT·동일 분포 pilot 수집에서 제외함. 이는 향후 별도 외부 물체 평가까지 금지한다는 뜻이 아님.
+
+매 장면에서 물체의 초기 위치·원래 quaternion·선속도·각속도를 초기화하고 readback을 검증하여 이전 장면의 상태가 이어지지 않게 함. 최종 물체 회전은 낙하·접촉 물리 계산에서 형성됨. 서랍은 geometry·material 설정을 유지하고 texture 파일 경로를 로컬 경로로 바꾼 자료를 사용함. 초기화 보완 전 gate 및 외부 물체가 섞인 이전 17개 물체 기능 점검 자료는 정식 비교에서 제외함.
+
+원본 uint32 instance ID → 등록된 physical object root → 장면 내 물체 ID로 GT를 생성함. 한 물체의 여러 mesh·분리된 가시 조각은 한 번 세고, 같은 asset의 복제품은 서로 다른 물체로 셈. DINOv3는 GT 생성기가 아님. 배경은 0, unknown은 −1로 구분하며 완전히 가려진 물체는 현재 가시 count에 포함하지 않음.
+
+각 stride 16 위치의 원본 영상 중심에 48/96/160px 정사각형 window를 두고 **window 안에 16px 이상 보이는 서로 다른 물체 수**를 정답으로 사용함. 영상 안에 완전히 들어오고 unknown이 없는 window만 감독·평가에 사용함. 추론은 전체 격자에 값을 출력함. Depth 결측만으로 RGB의 가시 물체를 GT에서 제거하지 않음.
+
+Train/validation 800영상에서 원본 ID 기준 **28,800개 window를 독립 검산**했으며 unknown pixel은 0임. RGB·depth의 완전히 같은 파일 hash가 split 사이에 중복되지 않음을 확인함. 최소 가시 면적을 1/4/16/64px로 바꾼 민감도는 train/validation에서만 검사함. 1px·64px 정의의 순위와 기준 16px 정의의 Spearman은 scale별 **0.915–0.974**임. 이는 GT 정의의 민감도이며 모델 정확도가 아님. 16px·window 크기의 최적성이나 보편적인 Complexity 정의를 확정한 검증도 아님.
+
+##### 3. 고정 연산 모델과 학습
+
+| 경로 | 처리와 출력 |
+|---|---|
+| RGB 문맥 | Frozen DINOv3 ViT-B/16 layer 11의 `768×30×40` → 32채널 projection |
+| RGB 세부 정보 | 원본 `3×480×640` RGB의 경량 경로 → `32×30×40` |
+| Depth | `log1p(depth)`와 유효 pixel 정보의 경량 encoder → `32×30×40` |
+| 결합·출력 | 96채널 결합 → decoder → `64×30×40` 특징 및 `3×30×40` count |
+
+Head는 194,467 parameters이며 count는 softplus로 출력하고 16개 상한을 두지 않음. Frozen DINO를 제외한 RGB 세부 경로·depth encoder·decoder를 학습함. 세 비교군은 같은 parameter 구조·seed별 초기화·학습 순서를 사용하고 해당하지 않는 경로의 출력을 0으로 차단함. **RGB 결과에는 DINO와 원본 RGB 세부 특징이 모두 포함되므로 DINO 단독 성능으로 부르지 않음.**
+
+RGB·depth·RGB-D × seeds 0/1/2의 9개 head를 20 epochs, batch 8, AdamW lr `0.001`로 학습함. FP32와 TF32 off를 사용하고 DINO의 train/validation cache도 FP32임. SmoothL1은 빈 window/물체가 있는 window의 사용 가능한 두 그룹 → scale → 영상 순서로 동일 가중 평균함. Validation loss가 가장 작은 checkpoint를 선택하며 test 결과로 설정·epoch를 고르지 않음.
+
+비교 기준선 `train_position_mean`은 **training GT만**으로 scale·위치별 평균 count를 계산하며 pool·camera 사이에 공유함. 새 영상의 실제 배치를 보지 않는 위치 prior이므로 학습 모델이 고정된 더미 위치만 재현하는지 구분하는 기준임.
+
+추론 입력은 단일 scene RGB와 depth이며 GT·workspace mask·empty-depth reference·target reference가 없음. SAM·반복 crop·보조 물체 판별 loss도 사용하지 않음. 예측을 저장한 뒤 별도 평가기가 GT를 읽음. 알려진 Python 파일 I/O 경로에서 GT 폴더·capture metadata 접근을 차단하고 자체 차단 검사를 수행함. 독립 예측의 예기치 않은 차단 시도는 0건임. 이는 실행 경계의 검사이며 모든 native I/O까지 막는 운영체제 격리의 보장을 뜻하지 않음.
+
+##### 4. 평가 기준과 결과
+
+Primary는 유효 window 가운데 **원본 중심 pixel이 GT 물체인 위치**임. 이 mask는 평가에만 사용하고 모든 방법에 동일하게 적용함. 배경과 더미의 분리만으로 전체 영상 순위가 높아지는 효과를 줄이기 위한 더미 내부 비교임. 전체 유효 영역과 count>0 영역의 보조 결과도 별도로 보존함.
+
+Spearman은 같은 영상 안의 count 순위를 평가함. 상위 20% count regret은 정답 count가 가장 큰 k개 위치의 평균에서 모델이 고른 k개 위치의 **정답 count 평균**을 뺀 값이며, `k=ceil(0.2×유효 위치 수)`임. 단위는 물체 수이고 낮을수록 좋음. 선택 경계의 예측 동점은 분수 가중으로 처리함. GT 상수 영상의 Spearman은 NA와 coverage로 기록하고 regret은 정의에 따라 0임. 예측만 상수이면 순위 지표는 0임.
+
+각 지표는 camera → pool → 공통 scene key 순서로 동일 가중 평균하고, 세 scale과 세 seed도 동일 가중 평균함. 아래는 이 foreground-center primary 집계임. 기준선은 seed와 무관한 단일 결과임.
+
+| 방법 | Count MAE ↓ | 더미 내부 Spearman ↑ | 상위 20% count regret ↓ |
+|---|---:|---:|---:|
+| RGB: DINO + 원본 RGB | 0.515799 | 0.932736 | 0.137594 |
+| Depth | 0.943582 | 0.759365 | 0.554973 |
+| RGB-D | 0.521641 | 0.931473 | 0.137259 |
+| 학습 자료의 위치별 평균 | 1.363044 | 0.541761 | 1.154210 |
+
+사전 개선 기준은 **각 seed에서 두 test key 모두 순위가 높아지고 regret이 낮아지며, 이 조건을 3개 중 2개 이상 seed가 만족하는 것**임. RGB·depth·RGB-D는 위치별 평균 대비 각각 **3/3 seeds 통과**함. RGB-D의 RGB 대비 추가 효과는 **0/3 seeds로 실패**함.
+
+RGB-D는 RGB보다 MAE가 약 1.13% 높고 Spearman이 0.001263 낮으며 regret은 0.000335 낮아 거의 같은 수준임. 현재 depth 결합의 추가 이득을 확인하지 못했음. Depth 자체가 무용하거나 모든 환경에서 RGB가 우월하다는 결론이 아님. 두 test key뿐인 pilot이므로 유의성·안정적인 신뢰구간을 주장하지 않음.
+
+##### 5. 고정 사례와 큰 오류 사례
+
+![Phase 39 fixed held-out comparison](img/complexity/phase39_local_count_heldout_20260930.png)
+
+고정 사례는 각 category의 첫 pool(`book_1`, `fruit_1`, `packaged_food_1`, `toy_1`), 첫 test key `scene00002_env0001`, center view, seed 0으로 정함. 96px window의 RGB / GT / 위치 평균 / RGB head / depth head / RGB-D head를 표시함. 각 행의 map은 같은 색 범위를 사용함. 그림의 GT 유효 영역 표시는 비교용이며 모델 입력·후처리가 아님. 이 네 장면을 전체 3-seed 성능의 대체 근거로 사용하지 않음.
+
+![Phase 39 worst RGB-D count selection](img/complexity/phase39_local_count_worst_20260930.png)
+
+실패 그림은 **test의 RGB-D seed 0에서 foreground regret의 세 scale 평균이 가장 큰 영상**을 사후 선택함. `fruit_3`, `scene00002_env0001`, top view임. 전체 경향을 대표하는 무작위 사례가 아니라 큰 선택 오류를 드러내기 위한 그림이며, 표시한 96px 지도와 선택 기준인 세 scale 평균을 구분함. 높은 평균 순위가 모든 장면의 혼잡 영역 선택을 보장하지 않음을 보여주는 진단임. 이 사례만으로 작은 물체·해상도·특정 modality가 오류 원인이라고 확정하지 않음.
+
+##### 6. 처리시간과 남은 판단
+
+| 방법 | 첫 입력 연산(ms) | Warm median(ms) | Warm p95(ms) |
+|---|---:|---:|---:|
+| RGB | 291.305 | 10.518 | 11.087 |
+| Depth | 267.970 | 0.664 | 0.782 |
+| RGB-D | 335.658 | 10.924 | 11.493 |
+
+RTX 5090·FP32·TF32 off·batch 1에서 modality별 새 프로세스로 seed 0의 첫 test 입력 하나를 측정함. 첫 연산 1회 뒤 같은 입력 20회의 warm 연산을 측정함. RGB/RGB-D는 DINO를 포함하고 depth는 사용하지 않는 DINO를 실행하지 않음. 모델 로딩·파일 I/O·CPU→GPU 전송·hash·결과 저장은 제외한 **모델 연산시간**이며 배포 FPS가 아님. 9개 head가 DINO를 공유하는 비교 루프의 처리량도 단일 모델 배포시간으로 사용하지 않음.
+
+**다음 Step은 RGB 기반 지역 count를 비교 기준 후보로 유지하고 오류 조건을 분리하는 것임.** 원본 RGB 보조 경로의 기여를 분리해야 DINO 자체의 기여를 판단할 수 있음. 작은 가시 물체·심한 가림·유사 외형·depth 결측과 새로운 asset·관측 조건에서 순위와 상위 선택이 유지되는지 확인해야 함. 해상도 변경이나 crop은 오류가 실제로 그 조건에 집중되고 확대 처리의 이득이 확인될 때 검토함. 이번 결과만으로 SAM·반복 crop을 추가하거나 fusion으로 넘어가지 않음.
+
+GT는 현재 영상에서 보이는 지역 물체 수이며, 겹친 window 지도의 합은 scene 총 물체 수가 아님. 영상 면적당 밀도와 물리 면적당 밀도도 구분함. 지역 count가 같은 더미라도 관계·가림·제거 효용은 다를 수 있음. 이 차이는 다른 stream과의 향후 결합을 검토할 이유이며, 현재 count를 전체 Complexity의 완성된 정답으로 확정할 근거는 아님.
+
+##### 7. 검증과 실제 근거 경로
+
+회귀 tests 34개와 원본 GT의 28,800개 window 검산을 통과함. 독립 감사에서도 primary 집계·GT와 분리된 추론·학습 자료만 사용한 기준선 및 validation checkpoint 선택이 일치함. 수집·GT 준비·9개 head 학습·GT와 분리된 추론·별도 평가를 완료함. 한 장면의 학습 영상 재예측이었던 이전 기능 점검과 구분함. 코드·checkpoint·원시 배열은 로컬에 보존하며 공개 범위는 설명·비교 결과·두 PNG임.
+
+| 근거 | 실제 개발 폴더 기준 경로 |
+|---|---|
+| 새 capture | `outputs/complexity_instance_capture_20260930_pilot/` |
+| GT와 split manifest | `outputs/complexity_local_count_20260930_pilot_data/` |
+| 고정 조건·GT 검산 | `outputs/complexity_local_count_20260930_pilot/locked_protocol.json`, `gt_audit.json` |
+| 집계·판정 | `outputs/complexity_local_count_20260930_pilot/summary.json`, `per_scale_metrics.csv` |
+| 모델별·seed별·영역별 평가 | `outputs/complexity_local_count_20260930_pilot/run/evaluation.json` |
+| 독립 예측·연산시간 | `outputs/complexity_local_count_20260930_pilot/run/predictions/`, 같은 폴더의 `deployment_timing.json` |
+| 독립 감사 | `outputs/complexity_local_count_20260930_pilot/independent_audit.json` |
+| 완료 기록 | `outputs/complexity_local_count_20260930_pilot/experiment_complete.json` |
+| 비교·실패 그림 원본 | 같은 pilot 폴더의 `heldout_comparison.png`, `heldout_worst_case.png` |
+| 구현 | `experiments/complexity_local_count_20260929/`; 실제 capture는 `../scene_generator/vectorized_scene_v2.py` |
+
+독립 감사는 원본·GT hash 5,056개, split 640/160/160, cache 800장, 9개 validation checkpoint 선택 및 training GT만 사용한 위치 prior를 확인함. Primary 재집계 오차는 0임. 별도 12영상(12 pools·5 views·2 keys)의 raw window 5,876개가 전부 GT와 일치하고, 10개 방법 × 12영상 × 3 scales의 360개 지표 조합 직접 계산 최대 오차는 4.34e-7임. 이는 검사한 표본·계산 경로의 감사이며 모델 학습 재실행이나 unseen 성능 검증은 아님.
+
+최종 Complexity 모델은 미채택이며 fusion·unseen asset 평가·실제 RGB-D 평가는 미실행임. 기존 Phase 38 RGB-D 접경 모델 미채택과 GT 관계 회귀 공개 철회도 그대로 유지함.
+
+---
+
 <a id="evidence-index"></a>
 
 ## D. 근거·로그·체크포인트·이미지 색인 전체
@@ -4218,22 +4461,31 @@ Unit tests **18개 통과**, 경계 `audit.json` 독립 감사 **통과**. 경�
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-09-29 (Asia/Seoul); Phase 38 완료·GT 관계 회귀 공개 철회; 공개59개 이미지; 최종 게시는 withdrawal manifest 확인
+> 마지막 문서 갱신: 2026-09-30 (Asia/Seoul); Phase 39 완료·GT 관계 회귀 공개 철회 유지; 공개용 이미지 61개 준비; 실제 게시는 최신 publication manifest 확인
 > 목적: 새 agent가 요약된 결론뿐 아니라 그 결론의 코드, 수치, 이미지와 이전 실험을 직접 추적하도록 안내
 
 ### 1. 이 문서가 보장하는 범위
 
 
-#### 최신 사용자 방향 — 2026-09-29 지역별 가시 물체 수 예측
+#### 최신 연구 상태 — 2026-09-30 Phase 39 지역 count pilot 완료
 
-이번 대화의 지시가 아래 과거 재개 기준보다 우선함. Complexity 자체의 방법을 먼저 검증하며 fusion은 후속 단계임. 첫 후보는 **고정 DINOv3 RGB 특징 + 별도 경량 depth encoder → 고정 decoder → 지역 count와 64×30×40 특징**임. 이 방향의 구현·최소 검증·선별적인 GitHub 문서 갱신을 사용자가 승인함. 최종 Complexity 모델·GT 채택으로 해석하지 않음.
+이번 대화의 지시가 아래 과거 재개 기준보다 우선함. Complexity 자체의 방법을 먼저 검증하며 fusion은 후속 단계임. 첫 후보의 실제 구현은 **고정 DINOv3 RGB 특징 + 원본 RGB 세부 특징 + 별도 경량 depth encoder → 고정 연산 decoder → 지역 count와 64×30×40 특징**임. 이 방향의 구현·최소 검증·선별적인 GitHub 문서 갱신을 사용자가 승인함. 최종 Complexity 모델·GT 채택으로 해석하지 않음.
 
-- GT는 IsaacSim의 원본 instance ID를 physical object root에 연결하여 생성함. 같은 asset의 복제물은 별도 물체로 세고 한 물체의 여러 mesh·분리된 가시 조각은 합침. 배경과 unknown을 구분함. 기존 색상 label-group을 실제 instance count로 바꾸어 주장하지 않음.
+- **Phase 39 완료:** 16 pools × 12 layouts(4 envs × 3회) × 5 views의 960영상을 새로 수집하고 9개 head의 학습·독립 추론·별도 평가를 완료함. Test는 원래 16개 seen assets의 새 배치 32개·160영상이며 unseen asset 성능이 아님.
+- 원래 16개 asset과 로컬 drawer texture를 사용하고 각 새 장면에서 초기 자세·선속도·각속도를 명시적으로 초기화함. Capture는 `outputs/complexity_instance_capture_20260930_pilot/`임. 초기화 보완 전 gate는 `outputs/complexity_instance_capture_20260930_pilot_pre_reset_capture/`에 보존하며 정식 비교에서 제외함.
+- 고정 protocol은 `outputs/complexity_local_count_20260930_pilot/locked_protocol.json`, GT는 `outputs/complexity_local_count_20260930_pilot_data/`임. 공통 scene-key 8/2/2개로 train/val/test 640/160/160영상을 나눔. RGB·depth·RGB-D × seeds 0/1/2, 20 epochs·batch 8, validation 최저 loss checkpoint를 비교함.
+- Foreground-center의 세 scale·세 seed 동일 평균에서 MAE/Spearman/regret은 RGB **0.515799/0.932736/0.137594**, depth **0.943582/0.759365/0.554973**, RGB-D **0.521641/0.931473/0.137259**, 학습 위치 평균 **1.363044/0.541761/1.154210**임. 모든 학습 경로는 위치 평균 대비 사전 gate를 3/3 seeds 통과하고 RGB-D의 RGB 대비 추가 효과는 0/3 seeds로 실패함. RGB는 DINO+원본 RGB 보조 경로이며 DINO 단독 결과가 아님.
+- 새 배치에서 지역 count 후보를 지지하지만 현재 depth 결합의 추가 이득은 확인하지 못함. RGB 기준 후보를 유지하고 오류 조건·외부 물체·관측 변화의 검증을 남김. 최종 Complexity 미채택·fusion 미실행임. 두 test key의 pilot이므로 통계적 유의성·넓은 일반화 성능을 주장하지 않음.
+- 실제 결과·판정은 `outputs/complexity_local_count_20260930_pilot/summary.json`, 상세 평가는 `run/evaluation.json`, 시간은 `run/predictions/deployment_timing.json`임. 보고서는 `docs/complexity_results/local_count_pilot_20260930.md`임. GT 28,800개 window 검산·회귀 tests 34개 및 독립 수치 감사를 통과함. RTX 5090의 warm median은 RGB/depth/RGB-D **10.518/0.664/10.924ms**이나 로딩·I/O·전송을 제외한 단일 입력 반복의 모델 연산시간이며 배포 FPS가 아님.
+
+- GT는 IsaacSim의 원본 instance ID를 physical object root에 연결하여 생성함. DINOv3는 RGB 특징을 추출하는 모델이며 GT를 생성하지 않음. 같은 asset의 복제물은 별도 물체로 세고 한 물체의 여러 mesh·분리된 가시 조각은 합침. 배경과 unknown을 구분함. 기존 색상 label-group을 실제 instance count로 바꾸어 주장하지 않음.
 - 단일 RGB-D 추론에 GT·workspace mask·empty-depth reference를 입력하지 않음. SAM·반복 crop·같은 물체인지 판별하는 보조 loss는 첫 모델에 포함하지 않음. Crop 보정은 지역 count 오류의 원인이 해상도이며 확대 처리로 개선된다는 근거가 있을 때 검토함.
-- 초기 count window는 기존 48/96/160px, 최소 window 내 가시 면적은 16px로 두는 구현 검증 설정임. 정답은 원본 pixel ID에서 계산함. 이는 최적 window·가시성 기준의 채택이 아니며 1/4/16/64px 기준 변화와 작은 물체 오류를 정식 비교 전에 확인함.
-- 첫 기능 점검은 실제 더미 1 scene key·5 views임. 생성기에는 외부 packaged_food_5도 있어 이 자료와 checkpoint는 기능 점검 전용임. 정식 학습은 원래16개 asset/pool을 보존하고 external asset을 분리한 새 수집 자료로 수행해야 함. 과거 test나 기능 점검을 새 blind/unseen 성능으로 쓰지 않음.
+- 초기 count window는 기존 48/96/160px, 최소 window 내 가시 면적은 16px로 두는 구현 검증 설정임. 정답은 원본 pixel ID에서 계산함. Train/validation에서 1/4/16/64px 정의의 순위 민감도를 검산했으며 최적 window·가시성 기준의 채택은 아님. 작은 물체 등 조건별 오류는 후속 판단 과제임.
+- **이번 학습 GT·동일 분포 pilot 수집부터 `packaged_food_5`를 제외함.** 향후 별도 외부 물체 평가까지 금지한 것은 아님. 원래 16개 asset/pool만 사용하는 기준은 기능 점검에도 적용함. 외부 물체가 포함된 기존 17개 물체 자료를 기능 점검용으로 허용했던 해석은 잘못이었음. 해당 GT·학습 자료·checkpoint·예측·수치는 부적격 기록으로만 보존하고 이후 검증·학습·성능 근거에 사용하지 않음.
+- 수정한 원래 16개 물체 capture는 `outputs/complexity_instance_capture_20260929_original16_smoke/`, GT는 `outputs/complexity_local_count_20260929_original16_smoke_data/`임. 최초 capture의 회색 서랍은 원격 beige carpet texture 로딩 실패 때문이며 수정 capture에서는 복원됨.
+- 원래 16개 물체 자료로 `outputs/complexity_local_count_20260930_original16_smoke_train/`에서 처음부터 기능 학습을 다시 수행하고, `outputs/complexity_local_count_20260930_original16_smoke_predictions/`에서 GT 접근을 차단한 독립 추론을 완료함. 해당 예측 폴더의 `evaluation.json`·`correction.json`·`functional_panel.png`가 수정 실행의 근거임. 한 장면의 학습 영상 재예측이므로 정식 비교·blind/unseen 성능 검증으로 해석하지 않음.
 - 새 코드는 `experiments/complexity_local_count_20260929/`, GT 저장 helper는 `../scene_generator/instance_capture.py`, 실제 수집기는 `../scene_generator/vectorized_scene_v2.py`임. 상세 범위·실행 명령·검증 상태는 `docs/complexity_results/local_count_plan_20260929.md`를 따름.
-- GitHub `development_log.md`에는 비교·해석이 가능한 주요 결과만 추가함. `complexity_stream.md`에는 중요한 가정과 방향 변경만 반영함. 현재는 구현 방향을 게시하고 새 Phase 결과를 추가하지 않음. 미검증 코드·checkpoint·원시 자료는 로컬에 보존함.
+- GitHub `development_log.md`에는 비교·해석이 가능한 주요 결과만 추가함. `complexity_stream.md`에는 중요한 가정과 방향 변경만 반영함. Phase 39의 의미 있는 비교와 실패·한계를 개발 기록에, 현재 depth 추가 효과 미확인과 후보 유지 판단을 Complexity에 반영함. 실제 게시 상태는 `docs/public_agent_context_local_count_pilot_20260930.json`에서 확인하며 생성만으로 push 완료를 추정하지 않음. 미검증 코드·checkpoint·원시 자료는 로컬에 보존함.
 - 사용자 표현 정정: 모호한 표현을 피함. ‘같은 물체인지 판별’, ‘물체별 영역’, ‘물체 ID’처럼 구체적인 말로 설명함. 기존 공개 문서의 ~함/~임 기술 문체와 설명 깊이를 유지함. 최종 방법이 확정되면 채택한 흐름 중심으로 정리하며 지금 연구 이력을 임의 삭제하지 않음.
 
 #### 이전 재개 기준 — 2026-09-29 대화 전
@@ -4388,6 +4640,7 @@ Phase 1–38 이력: development_log.md
 | 36 | Frozen DINO의 순수 patch 가시 asset 대응 A probe; 거의 포화, B/C 미실행·도입 보류 | `development_log.md` Phase 36, Context 8.8, 로컬 representation probe 보고서·results·coverage |
 | 37 | 기존 DINO의 어려운 순수 patch 대응·GT 가시 접경·단일-label block 근사 공동 진단; 추가 학습 없음 | `development_log.md` Phase 37, Context 8.9, 로컬 joint diagnostic 보고서·summary·audit |
 | 38 | RGB/Depth/RGB-D 원본 접경 9-head 학습; RGB-D head 미채택 | `development_log.md` Phase 38, Context 8.10, boundary v2 summary/audit |
+| 39 | 원본 instance GT의 새 배치 지역 count 비교; 후보 지지·depth 추가 효과 미확인 | `development_log.md` Phase 39, `local_count_pilot_20260930.md`, pilot summary/gt_audit/independent_audit |
 
 `PROJECT_CONTEXT.md`의 `6.7`과 `7.13`은 위 기록을 현재 판단에 필요한 수준으로 압축한 표다.
 2026-09-16 Phase 35 공개 commit은 `1c63f1b`(README와 비교 그림 4장)이다.
@@ -4665,7 +4918,20 @@ Full16 이전에 root에 남아 있는 두 training run도 역사 자료다.
 두 폴더에는 protocol/history/training summary, completion manifest, checkpoint hash가 있으나 현재
 full16 baseline은 아니다.
 
-### 7. Complexity Phase 33–38 근거
+### 7. Complexity Phase 33–39 근거
+
+#### 2026-09-30 Phase 39 — 지역 count pilot 완료, 최종 Complexity 미채택
+
+- 상세 범위·정의·수치·판단: `docs/complexity_results/local_count_pilot_20260930.md`.
+- Capture: `outputs/complexity_instance_capture_20260930_pilot/`; GT·split: `outputs/complexity_local_count_20260930_pilot_data/manifest.json`.
+- 정식 run: `outputs/complexity_local_count_20260930_pilot/`; `locked_protocol.json`, `gt_audit.json`, `summary.json`, `per_scale_metrics.csv`, `experiment_complete.json`을 확인함.
+- 상세 평가: 위 run의 `run/evaluation.json`; 독립 예측·파일 접근 검사·시간: `run/predictions/`, `deployment_timing.json`.
+- 독립 감사: `independent_audit.json`. 원본·GT hash 5,056개, split·cache·validation 선택·train-only prior·primary 집계를 확인함. 별도 12영상의 raw window 5,876개와 지표 조합 360건을 재계산함.
+- 코드: `experiments/complexity_local_count_20260929/`; `compare.py` 학습·비교 준비, `predict_batch.py` 독립 추론, `benchmark.py` 단일 head 시간, `evaluate.py` GT 별도 평가임.
+- 원본 그림: 위 run의 `heldout_comparison.png`, `heldout_worst_case.png`; 공개 파일은 9절의 Phase 39 PNG 두 장임.
+- 원래 16개 seen assets의 새 32 layouts·160 test views이며 공통 test key는 2개임. 모든 modality가 위치 평균을 넘지만 RGB-D의 RGB 대비 개선 gate는 실패함. 최종 C·fusion·외부 물체 성능으로 확대하지 않음.
+- 게시 근거: `docs/public_agent_context_local_count_pilot_20260930.json`; 실제 commit·원격 일치는 해당 기록에서 확인함.
+
 
 #### Phase 38 이후 재개 계획·게시 정정의 근거
 
@@ -4684,7 +4950,7 @@ full16 baseline은 아니다.
 `docs/complexity_results/depth_boundary_utility_20260921.md`,
 `outputs/complexity_depth_boundary_20260921_v1/utility/`,
 `outputs/complexity_depth_boundary_20260921_v1/panels/observed_relations_utility.png`.
-이 자료는 철회 원인을 이해할 때만 확인함. 기존 completion의 utility 완료·독립 감사 통과는 당시 계산의 보존 기록이고, 공개/채택 승인 기록이 아님. 공개 builder는 C9를 제외하고 경계 전용 `depth_boundary_rgbd_public_20260921.md`를 C8로 사용하므로, 원래 통합 보고서를 다시 내보내 철회 내용을 복구하지 않음.
+이 자료는 철회 원인을 이해할 때만 확인함. 기존 completion의 utility 완료·독립 감사 통과는 당시 계산의 보존 기록이고, 공개/채택 승인 기록이 아님. 공개 builder는 철회한 GT 관계 회귀 보고서를 제외하고 경계 전용 `depth_boundary_rgbd_public_20260921.md`를 C8로 사용하므로, 원래 통합 보고서를 다시 내보내 철회 내용을 복구하지 않음.
 
 #### 2026-09-21 Phase 38 — 완료; 경계 모델 미채택; GT 관계 회귀 공개 철회
 
@@ -4924,7 +5190,7 @@ Archive GT도 현재 production GT와 섞지 않는다.
 
 2026-09-16 공개 파일 45개와 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG 8개를 보존하고,
 전체 architecture PNG·SVG 2개를 추가했을 때 inventory는 55개였다. 구조도 추가는 정성 예측
-결과를 추가한 것이 아니었다. Phase 37 결과 PNG 2개를 더한57개를 보존하고, Phase 38 경계 PNG2개만 남겨 현재59개다.
+결과를 추가한 것이 아니었다. Phase 37 결과 PNG 2개를 더한57개를 보존하고, Phase 38 경계 PNG2개만 남겨 당시59개였음. Phase 39의 고정 비교·실패 PNG2개를 추가하여 현재 공개용 inventory는61개임. 실제 원격 반영은 publication manifest를 확인함.
 복사·파일 검증·게시 상태는 `docs/public_agent_context_depth_boundary_20260921.json`을 따른다.
 공통 그림은 `img/` root, stream별 그림은 기존 세 폴더에 둔다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
@@ -4995,7 +5261,12 @@ README 표시에는 사용하지 않는다. 다른 repo에 문서를 복사할 �
 - `img/occlusion/occlusion_film_conditioning.png`
 - `img/occlusion/occlusion_film_conditioning.svg`
 
-#### `img/complexity/` — 22개 (기존18개 + Phase37 결과2개 + Phase38 경계2개)
+#### `img/complexity/` — 24개 (기존18개 + Phase37 결과2개 + Phase38 경계2개 + Phase39 count2개)
+
+- `img/complexity/phase39_local_count_heldout_20260930.png` ← count pilot `heldout_comparison.png`
+- `img/complexity/phase39_local_count_worst_20260930.png` ← count pilot `heldout_worst_case.png`
+
+위 Phase 39 두 그림의 생성 코드는 `outputs/complexity_local_count_20260930_pilot/summarize_pilot.py`임. 고정 사례와 사후 선택한 최대 regret 실패 사례를 구분함.
 
 - `img/complexity/rgbd_boundary_fixed_scenes_20260921.png` ← boundary v2 `panels/rgbd_boundary_fixed_scenes.png`
 - `img/complexity/rgbd_boundary_metrics_20260921.png` ← boundary v2 `panels/rgbd_boundary_metrics.png`
@@ -5119,27 +5390,36 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 
 - `PROJECT_CONTEXT.md`: 현재 목표, 데이터, architecture, 주요 실험 이력, 검증 결과, 알려진 한계와
   다음 Step을 설명하는 실행용 handoff
-- `PROJECT_LOG_INDEX.md`: Phase 1–38의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
+- `PROJECT_LOG_INDEX.md`: Phase 1–39의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
   찾아가기 위한 근거 자료 색인
 
 Complexity를 이어갈 때는 위 세 문서 이후
 `docs/complexity_results/rgbd_grouping_next_step_20260921.md`도 끝까지 읽는다.
-이 문서는 9월21일의 **미실행 계획**으로 보존한다. 이후 최신 사용자 방향과 `docs/complexity_results/local_count_plan_20260929.md`를 우선한다.
+이 문서는 9월21일의 **미실행 계획**으로 보존함. 이후 계획과 완료 범위를 구분하기 위해 `docs/complexity_results/local_count_plan_20260929.md`와 최신 완료 보고서 `docs/complexity_results/local_count_pilot_20260930.md`도 끝까지 읽음. 현재 재개는 아래 9월30일 Phase 39 기준을 우선함.
 
 
-#### 최신 사용자 방향 — 2026-09-29 지역별 가시 물체 수 예측
+#### 최신 연구 상태 — 2026-09-30 Phase 39 지역 count pilot 완료
 
-이번 대화의 지시가 아래 과거 재개 기준보다 우선함. Complexity 자체의 방법을 먼저 검증하며 fusion은 후속 단계임. 첫 후보는 **고정 DINOv3 RGB 특징 + 별도 경량 depth encoder → 고정 decoder → 지역 count와 64×30×40 특징**임. 이 방향의 구현·최소 검증·선별적인 GitHub 문서 갱신을 사용자가 승인함. 최종 Complexity 모델·GT 채택으로 해석하지 않음.
+이번 대화의 지시가 아래 과거 재개 기준보다 우선함. Complexity 자체의 방법을 먼저 검증하며 fusion은 후속 단계임. 첫 후보의 실제 구현은 **고정 DINOv3 RGB 특징 + 원본 RGB 세부 특징 + 별도 경량 depth encoder → 고정 연산 decoder → 지역 count와 64×30×40 특징**임. 이 방향의 구현·최소 검증·선별적인 GitHub 문서 갱신을 사용자가 승인함. 최종 Complexity 모델·GT 채택으로 해석하지 않음.
 
-- GT는 IsaacSim의 원본 instance ID를 physical object root에 연결하여 생성함. 같은 asset의 복제물은 별도 물체로 세고 한 물체의 여러 mesh·분리된 가시 조각은 합침. 배경과 unknown을 구분함. 기존 색상 label-group을 실제 instance count로 바꾸어 주장하지 않음.
+- **Phase 39 완료:** 16 pools × 12 layouts(4 envs × 3회) × 5 views의 960영상을 새로 수집하고 9개 head의 학습·독립 추론·별도 평가를 완료함. Test는 원래 16개 seen assets의 새 배치 32개·160영상이며 unseen asset 성능이 아님.
+- 원래 16개 asset과 로컬 drawer texture를 사용하고 각 새 장면에서 초기 자세·선속도·각속도를 명시적으로 초기화함. Capture는 `outputs/complexity_instance_capture_20260930_pilot/`임. 초기화 보완 전 gate는 `outputs/complexity_instance_capture_20260930_pilot_pre_reset_capture/`에 보존하며 정식 비교에서 제외함.
+- 고정 protocol은 `outputs/complexity_local_count_20260930_pilot/locked_protocol.json`, GT는 `outputs/complexity_local_count_20260930_pilot_data/`임. 공통 scene-key 8/2/2개로 train/val/test 640/160/160영상을 나눔. RGB·depth·RGB-D × seeds 0/1/2, 20 epochs·batch 8, validation 최저 loss checkpoint를 비교함.
+- Foreground-center의 세 scale·세 seed 동일 평균에서 MAE/Spearman/regret은 RGB **0.515799/0.932736/0.137594**, depth **0.943582/0.759365/0.554973**, RGB-D **0.521641/0.931473/0.137259**, 학습 위치 평균 **1.363044/0.541761/1.154210**임. 모든 학습 경로는 위치 평균 대비 사전 gate를 3/3 seeds 통과하고 RGB-D의 RGB 대비 추가 효과는 0/3 seeds로 실패함. RGB는 DINO+원본 RGB 보조 경로이며 DINO 단독 결과가 아님.
+- 새 배치에서 지역 count 후보를 지지하지만 현재 depth 결합의 추가 이득은 확인하지 못함. RGB 기준 후보를 유지하고 오류 조건·외부 물체·관측 변화의 검증을 남김. 최종 Complexity 미채택·fusion 미실행임. 두 test key의 pilot이므로 통계적 유의성·넓은 일반화 성능을 주장하지 않음.
+- 실제 결과·판정은 `outputs/complexity_local_count_20260930_pilot/summary.json`, 상세 평가는 `run/evaluation.json`, 시간은 `run/predictions/deployment_timing.json`임. 보고서는 `docs/complexity_results/local_count_pilot_20260930.md`임. GT 28,800개 window 검산·회귀 tests 34개 및 독립 수치 감사를 통과함. RTX 5090의 warm median은 RGB/depth/RGB-D **10.518/0.664/10.924ms**이나 로딩·I/O·전송을 제외한 단일 입력 반복의 모델 연산시간이며 배포 FPS가 아님.
+
+- GT는 IsaacSim의 원본 instance ID를 physical object root에 연결하여 생성함. DINOv3는 RGB 특징을 추출하는 모델이며 GT를 생성하지 않음. 같은 asset의 복제물은 별도 물체로 세고 한 물체의 여러 mesh·분리된 가시 조각은 합침. 배경과 unknown을 구분함. 기존 색상 label-group을 실제 instance count로 바꾸어 주장하지 않음.
 - 단일 RGB-D 추론에 GT·workspace mask·empty-depth reference를 입력하지 않음. SAM·반복 crop·같은 물체인지 판별하는 보조 loss는 첫 모델에 포함하지 않음. Crop 보정은 지역 count 오류의 원인이 해상도이며 확대 처리로 개선된다는 근거가 있을 때 검토함.
-- 초기 count window는 기존 48/96/160px, 최소 window 내 가시 면적은 16px로 두는 구현 검증 설정임. 정답은 원본 pixel ID에서 계산함. 이는 최적 window·가시성 기준의 채택이 아니며 1/4/16/64px 기준 변화와 작은 물체 오류를 정식 비교 전에 확인함.
-- 첫 기능 점검은 실제 더미 1 scene key·5 views임. 생성기에는 외부 packaged_food_5도 있어 이 자료와 checkpoint는 기능 점검 전용임. 정식 학습은 원래16개 asset/pool을 보존하고 external asset을 분리한 새 수집 자료로 수행해야 함. 과거 test나 기능 점검을 새 blind/unseen 성능으로 쓰지 않음.
+- 초기 count window는 기존 48/96/160px, 최소 window 내 가시 면적은 16px로 두는 구현 검증 설정임. 정답은 원본 pixel ID에서 계산함. Train/validation에서 1/4/16/64px 정의의 순위 민감도를 검산했으며 최적 window·가시성 기준의 채택은 아님. 작은 물체 등 조건별 오류는 후속 판단 과제임.
+- **이번 학습 GT·동일 분포 pilot 수집부터 `packaged_food_5`를 제외함.** 향후 별도 외부 물체 평가까지 금지한 것은 아님. 원래 16개 asset/pool만 사용하는 기준은 기능 점검에도 적용함. 외부 물체가 포함된 기존 17개 물체 자료를 기능 점검용으로 허용했던 해석은 잘못이었음. 해당 GT·학습 자료·checkpoint·예측·수치는 부적격 기록으로만 보존하고 이후 검증·학습·성능 근거에 사용하지 않음.
+- 수정한 원래 16개 물체 capture는 `outputs/complexity_instance_capture_20260929_original16_smoke/`, GT는 `outputs/complexity_local_count_20260929_original16_smoke_data/`임. 최초 capture의 회색 서랍은 원격 beige carpet texture 로딩 실패 때문이며 수정 capture에서는 복원됨.
+- 원래 16개 물체 자료로 `outputs/complexity_local_count_20260930_original16_smoke_train/`에서 처음부터 기능 학습을 다시 수행하고, `outputs/complexity_local_count_20260930_original16_smoke_predictions/`에서 GT 접근을 차단한 독립 추론을 완료함. 해당 예측 폴더의 `evaluation.json`·`correction.json`·`functional_panel.png`가 수정 실행의 근거임. 한 장면의 학습 영상 재예측이므로 정식 비교·blind/unseen 성능 검증으로 해석하지 않음.
 - 새 코드는 `experiments/complexity_local_count_20260929/`, GT 저장 helper는 `../scene_generator/instance_capture.py`, 실제 수집기는 `../scene_generator/vectorized_scene_v2.py`임. 상세 범위·실행 명령·검증 상태는 `docs/complexity_results/local_count_plan_20260929.md`를 따름.
-- GitHub `development_log.md`에는 비교·해석이 가능한 주요 결과만 추가함. `complexity_stream.md`에는 중요한 가정과 방향 변경만 반영함. 현재는 구현 방향을 게시하고 새 Phase 결과를 추가하지 않음. 미검증 코드·checkpoint·원시 자료는 로컬에 보존함.
+- GitHub `development_log.md`에는 비교·해석이 가능한 주요 결과만 추가함. `complexity_stream.md`에는 중요한 가정과 방향 변경만 반영함. Phase 39의 의미 있는 비교와 실패·한계를 개발 기록에, 현재 depth 추가 효과 미확인과 후보 유지 판단을 Complexity에 반영함. 실제 게시 상태는 `docs/public_agent_context_local_count_pilot_20260930.json`에서 확인하며 생성만으로 push 완료를 추정하지 않음. 미검증 코드·checkpoint·원시 자료는 로컬에 보존함.
 - 사용자 표현 정정: 모호한 표현을 피함. ‘같은 물체인지 판별’, ‘물체별 영역’, ‘물체 ID’처럼 구체적인 말로 설명함. 기존 공개 문서의 ~함/~임 기술 문체와 설명 깊이를 유지함. 최종 방법이 확정되면 채택한 흐름 중심으로 정리하며 지금 연구 이력을 임의 삭제하지 않음.
 
-### Current handoff snapshot — 2026-09-29
+### Previous handoff snapshot — 2026-09-29
 
 #### 이전 재개 기준 — 2026-09-29 대화 전
 
@@ -5162,7 +5442,7 @@ Complexity를 이어갈 때는 위 세 문서 이후
 
 공개 `agent.md`는 GitHub 철회 commit 시점의 통합본임. 이번 로컬 최신화 및 미실행 다음 계획이 자동 반영되는 파일이 아니므로 **로컬에서 재개할 agent는 이 세 handoff와 위 계획을 우선**함. 전체 대화·terminal 원문 archive가 아니라 연구의 근거·판단·시행착오·최신 지시를 연결하는 인수인계임.
 
-#### 마지막 완료 실험 — Phase 38 (2026-09-21)
+#### 당시 마지막 완료 실험 — Phase 38 (2026-09-21)
 
 **공개 철회 기록:** 사용자 요청에 따라 Phase 38의 GT 관계 회귀 성과 주장·수치·그림을 공개 문서에서 철회함. 실제 RGB-D 접경 학습 결과는 보존하며, 철회된 실험 원본은 로컬 archive로만 유지함. 게시 상태는 `docs/public_agent_context_gt_utility_withdrawal_20260921.json`을 따름. 원본 파일 삭제나 Git 이력 재작성은 수행하지 않음.
 
