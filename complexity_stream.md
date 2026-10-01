@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · **Complexity** · [Development Log](development_log.md) · [연구 문맥](agent.md)
 <!-- navigation:end -->
 
-> **현재 상태 — 2026-10-01 Phase 40 완료:** 단일 RGB-D에서 지역별 가시 물체 수를 직접 예측함. 장면별 IsaacSim GT와 비교하여 DINO·원본 RGB CNN에 frozen MultiMAE depth 특징을 결합했을 때 count 오차·상위 영역 선택의 개선을 확인함. 추가 검증할 주후보로 유지하지만 연산 비용과 외부 물체·관측 변화 검증이 남아 최종 Complexity 채택과 fusion은 보류함. Phase 38 접경 decoder 미채택과 GT 관계 회귀의 공개 철회는 유지함.
+> **현재 상태 — 2026-10-01 Phase 41 완료:** 단일 RGB-D의 지역별 가시 물체 수를 직접 예측하는 RGB + frozen MultiMAE depth 후보를 추가 검증함. 물체 감소·단일 외부 물체·5% depth 누락에서는 RGB 대비 개선이 유지됐지만, 표준편차 5mm의 가상 depth 노이즈에서 상위 영역 선택의 이점이 거의 사라짐. 현재 결합 그대로의 fusion과 최종 채택을 보류하고, 관측 변화·제거 후 개수 분포 보완을 다음 미실행 과제로 둠. Phase 38 미채택과 GT 관계 회귀 공개 철회는 유지함.
 
 ## 1. 연구 목적
 
@@ -18,7 +18,7 @@ Phase 38에서는 그 정보를 원본 영상의 접경 위치에 연결하는 �
 
 ## 2. 연구 질문의 연결
 
-①–⑩는 아래 본문의 설명 순서임. 근접도와 정적 제거를 검사한 Phase 34–35는 별도로 시도한 관계 점수 후보이므로 옆 경로로 표시함. **⑦의 공동 진단·⑧의 접경 학습·⑨의 Phase 39 지역 count 비교·⑩의 Phase 40 사전학습 depth 비교는 완료함.** ⑤의 feature 집계 범위 비교와 ⑥의 다중 뷰 활용은 여전히 미실행 제안임. ⑩의 결합 모델은 추가 검증할 주후보이며 최종 채택·fusion과 구분함.
+①–⑪은 아래 본문의 설명 순서임. 근접도와 정적 제거를 검사한 Phase 34–35는 별도로 시도한 관계 점수 후보이므로 옆 경로로 표시함. **⑦–⑪의 Phase 37–41 진단·학습·검증은 완료함.** ⑤의 feature 집계 범위 비교와 ⑥의 다중 뷰 활용은 여전히 미실행 제안임. Phase 40에서 개선된 후보를 Phase 41에서 추가 검증했으며, depth 노이즈 취약성이 남아 최종 채택·fusion과 구분함.
 
 ```mermaid
 flowchart TD
@@ -32,6 +32,7 @@ flowchart TD
     N8["⑧ Phase 38 RGB-D 접경 학습 · 완료<br/>결합 decoder의 일관된 개선 없음<br/>현재 decoder 미채택"]
     N9["⑨ Phase 39 지역별 가시 물체 수 · 완료<br/>DINO + 원본 RGB CNN + 작은 depth CNN<br/>장면별 GT 비교 · depth 추가 효과 미확인"]
     N10["⑩ Phase 40 사전학습 depth 특징 · 완료<br/>RGB + frozen MultiMAE depth의 count 예측 개선<br/>연산 비용 증가 · 주후보 추가 검증 · 최종 미채택"]
+    N11["⑪ Phase 41 통합 전 추가 검증 · 완료<br/>5개 조건 개선 유지 · Gaussian depth noise에서 이점 소실<br/>관측 변화·개수 분포 보완 전 fusion 보류"]
     H["별도 관계 후보: Phase 34–35<br/>GT 물체 ID를 사용한 근접도·정적 제거 진단<br/>5절에 목적과 결과 보존"]
     N1 --> N2 --> N3
     N3 -->|"개수 오차 외에 물체 구분 정보를 직접 점검"| N4
@@ -39,6 +40,7 @@ flowchart TD
     N7 -->|"전체 영상에서 접경을 직접 예측"| N8
     N8 -->|"고정 연산 경로에서 지역 count를 먼저 검증"| N9
     N9 -->|"depth 표현을 바꾸어 같은 count 과제 비교"| N10
+    N10 -->|"모델을 고정하고 제거·외부 물체·depth 변화 검증"| N11
     N4 -. "문맥 범위의 이득을 비교할 후보" .-> N5
     N4 -. "추가 관측이 제공하는 정보 검토" .-> N6
     N3 -. "별도로 검토한 후보" .-> H
@@ -531,7 +533,17 @@ Phase 39의 작은 depth CNN 대신 **고정된 MultiMAE depth encoder**를 사�
 
 성능 개선에는 RGB 대비 모델 연산시간 **약 1.96배**와 peak allocated memory **약 2.10배**의 비용이 따름. 새 encoder도 고정된 한 번의 처리 경로이지만 실제 지연 예산의 충족과는 구분함. 예측의 과대추정과 혼잡 위치를 넓게 퍼뜨리는 오류도 남음.
 
-**최종 Complexity 채택과 fusion은 보류함.** 다음 우선순위는 학습에 쓰지 않은 물체·depth 노이즈·관측 변화에서 같은 장면별 GT 정의로 검증하고, 유지되는 개선과 연산 비용을 함께 판단하는 것임. 공통 test key 4개의 소규모 비교를 일반화 성능이나 완벽한 물체 구분의 증거로 확대하지 않음. 이 후속 검증은 아직 실행하지 않음.
+**Phase 40 당시 최종 Complexity 채택과 fusion을 보류하고**, 학습에 쓰지 않은 물체·depth 노이즈·관측 변화의 후속 검증을 계획함. 공통 test key 4개의 소규모 비교를 일반화 성능이나 완벽한 물체 구분의 증거로 확대하지 않음. 이후 이 중 물체 감소·단일 외부 물체·두 depth 변형은 Phase 41에서 검증했으며 현재 판단은 ⑪을 따름.
+
+### ⑪ 통합 전 물체 감소·외부 물체·depth 변화 — 2026-10-01 Phase 41
+
+이미 학습한 RGB와 RGB + MultiMAE depth의 seeds 0/1/2 checkpoint를 고정하고, 물체가 16→12→8개로 줄어드는 같은 trajectory·학습에 없던 World1 하나·두 가상 depth 변형을 검증함. GT는 각 장면의 원본 물리 ID로 계산하며 외부 물체가 실제 보이는 window를 별도 평가함. 새 학습·모델 선택·fusion은 실행하지 않음.
+
+**여섯 조건 중 다섯 조건에서는 개선이 유지됐지만, Gaussian depth noise(σ=5mm)에서 상위 영역 선택의 이점이 거의 사라짐.** 이 조건에서는 결합 모델의 count MAE가 RGB보다 커져 세 seed 모두 두 지표의 동시 개선 기준을 만족하지 못함. 같은 장면의 RGB·GT를 유지한 비교이며 5/5 camera와 전체 유효 영역에서도 개수 오차가 악화됨. 실제 센서의 노이즈를 측정한 검증으로 확대하지 않음.
+
+물체가 8개 남은 상태에서는 두 모델 모두 count를 과대추정하지만, 결합 모델의 상대적인 지역 순위·상위 영역 선택은 RGB보다 좋음. 따라서 **정확한 개수의 분포 변화 문제와 대략적인 혼잡 위치 신호의 유용성을 구분함.** 외부 검증 통과도 World1 한 asset에 한정되며 넓은 unseen 일반화의 증거가 아님. 전체 수치·실제 장면·최대 오류·독립 감사는 [Development Log의 Phase 41](development_log.md#2026-10-01--phase-41--통합-전-물체-감소외부-물체depth-변화-검증)에 보존함.
+
+**현재 결합 그대로의 fusion과 최종 채택을 보류함.** 다음 최소 방향은 train/validation의 depth noise augmentation과 제거 상태의 물체 수 분포를 보완한 뒤 새로운 held-out 자료에서 재검증하는 것임. 이 보완 학습·새 검증·fusion은 아직 미실행이며, 현재 test에 맞춘 수정 후 같은 test만 다시 보아 일반화 개선으로 결론 내리지 않음.
 
 ## 4. 보존한 Density Pilot의 구현과 GT
 
@@ -1127,11 +1139,9 @@ Count channel의 0.25는 `0.25×16=4` label-groups의 연속 추정치이고, oc
 
 ### Q8. 다음 Step은 무엇인가?
 
-**IsaacSim의 물체별 instance GT를 확인하고, 단일 RGB-D에서 지역 count를 직접 예측하는 경로를 검증하는 것임.** RGB는 고정 DINOv3로 처리하고 depth는 별도의 경량 encoder로 처리함. GT 생성·추론·평가를 분리하며, GT는 추론 입력이나 후보 선택에 사용하지 않음.
+**Phase 41에서 확인한 depth 변화 취약성과 제거 후 count 과대추정을 먼저 보완하는 것임.** 지역별 가시 물체 수의 GT 정의와 고정된 한 번의 추론 경로는 유지함. Train/validation의 depth noise augmentation·물체 수 분포 보완 후 새로운 held-out 자료에서 count 오차와 상대적인 혼잡 영역 선택을 함께 확인하는 방향이며 아직 미실행임.
 
-⑨의 순서대로 물체 ID와 지역 count를 검산하고 비교 조건을 고정한 뒤 학습함. 장면 내 지역 순위·혼잡한 상위 영역 포착·count 오차·처리시간으로 판단하며, 작은 물체·심한 가림·추가 unseen 물체에서의 성능을 확인함. SAM·반복 crop·같은 물체 판별 보조 loss는 첫 비교에 포함하지 않음.
-
-⑤의 feature 집계 범위 비교, ⑥의 다중 뷰 teacher, 자동 영역·추가 encoder B/C는 미실행 제안으로 보존함. Phase 38 접경 decoder는 미채택이며, 철회한 GT 관계 회귀를 새 방법의 성능 근거로 사용하지 않음. Complexity 방법을 먼저 검증·선택한 뒤 fusion과 탐색 효용 평가로 진행함.
+⑤의 feature 집계 범위 비교, ⑥의 다중 뷰 제안, 자동 영역·반복 crop은 기존 미실행 후보로 보존함. 사전학습 depth 표현 비교는 ⑩에서 완료됐고 그 후보의 추가 검증 결과는 ⑪을 따름. Complexity 방법을 먼저 검증·선택한 뒤 fusion과 탐색 효용 평가로 진행함.
 
 ### Q9. 이 feature로 최종 2D-PDM을 만들 수 있는가?
 

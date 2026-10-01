@@ -4,11 +4,11 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-10-01 (Asia/Seoul) · 정식 연구 이력: Phase 1–40 · RGB + MultiMAE depth의 지역 count 개선 확인; 연산 비용 증가·최종 Complexity 미채택
+> 문서 기준일: 2026-10-01 (Asia/Seoul) · 정식 연구 이력: Phase 1–41 · RGB + MultiMAE depth의 지역 count 개선 확인; 연산 비용 증가·최종 Complexity 미채택
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
-이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–40 Development Log, Complexity의 가정·실험·후속 계획 보고서 10개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
+이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–41 Development Log, Complexity의 가정·실험·후속 계획 보고서 10개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
@@ -27,21 +27,22 @@
 | Complexity 표현 A·공동 진단 | Phase 36 내부 대응 AUROC 0.998953, Phase 37 경계 주변 순수 patch 0.998789·외형 변화 0.998166; 같은 count의 가시 관계 차이 확인 | 혼합 patch·경계·물체 묶음 표현 보완; 16px GT-majority 접경 precision/recall 0.804652/0.845858은 DINO 성능이 아님 |
 | Complexity RGB-D 접경 | Phase 38 exact F1 RGB 0.313310 / RGB-D 0.314580, 3 seeds 중 1개만 개선하여 decoder 미채택 | 과거 결과로 보존하며 전체 RGB-D 능력의 부재로 확대하지 않음 |
 | Complexity Phase 39 지역 count | 새 배치 32개·160영상에서 RGB MAE 0.515799·작은 depth CNN 결합 0.521641 | 당시 test의 결과이며 새 depth 표현의 일반적 한계로 확대하지 않음 |
-| Complexity Phase 40 depth 표현 | 새 배치 64개·320영상에서 RGB + MultiMAE depth MAE 0.480365·regret 0.126615; RGB 대비 9.61%·20.46% 감소 | 주후보로 추가 검증; 연산시간 약 1.96배·외부 물체와 관측 변화 검증, 최종 C 미채택 |
+| Complexity Phase 40 depth 표현 | 새 배치 64개·320영상에서 RGB + MultiMAE depth MAE 0.480365·regret 0.126615; RGB 대비 9.61%·20.46% 감소 | 당시 clean 관측의 개선; 약 1.96배 연산 비용, 이후 Phase41 관측 변화 검증과 구분함 |
+| Complexity Phase 41 추가 검증 | 고정 6개 checkpoint로 물체 수 감소·외부 물체·depth 오류 평가; 5조건 개선 유지, 5mm 잡음에서 MAE 악화·선택 이점 거의 소실 | 현재 결합의 fusion 보류; 학습/validation 내 잡음 및 제거 상태 보완 후 새 held-out 평가 검토 |
 | B/C 및 최종 결합 | 비교 계획과 일부 준비 코드, stream별 feature 규격 정리 | 필요한 능력을 특정한 뒤 B/C 실행·비교; 최종 Complexity GT·fusion·DRL은 후속 구현 단계 |
 
-최신 완료 연구는 **Phase 40의 사전학습된 depth 특징과 지역 count 비교**임. RGB의 frozen DINOv3 특징과 원본 RGB 소형 CNN에 frozen MultiMAE depth 특징을 결합하고 count CNN head로 직접 회귀함. 학습·평가 정답은 해당 장면의 IsaacSim 물체 ID에서 계산하며 segmentation을 먼저 복원한 뒤 세는 구조가 아님. 기존 train/validation 640/160영상을 유지하여 새 6개 head를 학습하고 RGB/RGB-D 6개 checkpoint를 재사용함. 네 모델을 새 64배치·320영상에서 평가하여 RGB + MultiMAE depth의 MAE·상위 선택 regret 개선을 확인함. 두 비교 모두 3/3 seeds·4/4 공통 keys에서 사전 두 지표 기준을 만족함.
+최신 완료 연구는 **Phase 41 통합 전 고정 모델 검증**임. Phase40의 RGB와 RGB + MultiMAE depth checkpoint를 seeds 0/1/2로 재사용하고 추가 학습 없이 평가함. 동일한 16개 배치에서 실제 물체를 16→12→8개로 줄인 240영상, 학습 미사용 packaged_food_5를 넣은 별도 16배치의 80영상, 기존320영상 각각에 깊이 잡음 또는 누락을 적용한 640영상을 새로 추론함. 기존 clean 예측 320장도 그대로 재사용함. 추론 입력은 단일 RGB-D이며 GT는 예측 저장 이후 평가에만 사용함.
 
-결합 모델을 추가 검증할 주후보로 유지하지만 **최종 Complexity 채택·fusion은 보류**함. RGB 대비 모델 연산시간이 약 1.96배이며 encoder 구조·사전학습·전처리가 함께 바뀌어 사전학습 단독 효과로 해석하지 않음. 다음 우선순위는 학습에 쓰지 않은 물체·depth 노이즈·관측 변화에서 같은 GT 정의로 검증하고 정확도와 지연 예산을 함께 판단하는 것임. 이 후속 검증은 아직 실행하지 않음.
+물체 수16/12/8·외부 물체·5% 깊이 누락의 다섯 조건은 두 주요 오차가 RGB보다 낮고 3/3 seeds에서도 개선됨. 그러나 **표준편차 5mm 깊이 잡음에서 MAE는 RGB 0.531415→결합 0.566553으로 악화되고, 상위20% 선택 손실은 0.159187→0.159109로 개선이 거의 사라짐**. 사전 기준의 두 지표를 동시에 개선한 seed는 0/3임. 여섯 조건 전체 기준을 통과하지 못해 **현재 결합 모델의 최종 채택·fusion을 보류함**. 다음 최소 보완은 학습/validation 내 depth 잡음과 제거 상태의 데이터 범위를 보완한 뒤 새 held-out 배치로 평가하는 것이며 아직 실행하지 않음. 이번 test에 맞춰 설정을 변경하거나 새 학습을 수행하지 않음.
 
-추론은 단일 RGB-D만 사용하며 GT·workspace·empty-depth reference를 요구하지 않음. SAM·반복 crop·추가 물체 판별 loss는 사용하지 않음. 이전 한 장면의 기능 점검과 이번 새 배치 비교를 구분함. 이번 학습 GT·동일 분포 수집에서 packaged_food_5를 제외했으며 향후 외부 물체 평가는 별도 과제로 유지함. 새 test도 학습에서 본 원래 16개 asset이며 공통 key가 4개인 pilot이므로 넓은 일반화·유의성·배포 FPS를 주장하지 않음.
+8개 상태의 결합 MAE 1.176313은 16개 상태 0.476625보다 큼. 같은 상태의 RGB보다 복잡한 영역 선택은 개선되므로 정확한 개수 예측의 제약과 상대적인 지역 신호를 구분함. packaged_food_5/World1은 이번 외부 평가에만 사용했고 학습에서는 계속 제외함. 외부 물체 한 종류와 합성 depth 오류의 제한된 검증이며 실제 센서 노이즈 분포·넓은 일반화·최종 탐색 효용을 입증하지 않음. SAM·반복 crop·재추론은 사용하지 않으며 GT 관계 회귀 공개 철회는 유지함.
 
 GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 유지함. Phase38 경계 결과와 이전 가정·실패 기록은 보존함. 의미 있는 비교 결과는 Development Log에, 중요한 가정·방향은 Complexity 본문에 선별적으로 반영함. Complexity 방법 채택 뒤 fusion을 진행하며, 최종 확정 전 현재 연구 이력을 임의 삭제하지 않음.
 
 | 이 문서의 위치 | 내용 |
 |---|---|
 | A. 현재 프로젝트 문맥 | 목표, 데이터, 세 stream의 입력·모델·GT·loss, 결과, 한계, 실행 규약 |
-| B. Phase 1–40 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
+| B. Phase 1–41 전체 상세 로그 | 단계별 가정·변경·결과·실패·당시 다음 Step, 공개 비교 그림 |
 | C1. 정의 재검토 | Count/occupancy/면적·depth 반례, 당시 최근 5년 문헌, 후보 가정 |
 | C2. 관측 근접도 | 거리 수식, GT teacher 조건, 통제 실패, 가시 표면의 한계 |
 | C3. 정적 제거 | 실제 asset 재현, Isaac 초기 실패, 공통 표본 상관과 한계 |
@@ -52,6 +53,7 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 | C8. Phase 38 RGB-D 접경 | 원본 방향별 GT·9 heads·정밀도 수정·전체 영상 F1·실패 유형·독립 검산 |
 | C9. Phase 39 지역 count | 원본 instance GT·새 배치 비교·3-seed 순위와 regret·depth 추가 효과 미확인·시간·독립 감사 |
 | C10. Phase 40 depth 특징 비교 | Frozen MultiMAE·새 test 320영상·장면별 GT count 오차와 선택 개선·연산 비용·남은 실패 |
+| C11. Phase 41 통합 전 검증 | 고정 checkpoint·16→12→8·외부 물체·depth 오류·잡음 조건 실패·통합 보류 |
 | D. 근거와 이미지 색인 | Current/legacy 구분, JSON·log·checkpoint·그림 위치, 기록 공백 |
 | E. 인수인계·작업 규칙 | Source of truth, split·문서화·사용자 방향·게시 범위 |
 
@@ -118,6 +120,8 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 
 같은 날 Phase 40에서 사전학습된 depth 특징의 결합을 새 test에서 비교함. 장면별 count 오차·상위 영역 선택 개선과 증가한 시간·메모리, 고정 사례·큰 오류 PNG2장을 함께 기록함. 주후보로 추가 검증하며 최종 C·fusion은 미채택/미실행임. 게시 근거는 `docs/public_agent_context_depth_pretrain_20261001.json`(LOCAL)임.
 
+같은 날 Phase41에서 통합 전 추가 검증을 완료함. 물체 수 감소·외부 물체·depth 누락에서는 개선을 유지했지만5mm 잡음에서 선택 이점이 거의 사라져 현재 결합의 fusion을 보류함. 조건별 실제 RGB·GT·예측과 최대 오차 사례 PNG2장을 함께 기록함. 게시 근거는 `docs/public_agent_context_preintegration_20261001.json`(LOCAL)임.
+
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 과거 보고서의 문헌·모델 호환성 조사 내용은 각 작성 당시 확인 범위다. 2026-09-18 다중 뷰 관련 두 논문은 이번 논의에서 확인한 근거이며, 해당 방법을 우리 데이터에서 실행·검증한 결과와 구분한다.
 
 ---
@@ -129,7 +133,7 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-10-01 (Asia/Seoul); 연구 완료: Phase 40 사전학습 depth 비교; RGB+MultiMAE 추가 개선·비용 증가 확인, 최종 C 미채택; GT 관계 회귀 공개 철회 유지
+> 마지막 문서 갱신: 2026-10-01 (Asia/Seoul); 최신 평가: Phase 41 제한 검증; depth 잡음 조건 미통과·현재 후보 fusion 보류, primary MAE·regret 독립 수치 감사 통과; GT 관계 회귀 공개 철회 유지
 > Similarity/Occlusion의 기존 교차검증 기준일: 2026-08-28
 > 대상: `<DEV_ROOT>`
 > 목적: 이전 대화를 보지 못한 agent가 현재 코드와 데이터로 연구를 안전하게 이어가기 위한 문서
@@ -154,9 +158,25 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 
 ### 1. 처음 읽는 agent를 위한 핵심 요약
 
-#### 최신 연구 상태 — 2026-10-01 Phase 40 사전학습 depth 비교 완료
+#### 최신 연구 상태 — 2026-10-01 Phase 41 통합 전 제한 검증; 현재 후보의 fusion 보류
 
-이번 재개는 Phase 40과 `docs/complexity_results/depth_pretrain_comparison_20261001.md`를 우선함. Complexity 방법을 먼저 검증하며 최종 모델·GT 확정과 fusion은 수행하지 않음. 단일 RGB-D의 고정 연산 추론을 유지하고 각 장면의 IsaacSim GT에 예측을 대조함.
+이번 재개는 **Phase 41**과 `docs/complexity_results/preintegration_validation_20261001.md`를 우선함. Phase 40의 RGB+MultiMAE depth 후보를 고정하여 물체 감소·외부 물체·합성 depth 열화 조건을 평가했으며, 여섯 조건 중 depth 잡음 조건이 사전 기준을 통과하지 못함. **현재 후보 그대로의 fusion 진행은 보류**하고 최종 Complexity 모델·GT를 채택하지 않음. Phase 40의 개선 결과를 철회하거나 지역 count의 거친 혼잡 신호 가능성 전체를 부정하는 판단은 아님.
+
+- **고정 모델·완료 범위:** 기존 RGB와 RGB+MultiMAE depth × seeds 0/1/2의 **6개 checkpoint를 그대로 사용**함. Backbone·head를 모두 고정하고 새 학습·모델 선택·fusion·시간 benchmark를 실행하지 않음. 새 물리 수집 320장 + 기존 관측에 depth 열화를 가한 640장의 960개 입력을 새로 추론하고, Phase 40의 clean reference 320장 예측을 재사용하여 총 1,280개 관측 조건을 평가함. 서로 다른 물리 장면 1,280개라는 뜻이 아님.
+- **물체 감소:** book_1/fruit_1/packaged_food_1/toy_1의 4 anchor × 4 env = **16개 trajectory**에서 16→12→8개 활성 물체를 관측함. 각 상태 5views, 조건별 80장·합계 240장임. 관측/GT/예측을 보기 전에 seed로 category마다 anchor가 아닌 물체 한 개씩 두 차례 제거하도록 고정하고 매 제거 뒤 120 physics steps를 수행함. 초기 authored 자세·선속도·각속도 reset은 trajectory 시작에 수행하며, 후속 단계에서는 생존 물체를 다시 배치하지 않음. 단계와 다섯 view는 서로 연관된 관측이며 학습된 제거 정책이나 탐색 성공률을 검증한 실험이 아님.
+- **외부 물체:** `packaged_food_4`를 `packaged_food_5/World1`으로 교체하여 정확히 16개인 별도 16 layouts·80장을 수집함. **packaged_food_5는 이번 평가에만 포함하며 학습 GT에서는 계속 제외**함. 과거 부적격 17개 물체 자료를 재사용하지 않음. 외부 물체가 window 안에 16px 이상 보이는 영역을 별도 평가하며 한 종류의 외부 asset 결과를 넓은 unseen 일반화로 확대하지 않음.
+- **Depth 열화:** Phase 40의 64 layouts·320장에 유효 depth의 독립 Gaussian 잡음(σ=5mm), 또는 8×8 block 단위로 영상 영역의 5%를 선택한 결측을 각각 적용하여 640개 입력을 만듦. RGB·물리 장면·장면별 GT는 유지함. 이 합성 강도는 실측 센서 잡음이나 실제 센서 성능을 뜻하지 않음.
+- **사전 판단 결과:** `clean16`, `remaining12`, `remaining8`, `external16`, `dropout5pct`는 평균 MAE·상위20% count regret이 RGB보다 작고 seeds **3/3**에서 두 지표가 함께 개선되어 통과함. `noise5mm`는 **0/3**으로 실패하여 여섯 조건 전체 통과 기준은 미충족임. 잡음에서 RGB의 MAE/regret **0.531415/0.159187**에 비해 후보는 **0.566553/0.159109**임. 절대 count 오차가 커지고 선택 개선도 거의 소실됨. 최종 fusion 효용이나 실패를 직접 측정한 결과가 아님.
+- **정확한 count와 상대 혼잡의 구분:** `remaining8` 후보 MAE는 **1.176313**으로 절대 개수 예측의 한계가 남음. 동시에 RGB 대비 Spearman **0.905194→0.916799**, regret **0.074308→0.052600**으로 상대 순위·높은 count 영역 선택은 개선됨. 따라서 이 조건의 높은 MAE만으로 거친 혼잡 신호까지 무효라고 쓰지 않음.
+- **GT·입력 경계:** 각 물리 상태의 원본 instance ID→활성 physical root에서 48/96/160px window의 가시 물체 수를 계산함(최소 16px, stride16). 제거 후 metadata에는 활성 물체만 남기고 physical ID는 재번호 부여하지 않음. 합성 depth 열화는 같은 장면 GT를 재사용함. 단일 RGB-D 추론에 GT·물체 ID·활성 수·reference를 주지 않고 예측 저장 후 별도 평가함. 새 수집 GT의 원본 window 11,520개와 외부 영역 mask 11,520개를 검산했고 unknown은 0임. **독립 CPU 수치 감사 완료:** 1,280장×6모델의 23,040개 image-scale primary MAE·top20 regret을 재산출하여 60,746개 검사를 통과했고 여섯 조건의 gate 판정이 일치함. 근거는 `outputs/complexity_preintegration_20261001/audit/independent_results_v1.json`이며, GPU 추론·학습을 재실행한 감사는 아님.
+- **구현·보존:** 정식 capture의 reset/단계별 물리 상태/5view drift/활성 ID/hash 검사는 모두 통과함. 첫 두 incomplete gate는 `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1601/`, 같은 prefix의 `_failed_20261001_1604/`에 보존하고 정식 평가에서 제외함. Stress fork의 object clone을 독립 복제하고 설치된 Isaac torch backend에 맞춰 visibility를 torch.bool로 전달하는 구현 수정임. 조건·seed·제거 선택·GT·평가 기준은 유지함. 원본 collector와 이전 자료는 변경하지 않음.
+- **다음 — 미실행:** Train/validation 안에서 depth noise augmentation과 제거 후 물체 수·배치 분포 보완을 검토한 뒤, 고정된 새 protocol의 별도 heldout에서 확인함. 현재 test를 반복 튜닝하거나 곧바로 fusion을 학습한 것으로 해석하지 않음. 이 보완 학습·새 heldout 확인·fusion은 아직 실행하지 않음.
+- **실제 경로:** 코드 `experiments/complexity_preintegration_20261001/`; 수집 driver `../scene_generator/capture_preintegration_20261001.py`, 독립 collector `../scene_generator/vectorized_scene_stress_20261001.py`, 계획 `../scene_generator/stress_capture_plan.py`; 정식 capture `outputs/complexity_instance_capture_20261001_preintegration/`의 `capture_manifest.json`, `capture_completion.json`, `implementation_validation.json`, `source_snapshot/`, `logs/`. 평가 root는 `outputs/complexity_preintegration_20261001/`이며 `locked_protocol.json`, `test_data/{manifest,combined_manifest,audit}.json`, `noise_data/{manifest,audit}.json`, `predictions/completion.json`, `evaluation.json`, `report/summary.json`, `logs/`를 연결해 확인함.
+- **공개:** 상세 보고서는 `docs/complexity_results/preintegration_validation_20261001.md`, 게시 상태는 `docs/public_agent_context_preintegration_20261001.json`의 실제 commit·remote 검증을 참조함. 문서 생성·로컬 수정만으로 commit/push 완료를 추정하지 않음. Phase 38 미채택·GT 관계 회귀 공개 철회와 Phase 39/40의 원본 결과는 유지함.
+
+#### 이전 재개 기준 — 2026-10-01 Phase 40 사전학습 depth 비교 완료
+
+다음은 Phase 40 완료 당시의 재개 기록임. 현재 판단은 위 Phase 41 결과를 우선하며, 당시 상세 근거는 `docs/complexity_results/depth_pretrain_comparison_20261001.md`에 보존함. Complexity 방법을 먼저 검증하며 최종 모델·GT 확정과 fusion은 수행하지 않음. 단일 RGB-D의 고정 연산 추론을 유지하고 각 장면의 IsaacSim GT에 예측을 대조함.
 
 - **완료:** Phase 39 train 640장·validation 160장을 그대로 사용해 RGB+MultiMAE depth와 MultiMAE depth 단독의 head를 seeds 0/1/2로 새로 학습함. 기존 RGB·RGB-D head 6개를 재사용해 총 12개 checkpoint를 비교함. 새 테스트는 원래 16개 seen assets의 **64배치·320장·5뷰 각 64장**임. 기존 960장과 관측·배치 pose의 정확한 hash 중복이 없으며 test를 보고 설정을 수정하지 않음. `packaged_food_5/World1`은 이번 학습·수집에서 제외함.
 - **구조:** RGB는 frozen DINOv3 ViT-B/16 + 원본 RGB 소형 CNN임. 새 결합은 기존 RGB 경로와 count decoder를 유지하고 depth CNN을 frozen MultiMAE ViT-B depth 특징의 학습 projection으로 교체함. 특징은 concat하며 count 3×30×40와 중간 특징 64×30×40를 출력함. 두 frozen backbone은 학습하지 않고 작은 경로·head만 학습함. SAM·반복 crop·재추론은 사용하지 않음.
@@ -1984,7 +2004,7 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 
 <a id="development-history"></a>
 
-## B. Phase 1–40 Development Log 전체
+## B. Phase 1–41 Development Log 전체
 
 > 원본: `<REPO_ROOT>/development_log.md`
 > 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A의 최신 사용자 방향을 우선한다.
@@ -2005,6 +2025,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 | Complexity 표현 진단 | 기존 feature의 정보 부족과 학습 목표의 한계를 구분 | DINO의 순수 patch 대응은 거의 포화; 다음은 경계·관계 능력과 보완 표현의 검증 | Phase 36 |
 | Complexity 후속 검증 | 어려운 대응·전체 접경·원본 instance 지역 count 비교 | 접경 결합 모델은 미채택; 새 배치의 장면별 GT와 지역 count 예측을 비교했고 depth 추가 효과는 미확인 | Phase 37–39 |
 | Complexity depth 표현 비교 | 작은 depth CNN 대신 frozen MultiMAE 특징 결합 | 새 test에서 count 오차·상위 영역 선택 개선; 연산시간 증가와 추가 일반화 검증을 고려하여 최종 채택 보류 | Phase 40 |
+| Complexity 통합 전 검증 | 고정된 후보의 물체 감소·외부 물체·depth 변화 비교 | 다섯 조건에서 개선 유지, Gaussian depth noise에서 순위 이점 거의 소실; 관측 변화와 개수 분포 보완 전 fusion 보류 | Phase 41 |
 
 ### 지표와 범위 읽는 법
 
@@ -3542,11 +3563,152 @@ RGB + MultiMAE depth의 warm median은 RGB의 **약 1.96배**, peak allocated는
 
 기존 Phase 38 모델 미채택·GT 관계 회귀 공개 철회와 Phase 39의 당시 비교 결과를 유지함. 이번 결과는 단일 RGB-D에서 직접 예측한 count에 관한 것이며 철회한 GT 관계 입력의 회귀와 혼동하지 않음.
 
+> 위 Phase 40의 후속 검증 계획 중 물체 감소·단일 외부 물체·depth 변형은 아래 Phase 41에서 완료함. Phase 40의 수치와 판단은 당시 조건의 이력으로 보존함.
+
+### 2026-10-01 · Phase 41 — 통합 전 물체 감소·외부 물체·depth 변화 검증
+
+**여섯 조건 중 다섯 조건에서 개선이 유지됐지만, depth에 표준편차 5mm의 가상 노이즈를 추가하면 상위 영역 선택의 이점이 거의 사라짐.** 이 조건에서 RGB + MultiMAE depth의 count MAE는 **0.566553**으로 RGB의 **0.531415**보다 큼. 상위 20% count regret은 **0.159109 대 0.159187**로 거의 같으며, **세 seed 모두 두 지표의 동시 개선 기준을 만족하지 못함.** 따라서 현재 결합 모델을 그대로 fusion에 넣는 단계는 보류함.
+
+8개 물체만 남긴 상태에서는 결합 모델의 MAE가 **1.176313**까지 커짐. 같은 조건의 RGB보다 상대적인 지역 순위·상위 영역 선택은 여전히 좋으므로, 이 절대 개수 오차만으로 대략적인 혼잡 영역 신호까지 무효라고 판단하지 않음. Depth 변화에 대한 취약성과 적은 물체 수에서의 count 오차를 별도 보완 과제로 기록함.
+
+#### 1. 모델을 고정하고 검증 조건만 바꿈
+
+Phase 40의 RGB + MultiMAE depth와 Phase 39의 RGB 모델을 각각 seeds 0/1/2의 저장 checkpoint 그대로 사용함. **새 학습·checkpoint 선택·모델 탐색 없이 총 6개 head를 고정하여 평가함.** 학습 감독은 기존 train 640영상·validation 160영상의 장면별 IsaacSim GT였으며, 이번 자료는 모두 평가 전용임.
+
+RGB 모델은 frozen DINOv3 ViT-B/16 특징과 원본 RGB 소형 CNN을 count CNN head에 제공함. 결합 모델은 여기에 frozen MultiMAE depth 특징을 추가함. 모델은 물체별 segmentation을 복원한 다음 세는 방식이 아니라, 단일 RGB-D에서 각 위치의 48/96/160px window에 보이는 물체 수를 직접 회귀함. 두 backbone과 이미 학습한 head 모두 이번 실행에서는 갱신하지 않음.
+
+추론에 GT·물체 ID·평가 mask·다른 view를 제공하지 않음. RGB-D 관측과 checkpoint만 담은 입력 목록으로 예측 파일을 먼저 완성하고, 별도 평가기가 저장한 예측·출처·hash를 확인한 뒤 GT를 읽음. 원본 RGB는 세부 특징 경로에 사용되므로 이 비교를 DINO 단독 성능으로 부르지 않음.
+
+#### 2. 세 종류의 추가 검증과 자료 범위
+
+| 검증 조건 | 실제 자료와 변경 |
+|---|---|
+| `clean16` | 4개 category anchor × 4환경의 새 16개 trajectory에서 원래 16개 물체를 관측함. 5 views씩 80영상임 |
+| `remaining12` | 같은 trajectory에서 사전에 정한 물체 4개를 제거하고 물리를 다시 안정화함. 12개 물체·80영상임 |
+| `remaining8` | 같은 trajectory에서 물체 4개를 추가로 제거함. 8개 물체·80영상임 |
+| `external16` | 별도의 16개 배치에서 `packaged_food_4`를 학습에 쓰지 않은 `packaged_food_5`(`World1`)로 교체함. 총 16개 물체·80영상임 |
+| `noise5mm` | Phase 40의 원본 64배치·320영상에서 finite-positive depth에 독립 Gaussian noise, σ=0.005m를 추가함 |
+| `dropout5pct` | 같은 원본 320영상의 8×8px 격자 4,800개 중 240개를 GT와 무관하게 선택하여, 선택한 영역의 유효 depth를 0으로 만듦 |
+
+감소 과정은 각 단계에서 category마다 anchor가 아닌 물체 하나씩을 seed로 미리 정해 제거함. 남은 물체를 다시 초기화하지 않고 120 physics steps 동안 안정화한 뒤 5 views를 촬영함. 숨김·물리 비활성화·장면 밖 이동으로 제거하며, 원래 물리 ID를 보존함. 16→12→8의 세 상태는 서로 독립적인 48개 실험이 아니라 **같은 16개 trajectory의 연결된 상태**임. 각 view도 동일한 물리 장면의 관측임.
+
+새 캡처는 감소 240영상과 외부 물체 80영상으로 **320영상·64개 상태**임. Depth 변형 640영상을 더한 **960영상에 새 추론**을 수행함. 깨끗한 Phase 40의 320영상은 저장 예측을 재사용하되 원본 observation·checkpoint·예측 파일·source hash를 확인함. 이 참조까지 합친 평가 자료는 **1,280영상 조건**이며, 이를 1,280개의 독립 물리 장면으로 세지 않음.
+
+Depth 변형에서는 RGB·물체 배치·GT가 같음. 원래 비유효 depth는 유지하며 Gaussian noise로 양수가 아니게 된 값만 작은 양수로 제한함. 이는 지정한 강도의 **가상 관측 stress**이며 실제 센서에서 측정한 노이즈 모델이나 센서 배포 성능이 아님. 외부 검증도 단 하나의 추가 asset에 한정되며 넓은 unseen 일반화를 주장하지 않음. `World1`은 이번 평가 GT에만 포함하고 학습 GT에는 포함하지 않음.
+
+#### 3. 장면 GT·외부 물체 범위·사전 판정 기준
+
+GT는 각 영상의 IsaacSim 원본 물리적 instance ID에서 계산함. Stride 16의 각 중심을 기준으로 48/96/160px 정사각형 window 안에 **16 original pixels 이상 보이는 서로 다른 물체 수**를 셈. 영상 안에 완전히 들어오고 unknown pixel이 없는 window만 유효함. 완전히 가려진 물체는 보이는 count에 포함하지 않음. 제거 후 물체 수가 줄어도 물체의 재배치와 새 표면의 노출로 개별 window의 count가 모두 단조 감소하는 것은 아님.
+
+일반 조건의 primary는 유효 window 중 중심 pixel이 GT 물체인 `foreground_center`의 count MAE와 상위 20% count regret임. 외부 조건은 효과가 전체 더미 평균에 묻히지 않도록 **World1의 실제 pixel이 window 안에 16개 이상 보이는 `external_visible_window`**를 primary로 사용함. 이 mask는 평가 전용임. 외부 물체 중심만 고르는 조건과는 다르며, 완전히 가려진 외부 물체는 해당 범위에 포함하지 않음.
+
+외부 검증의 80영상·16 trajectory 모두 평가 가능한 외부 window가 있었음. 48/96/160px에서 각각 **2,718 / 6,250 / 11,197개 window**임. 세 scale의 지표를 모두 계산할 수 있고, 적어도 한 scale에서 GT count가 변하는 trajectory도 **16/16개**여서 정보 부족에 따른 판정 유보 조건에는 해당하지 않음.
+
+Regret은 GT count가 높은 상위 20% 위치의 GT 평균에서 모델이 고른 상위 20% 위치의 GT 평균을 뺀 값이며 낮을수록 좋음. 경계 동점은 분수 가중으로 처리함. GT가 상수이면 regret은 0, Spearman은 NA로 보존하고 coverage를 별도 기록함. 예측만 상수이고 GT가 변하면 Spearman은 0임.
+
+조건별로 camera를 trajectory 안에서 동일 가중 평균하고, 세 scale·세 seed·trajectory에도 같은 가중을 부여함. 세 scale 지표가 모두 있는 trajectory만 equal-scale primary에 포함함. 외부 범위에서 GT 변화가 없다는 이유만으로 MAE 평균의 표본을 추가 제거하지 않음. 전체 valid·scale·camera·trajectory·seed별 결과를 원본 평가에 함께 보존함.
+
+사전에 고정한 기준은 **각 조건에서 seed 평균 MAE와 regret이 모두 RGB보다 낮고, 같은 seed끼리 비교한 두 지표의 동시 개선이 3개 중 2개 이상에서 나타나는 것**임. 1e-6 이하 차이는 개선으로 세지 않음. 외부 범위는 rank 정보가 있는 trajectory가 8/16 미만이거나 RGB regret이 1e-6 이하이면 실패 대신 판정 유보로 처리하도록 정함. Trajectory 승률은 보고만 하며 별도 통과 문턱으로 쓰지 않음. 여섯 조건 모두 통과해야 작은 fusion pilot로 넘어갈 근거로 삼는 규칙이며, 최종 모델 자동 채택 기준은 아님.
+
+#### 4. 조건별 결과
+
+아래 값은 세 scale·세 seed를 동일 가중한 값임. 외부 조건만 위에서 정의한 외부 물체 window를 사용하며, 다른 조건은 foreground center임. 조건별 GT 분포가 다르므로 조건 간 regret의 크기만으로 성능을 줄 세우지 않음.
+
+| 조건 | RGB MAE ↓ | 결합 MAE ↓ | RGB regret ↓ | 결합 regret ↓ | 동시 개선 seed | 사전 기준 |
+|---|---:|---:|---:|---:|---:|---|
+| 새 16개 물체 | 0.527948 | 0.476625 | 0.177719 | 0.144763 | 3/3 | 통과함 |
+| 12개 물체 남음 | 0.737683 | 0.664854 | 0.110699 | 0.085676 | 3/3 | 통과함 |
+| 8개 물체 남음 | 1.258976 | 1.176313 | 0.074308 | 0.052600 | 3/3 | 통과함 |
+| 외부 World1 window | 0.486050 | 0.417949 | 0.095456 | 0.063612 | 3/3 | 통과함 |
+| Gaussian depth σ=5mm | 0.531415 | 0.566553 | 0.159187 | 0.159109 | 0/3 | **미통과함** |
+| Depth block 누락 5% | 0.531415 | 0.512092 | 0.159187 | 0.145219 | 3/3 | 통과함 |
+| Phase 40 깨끗한 원본 참조 | 0.531415 | 0.480365 | 0.159187 | 0.126615 | — | 기존 예측을 재집계함 |
+
+| 조건 | RGB Spearman ↑ | 결합 Spearman ↑ | 두 지표가 함께 개선된 trajectory |
+|---|---:|---:|---:|
+| 새 16개 물체 | 0.915870 | 0.928487 | 15/16 |
+| 12개 물체 남음 | 0.915838 | 0.927112 | 14/16 |
+| 8개 물체 남음 | 0.905194 | 0.916799 | 13/16 |
+| 외부 World1 window | 0.895260 | 0.910655 | 14/16 |
+| Gaussian depth σ=5mm | 0.925399 | 0.921999 | 18/64 |
+| Depth block 누락 5% | 0.925399 | 0.929447 | 42/64 |
+
+**Gaussian noise에서는 결합의 MAE가 RGB보다 6.61% 커지고, regret 이득은 약 0.049%만 남음.** Spearman도 RGB보다 낮아짐. 같은 결합 모델의 깨끗한 원본과 비교하면 MAE는 0.480365→0.566553(**17.94% 증가**), regret은 0.126615→0.159109(**25.66% 증가**)임. RGB 모델은 depth를 사용하지 않으므로 이 depth 변형들에서 원본과 예측·지표가 같음. 물체 배치가 달라 생긴 차이와 depth 입력 변화의 영향을 구분할 수 있음.
+
+Gaussian noise의 MAE 악화는 **5/5 cameras**에서 나타남. 전체 valid 영역에서도 결합 MAE/regret은 **0.278071/0.040953**, RGB는 **0.257124/0.040150**으로 두 지표가 모두 악화됨. 따라서 foreground center만 골라 평가해서 생긴 문제로 해석하지 않음. Camera별 상위 영역 선택 차이는 섞여 있으므로 모든 view의 regret이 악화됐다고 서술하지 않음.
+
+Block 누락에서는 RGB보다 MAE·regret이 여전히 낮지만, 결합 모델의 깨끗한 원본 대비 MAE **6.60%**, regret **14.69%**가 증가함. 지정한 5% 누락을 견딘다는 결과를 모든 누락 형태·모든 센서의 안정성으로 확대하지 않음. 두 가상 변형에서 영향이 다르므로 depth 변화 전체를 하나의 성능으로 묶지 않음.
+
+8개 물체 상태에서는 결합 MAE가 새 16개 상태의 0.476625에서 **1.176313**으로 커짐. 반면 같은 8개 조건의 RGB 대비 MAE·regret·Spearman은 모두 개선됨. 이는 **정확한 개수 추정의 분포 변화 문제가 남지만, 상대적으로 복잡한 지역을 고르는 신호는 유지된 것**으로 해석함. 제거 후 regret 자체가 작아진 것을 더 높은 성능의 증거로 쓰지 않음. 물체 수·가시 count 분포·선택 가능한 영역이 함께 달라지기 때문임.
+
+독립 감사의 사후 signed bias(예측−GT)에서도 과대추정을 확인함. 결합 모델의 foreground bias는 새 16개 상태 **−0.0401**, 12개 상태 **+0.5685**, 8개 상태 **+1.1590**임. 8개 상태의 평균 GT는 **3.1747**, 예측은 **4.3338**이며 RGB도 bias **+1.2386**을 보임. 이 값은 같은 camera·scale·seed·trajectory 가중을 사용한 설명용 통계이고 사전 gate를 바꾸지 않음. 8개 상태에서는 5/5 cameras 모두 결합의 MAE·regret이 RGB보다 낮으므로 과대추정과 상대적인 선택 개선을 함께 기록함.
+
+외부 조건 전체 foreground center에서도 결합 MAE/regret은 **0.453681/0.118849**, RGB는 **0.511351/0.150909**임. 그러나 외부 검증의 주판정은 전체 평균이 아닌 World1 관측 window의 결과를 따름.
+
+#### 5. 실제 장면 비교와 가장 큰 개수 오류
+
+![Phase 41 condition examples](img/complexity/phase41_preintegration_conditions_20261001.png)
+
+각 조건에서 trajectory ID 정렬상 첫 장면의 center view를 사전에 정한 규칙으로 선택함. 모두 seed 0이며 열은 **실제 RGB / 해당 장면 GT / RGB 예측 / RGB + MultiMAE depth 예측**임. 표시 범위는 96px window이고 각 행의 세 map에 같은 색 범위를 사용함. 물체 감소 세 행은 `book_1`, env 0의 같은 trajectory임. 외부 물체가 더 잘 보이거나 성능이 좋은 장면으로 선택을 바꾸지 않음. Depth 변형의 RGB 그림은 원본과 같으므로 RGB 사진만으로 변형 강도를 확인할 수는 없음.
+
+![Phase 41 largest count-error example](img/complexity/phase41_preintegration_worst_20261001.png)
+
+실패 그림은 신규 960영상 가운데 **결합 모델 seed 0의 세 scale 평균 primary MAE가 가장 큰 영상**을 선택함. 외부 조건에서는 외부 window를, 나머지에서는 foreground center를 사용하며 동률은 sample ID 순으로 정함. 선택된 영상은 `remaining8_packaged_food_1_scene00007_env0001_left`, 선택 지표는 **1.884377**임. 표시한 96px map과 선택에 사용한 세 scale 평균은 구분함.
+
+감소 상태의 대표 그림과 최대 오류 그림에서 예측 count가 GT보다 높게 나오는 지역이 남음. 이 실제 사례는 개수 오류를 보여 주지만, 한 그림만으로 모든 상태의 편향 방향이나 모델 전체의 원인을 확정하지 않음. Gaussian noise의 약점은 별도 조건 전체의 짝지은 정량 비교에서 판단함.
+
+#### 6. 검사·연산 범위와 실패 기록 보존
+
+새 캡처의 초기 자세·선속도·각속도 reset, 제거 단계의 active/inactive ID, surviving object 상태 유지, 물리 안정화와 render-only camera drift를 검사함. GT 준비에서 원본 pixel 기반 count **11,520개 window**와 외부 관측 mask **11,520개 window**를 직접 검산했고 unknown pixel은 0임. 같은 조건 안의 중복 관측을 검사하고, 서로 연결된 제거 단계 사이의 동일 관측은 가능하므로 별도 기록함. 이번 정식 수집의 조건 간 RGB/depth 완전 중복은 0건임.
+
+예측은 960영상 × 6개 head의 count를 저장했고, 이전 320영상 × 6개 head의 저장 예측을 별도로 확인하여 재사용함. 알려진 Python I/O 경로에서 GT·capture metadata 접근을 실제로 차단하는 자체검사를 수행함. 허용 관측 파일은 1,920개, 금지 접근 자체검사는 53건이며 예기치 않은 차단 시도는 0건임. 운영체제 수준의 일반적인 native I/O 격리를 입증한 검사는 아님.
+
+이번에는 모델 연산시간·메모리 benchmark를 다시 측정하지 않음. Phase 40에서 확인한 결합 모델의 warm median **20.521ms**, RGB **10.464ms**는 당시 단일 입력·단독 모델 연산 측정값임. 이번 6개 head의 특징 공유 일괄 처리시간을 개별 배포 지연이나 FPS로 사용하지 않음. 지연 예산 판단은 여전히 남아 있음.
+
+초기 캡처 구현 점검 중단은 정식 결과에서 제외하고 source snapshot·로그와 함께 로컬에 보존함. 환경별 물체 상태와 visibility API를 확인한 뒤 같은 사전 조건으로 다시 수집한 완료 자료만 평가함.
+
+독립 감사에서 **1,280영상 조건 × 6개 head**의 저장 예측을 별도 알고리즘으로 읽어 primary MAE·regret과 seed·trajectory 집계를 다시 계산하고 여섯 조건의 판정을 확인함. 영상별 최대 차이는 MAE **4.53e-7 미만**, regret **4.64e-7 미만**으로 FP32 반올림 범위임. Depth 변형의 RGB 예측은 각 조건의 960개 배열 모두 깨끗한 원본과 bitwise 동일함. 이 감사는 결과 수치·판정의 독립 검산이며 모델 실행, 보조 Spearman 전체 재계산이나 앞선 모든 source hash 검사를 반복한 것은 아님.
+
+#### 7. 판단과 다음 최소 작업 — 아직 미실행
+
+**현재 결합 모델 그대로의 fusion은 보류함.** 깨끗한 새 배치·물체 감소·단일 외부 물체·5% block 누락에서 상대적인 개선이 유지된 결과와, Gaussian depth noise에서 우위가 사라진 결과를 함께 보존함. 이번 미통과는 가시 count라는 Complexity 신호 전체가 무효라는 뜻이 아니며, 지금의 depth 표현·전처리·학습 분포에서 통합 전 해결할 조건이 남았다는 판단임.
+
+다음 최소 방향은 기존 count 정의와 모델 비교 범위를 유지하면서 **train/validation에서 depth noise augmentation과 제거 후 물체 수 분포를 보완**하고, 별도로 새로 수집한 held-out 자료에서 같은 장면별 GT 기준으로 재검증하는 것임. 현재 test의 결과를 보고 설정을 고친다면 이번 자료는 진단 자료가 되므로, 같은 test 재평가만으로 일반화 개선을 확정하지 않음. 이 보완 학습·새 held-out 수집·fusion pilot은 **아직 실행하지 않음**.
+
+Depth 노이즈의 원인을 MultiMAE 하나로 확정하지 않음. 관측 표준화·frozen 특징·학습한 결합 경로가 함께 영향을 줄 수 있음. 새 대형 모델 탐색을 먼저 늘리기보다, 고정한 후보가 필요한 관측 변화와 물체 수 변화에서 신호를 유지하는지 확인하는 단계임. 최종 Complexity 정의·모델 채택·탐색 효용 검증은 여전히 미완료임.
+
+#### 8. 실제 근거 경로
+
+아래 경로는 Git clone이 아닌 `<DEV_ROOT>` 기준임. 원시 코드·weights·checkpoint·관측 배열·결과 JSON은 로컬에 보존하며 공개에는 설명·결과·그림만 반영함.
+
+| 근거 | 실제 경로 |
+|---|---|
+| 고정 조건·checkpoint hash | `outputs/complexity_preintegration_20261001/locked_protocol.json` |
+| 새 캡처·완료 목록 | `outputs/complexity_instance_capture_20261001_preintegration/capture_manifest.json`, `capture_completion.json` |
+| 캡처 source snapshot·실행 기록 | 같은 캡처 root의 `source_snapshot/`, `protocol.json`, `logs/` |
+| 새 장면 GT·검산 | `outputs/complexity_preintegration_20261001/test_data/manifest.json`, `audit.json` |
+| 통합 평가 목록 | `outputs/complexity_preintegration_20261001/test_data/combined_manifest.json` |
+| Depth 변형 관측·생성 기록 | `outputs/complexity_preintegration_20261001/noise_data/`의 `manifest.json`, `audit.json` |
+| GT와 분리된 새 추론 | `outputs/complexity_preintegration_20261001/inference_spec.json`, `predictions/`, `predictions/completion.json` |
+| 전체 평가·조건별 결과 | `outputs/complexity_preintegration_20261001/evaluation.json`, `report/summary.json` |
+| 독립 수치 감사·사후 bias | `outputs/complexity_preintegration_20261001/audit/independent_results_v1.json`, 같은 폴더의 `audit_results.py` |
+| 그림·camera/scale별 지표 | 같은 `report/`의 `condition_comparison.png`, `maximum_error.png`, `camera_metrics.csv`, `per_scale_metrics.csv` |
+| 깊이 변형·예측·평가 실행 로그 | `outputs/complexity_preintegration_20261001/logs/` |
+| 재사용한 깨끗한 장면 GT·예측 | `outputs/complexity_depth_pretrain_20261001_test_data/manifest.json`, `outputs/complexity_depth_pretrain_20261001/predictions/` |
+| 재사용한 RGB checkpoint | `outputs/complexity_local_count_20260930_pilot/run/rgb_seed*/best.pt` |
+| 재사용한 결합 checkpoint | `outputs/complexity_depth_pretrain_20261001/run/rgb_predepth_seed*/best.pt` |
+| 평가·예측 구현 | `experiments/complexity_preintegration_20261001/` |
+| 물리 캡처 구현 | `<CAPTURE_ROOT>/vectorized_scene_stress_20261001.py`, `stress_capture_plan.py` |
+| 첫 중단 원본 | `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1601/` |
+| 두 번째 중단 원본 | `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1604/` |
+
+Phase 40의 개선은 당시 깨끗한 장면 비교 결과로 보존함. Phase 38 미채택 및 GT 관계 회귀 공개 철회도 유지함. 이번 결과는 GT를 추론에 입력한 관계 회귀와 구분되는, 단일 RGB-D의 가시 count 예측 결과임.
+
 ---
 
 ## C. Complexity 가정·진단·실행 계획 상세 기록
 
-아래 열 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
+아래 열한 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
 
 <a id="definition-review"></a>
 
@@ -4749,6 +4911,154 @@ RGB + MultiMAE depth의 warm median은 RGB의 **약 1.96배**, peak allocated는
 
 ---
 
+<a id="preintegration"></a>
+
+### C11. Phase 41 통합 전 고정 모델 검증
+
+> 원본: `<DEV_ROOT>/docs/complexity_results/preintegration_validation_20261001.md`
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A의 최신 사용자 방향을 우선한다.
+
+> 2026-10-01 · 고정된 RGB / RGB + MultiMAE depth 모델의 추가 검증 · 현재 결합 그대로의 fusion 보류
+
+**여섯 조건 중 다섯 조건에서 개선이 유지됐지만, depth에 표준편차 5mm의 가상 노이즈를 추가하면 상위 영역 선택의 이점이 거의 사라짐.** 이 조건에서 RGB + MultiMAE depth의 count MAE는 **0.566553**으로 RGB의 **0.531415**보다 큼. 상위 20% count regret은 **0.159109 대 0.159187**로 거의 같으며, **세 seed 모두 두 지표의 동시 개선 기준을 만족하지 못함.** 따라서 현재 결합 모델을 그대로 fusion에 넣는 단계는 보류함.
+
+8개 물체만 남긴 상태에서는 결합 모델의 MAE가 **1.176313**까지 커짐. 같은 조건의 RGB보다 상대적인 지역 순위·상위 영역 선택은 여전히 좋으므로, 이 절대 개수 오차만으로 대략적인 혼잡 영역 신호까지 무효라고 판단하지 않음. Depth 변화에 대한 취약성과 적은 물체 수에서의 count 오차를 별도 보완 과제로 기록함.
+
+##### 1. 모델을 고정하고 검증 조건만 바꿈
+
+Phase 40의 RGB + MultiMAE depth와 Phase 39의 RGB 모델을 각각 seeds 0/1/2의 저장 checkpoint 그대로 사용함. **새 학습·checkpoint 선택·모델 탐색 없이 총 6개 head를 고정하여 평가함.** 학습 감독은 기존 train 640영상·validation 160영상의 장면별 IsaacSim GT였으며, 이번 자료는 모두 평가 전용임.
+
+RGB 모델은 frozen DINOv3 ViT-B/16 특징과 원본 RGB 소형 CNN을 count CNN head에 제공함. 결합 모델은 여기에 frozen MultiMAE depth 특징을 추가함. 모델은 물체별 segmentation을 복원한 다음 세는 방식이 아니라, 단일 RGB-D에서 각 위치의 48/96/160px window에 보이는 물체 수를 직접 회귀함. 두 backbone과 이미 학습한 head 모두 이번 실행에서는 갱신하지 않음.
+
+추론에 GT·물체 ID·평가 mask·다른 view를 제공하지 않음. RGB-D 관측과 checkpoint만 담은 입력 목록으로 예측 파일을 먼저 완성하고, 별도 평가기가 저장한 예측·출처·hash를 확인한 뒤 GT를 읽음. 원본 RGB는 세부 특징 경로에 사용되므로 이 비교를 DINO 단독 성능으로 부르지 않음.
+
+##### 2. 세 종류의 추가 검증과 자료 범위
+
+| 검증 조건 | 실제 자료와 변경 |
+|---|---|
+| `clean16` | 4개 category anchor × 4환경의 새 16개 trajectory에서 원래 16개 물체를 관측함. 5 views씩 80영상임 |
+| `remaining12` | 같은 trajectory에서 사전에 정한 물체 4개를 제거하고 물리를 다시 안정화함. 12개 물체·80영상임 |
+| `remaining8` | 같은 trajectory에서 물체 4개를 추가로 제거함. 8개 물체·80영상임 |
+| `external16` | 별도의 16개 배치에서 `packaged_food_4`를 학습에 쓰지 않은 `packaged_food_5`(`World1`)로 교체함. 총 16개 물체·80영상임 |
+| `noise5mm` | Phase 40의 원본 64배치·320영상에서 finite-positive depth에 독립 Gaussian noise, σ=0.005m를 추가함 |
+| `dropout5pct` | 같은 원본 320영상의 8×8px 격자 4,800개 중 240개를 GT와 무관하게 선택하여, 선택한 영역의 유효 depth를 0으로 만듦 |
+
+감소 과정은 각 단계에서 category마다 anchor가 아닌 물체 하나씩을 seed로 미리 정해 제거함. 남은 물체를 다시 초기화하지 않고 120 physics steps 동안 안정화한 뒤 5 views를 촬영함. 숨김·물리 비활성화·장면 밖 이동으로 제거하며, 원래 물리 ID를 보존함. 16→12→8의 세 상태는 서로 독립적인 48개 실험이 아니라 **같은 16개 trajectory의 연결된 상태**임. 각 view도 동일한 물리 장면의 관측임.
+
+새 캡처는 감소 240영상과 외부 물체 80영상으로 **320영상·64개 상태**임. Depth 변형 640영상을 더한 **960영상에 새 추론**을 수행함. 깨끗한 Phase 40의 320영상은 저장 예측을 재사용하되 원본 observation·checkpoint·예측 파일·source hash를 확인함. 이 참조까지 합친 평가 자료는 **1,280영상 조건**이며, 이를 1,280개의 독립 물리 장면으로 세지 않음.
+
+Depth 변형에서는 RGB·물체 배치·GT가 같음. 원래 비유효 depth는 유지하며 Gaussian noise로 양수가 아니게 된 값만 작은 양수로 제한함. 이는 지정한 강도의 **가상 관측 stress**이며 실제 센서에서 측정한 노이즈 모델이나 센서 배포 성능이 아님. 외부 검증도 단 하나의 추가 asset에 한정되며 넓은 unseen 일반화를 주장하지 않음. `World1`은 이번 평가 GT에만 포함하고 학습 GT에는 포함하지 않음.
+
+##### 3. 장면 GT·외부 물체 범위·사전 판정 기준
+
+GT는 각 영상의 IsaacSim 원본 물리적 instance ID에서 계산함. Stride 16의 각 중심을 기준으로 48/96/160px 정사각형 window 안에 **16 original pixels 이상 보이는 서로 다른 물체 수**를 셈. 영상 안에 완전히 들어오고 unknown pixel이 없는 window만 유효함. 완전히 가려진 물체는 보이는 count에 포함하지 않음. 제거 후 물체 수가 줄어도 물체의 재배치와 새 표면의 노출로 개별 window의 count가 모두 단조 감소하는 것은 아님.
+
+일반 조건의 primary는 유효 window 중 중심 pixel이 GT 물체인 `foreground_center`의 count MAE와 상위 20% count regret임. 외부 조건은 효과가 전체 더미 평균에 묻히지 않도록 **World1의 실제 pixel이 window 안에 16개 이상 보이는 `external_visible_window`**를 primary로 사용함. 이 mask는 평가 전용임. 외부 물체 중심만 고르는 조건과는 다르며, 완전히 가려진 외부 물체는 해당 범위에 포함하지 않음.
+
+외부 검증의 80영상·16 trajectory 모두 평가 가능한 외부 window가 있었음. 48/96/160px에서 각각 **2,718 / 6,250 / 11,197개 window**임. 세 scale의 지표를 모두 계산할 수 있고, 적어도 한 scale에서 GT count가 변하는 trajectory도 **16/16개**여서 정보 부족에 따른 판정 유보 조건에는 해당하지 않음.
+
+Regret은 GT count가 높은 상위 20% 위치의 GT 평균에서 모델이 고른 상위 20% 위치의 GT 평균을 뺀 값이며 낮을수록 좋음. 경계 동점은 분수 가중으로 처리함. GT가 상수이면 regret은 0, Spearman은 NA로 보존하고 coverage를 별도 기록함. 예측만 상수이고 GT가 변하면 Spearman은 0임.
+
+조건별로 camera를 trajectory 안에서 동일 가중 평균하고, 세 scale·세 seed·trajectory에도 같은 가중을 부여함. 세 scale 지표가 모두 있는 trajectory만 equal-scale primary에 포함함. 외부 범위에서 GT 변화가 없다는 이유만으로 MAE 평균의 표본을 추가 제거하지 않음. 전체 valid·scale·camera·trajectory·seed별 결과를 원본 평가에 함께 보존함.
+
+사전에 고정한 기준은 **각 조건에서 seed 평균 MAE와 regret이 모두 RGB보다 낮고, 같은 seed끼리 비교한 두 지표의 동시 개선이 3개 중 2개 이상에서 나타나는 것**임. 1e-6 이하 차이는 개선으로 세지 않음. 외부 범위는 rank 정보가 있는 trajectory가 8/16 미만이거나 RGB regret이 1e-6 이하이면 실패 대신 판정 유보로 처리하도록 정함. Trajectory 승률은 보고만 하며 별도 통과 문턱으로 쓰지 않음. 여섯 조건 모두 통과해야 작은 fusion pilot로 넘어갈 근거로 삼는 규칙이며, 최종 모델 자동 채택 기준은 아님.
+
+##### 4. 조건별 결과
+
+아래 값은 세 scale·세 seed를 동일 가중한 값임. 외부 조건만 위에서 정의한 외부 물체 window를 사용하며, 다른 조건은 foreground center임. 조건별 GT 분포가 다르므로 조건 간 regret의 크기만으로 성능을 줄 세우지 않음.
+
+| 조건 | RGB MAE ↓ | 결합 MAE ↓ | RGB regret ↓ | 결합 regret ↓ | 동시 개선 seed | 사전 기준 |
+|---|---:|---:|---:|---:|---:|---|
+| 새 16개 물체 | 0.527948 | 0.476625 | 0.177719 | 0.144763 | 3/3 | 통과함 |
+| 12개 물체 남음 | 0.737683 | 0.664854 | 0.110699 | 0.085676 | 3/3 | 통과함 |
+| 8개 물체 남음 | 1.258976 | 1.176313 | 0.074308 | 0.052600 | 3/3 | 통과함 |
+| 외부 World1 window | 0.486050 | 0.417949 | 0.095456 | 0.063612 | 3/3 | 통과함 |
+| Gaussian depth σ=5mm | 0.531415 | 0.566553 | 0.159187 | 0.159109 | 0/3 | **미통과함** |
+| Depth block 누락 5% | 0.531415 | 0.512092 | 0.159187 | 0.145219 | 3/3 | 통과함 |
+| Phase 40 깨끗한 원본 참조 | 0.531415 | 0.480365 | 0.159187 | 0.126615 | — | 기존 예측을 재집계함 |
+
+| 조건 | RGB Spearman ↑ | 결합 Spearman ↑ | 두 지표가 함께 개선된 trajectory |
+|---|---:|---:|---:|
+| 새 16개 물체 | 0.915870 | 0.928487 | 15/16 |
+| 12개 물체 남음 | 0.915838 | 0.927112 | 14/16 |
+| 8개 물체 남음 | 0.905194 | 0.916799 | 13/16 |
+| 외부 World1 window | 0.895260 | 0.910655 | 14/16 |
+| Gaussian depth σ=5mm | 0.925399 | 0.921999 | 18/64 |
+| Depth block 누락 5% | 0.925399 | 0.929447 | 42/64 |
+
+**Gaussian noise에서는 결합의 MAE가 RGB보다 6.61% 커지고, regret 이득은 약 0.049%만 남음.** Spearman도 RGB보다 낮아짐. 같은 결합 모델의 깨끗한 원본과 비교하면 MAE는 0.480365→0.566553(**17.94% 증가**), regret은 0.126615→0.159109(**25.66% 증가**)임. RGB 모델은 depth를 사용하지 않으므로 이 depth 변형들에서 원본과 예측·지표가 같음. 물체 배치가 달라 생긴 차이와 depth 입력 변화의 영향을 구분할 수 있음.
+
+Gaussian noise의 MAE 악화는 **5/5 cameras**에서 나타남. 전체 valid 영역에서도 결합 MAE/regret은 **0.278071/0.040953**, RGB는 **0.257124/0.040150**으로 두 지표가 모두 악화됨. 따라서 foreground center만 골라 평가해서 생긴 문제로 해석하지 않음. Camera별 상위 영역 선택 차이는 섞여 있으므로 모든 view의 regret이 악화됐다고 서술하지 않음.
+
+Block 누락에서는 RGB보다 MAE·regret이 여전히 낮지만, 결합 모델의 깨끗한 원본 대비 MAE **6.60%**, regret **14.69%**가 증가함. 지정한 5% 누락을 견딘다는 결과를 모든 누락 형태·모든 센서의 안정성으로 확대하지 않음. 두 가상 변형에서 영향이 다르므로 depth 변화 전체를 하나의 성능으로 묶지 않음.
+
+8개 물체 상태에서는 결합 MAE가 새 16개 상태의 0.476625에서 **1.176313**으로 커짐. 반면 같은 8개 조건의 RGB 대비 MAE·regret·Spearman은 모두 개선됨. 이는 **정확한 개수 추정의 분포 변화 문제가 남지만, 상대적으로 복잡한 지역을 고르는 신호는 유지된 것**으로 해석함. 제거 후 regret 자체가 작아진 것을 더 높은 성능의 증거로 쓰지 않음. 물체 수·가시 count 분포·선택 가능한 영역이 함께 달라지기 때문임.
+
+독립 감사의 사후 signed bias(예측−GT)에서도 과대추정을 확인함. 결합 모델의 foreground bias는 새 16개 상태 **−0.0401**, 12개 상태 **+0.5685**, 8개 상태 **+1.1590**임. 8개 상태의 평균 GT는 **3.1747**, 예측은 **4.3338**이며 RGB도 bias **+1.2386**을 보임. 이 값은 같은 camera·scale·seed·trajectory 가중을 사용한 설명용 통계이고 사전 gate를 바꾸지 않음. 8개 상태에서는 5/5 cameras 모두 결합의 MAE·regret이 RGB보다 낮으므로 과대추정과 상대적인 선택 개선을 함께 기록함.
+
+외부 조건 전체 foreground center에서도 결합 MAE/regret은 **0.453681/0.118849**, RGB는 **0.511351/0.150909**임. 그러나 외부 검증의 주판정은 전체 평균이 아닌 World1 관측 window의 결과를 따름.
+
+##### 5. 실제 장면 비교와 가장 큰 개수 오류
+
+![Phase 41 condition examples](img/complexity/phase41_preintegration_conditions_20261001.png)
+
+각 조건에서 trajectory ID 정렬상 첫 장면의 center view를 사전에 정한 규칙으로 선택함. 모두 seed 0이며 열은 **실제 RGB / 해당 장면 GT / RGB 예측 / RGB + MultiMAE depth 예측**임. 표시 범위는 96px window이고 각 행의 세 map에 같은 색 범위를 사용함. 물체 감소 세 행은 `book_1`, env 0의 같은 trajectory임. 외부 물체가 더 잘 보이거나 성능이 좋은 장면으로 선택을 바꾸지 않음. Depth 변형의 RGB 그림은 원본과 같으므로 RGB 사진만으로 변형 강도를 확인할 수는 없음.
+
+![Phase 41 largest count-error example](img/complexity/phase41_preintegration_worst_20261001.png)
+
+실패 그림은 신규 960영상 가운데 **결합 모델 seed 0의 세 scale 평균 primary MAE가 가장 큰 영상**을 선택함. 외부 조건에서는 외부 window를, 나머지에서는 foreground center를 사용하며 동률은 sample ID 순으로 정함. 선택된 영상은 `remaining8_packaged_food_1_scene00007_env0001_left`, 선택 지표는 **1.884377**임. 표시한 96px map과 선택에 사용한 세 scale 평균은 구분함.
+
+감소 상태의 대표 그림과 최대 오류 그림에서 예측 count가 GT보다 높게 나오는 지역이 남음. 이 실제 사례는 개수 오류를 보여 주지만, 한 그림만으로 모든 상태의 편향 방향이나 모델 전체의 원인을 확정하지 않음. Gaussian noise의 약점은 별도 조건 전체의 짝지은 정량 비교에서 판단함.
+
+##### 6. 검사·연산 범위와 실패 기록 보존
+
+새 캡처의 초기 자세·선속도·각속도 reset, 제거 단계의 active/inactive ID, surviving object 상태 유지, 물리 안정화와 render-only camera drift를 검사함. GT 준비에서 원본 pixel 기반 count **11,520개 window**와 외부 관측 mask **11,520개 window**를 직접 검산했고 unknown pixel은 0임. 같은 조건 안의 중복 관측을 검사하고, 서로 연결된 제거 단계 사이의 동일 관측은 가능하므로 별도 기록함. 이번 정식 수집의 조건 간 RGB/depth 완전 중복은 0건임.
+
+예측은 960영상 × 6개 head의 count를 저장했고, 이전 320영상 × 6개 head의 저장 예측을 별도로 확인하여 재사용함. 알려진 Python I/O 경로에서 GT·capture metadata 접근을 실제로 차단하는 자체검사를 수행함. 허용 관측 파일은 1,920개, 금지 접근 자체검사는 53건이며 예기치 않은 차단 시도는 0건임. 운영체제 수준의 일반적인 native I/O 격리를 입증한 검사는 아님.
+
+이번에는 모델 연산시간·메모리 benchmark를 다시 측정하지 않음. Phase 40에서 확인한 결합 모델의 warm median **20.521ms**, RGB **10.464ms**는 당시 단일 입력·단독 모델 연산 측정값임. 이번 6개 head의 특징 공유 일괄 처리시간을 개별 배포 지연이나 FPS로 사용하지 않음. 지연 예산 판단은 여전히 남아 있음.
+
+초기 캡처 구현 점검에서 중단된 두 실행은 별도 폴더에 보존하고 정식 320영상에 넣지 않음. 환경 복제 시 visibility 속성이 다른 환경에 전파되지 않도록 독립 복제를 확인하고, visibility API의 torch backend 입력 형식을 수정한 뒤 같은 사전 조건으로 다시 수집함. 첫 중단은 종료 code만으로 완료를 판단하지 않고 필요한 단계·frame·run 상태 검사가 미완료를 검출함. 성공·실패 source snapshot과 로그를 보존하며, 실패 자료를 정식 결과와 합치지 않음.
+
+독립 감사에서 **1,280영상 조건 × 6개 head**의 저장 예측을 별도 알고리즘으로 읽어 primary MAE·regret과 seed·trajectory 집계를 다시 계산하고 여섯 조건의 판정을 확인함. 영상별 최대 차이는 MAE **4.53e-7 미만**, regret **4.64e-7 미만**으로 FP32 반올림 범위임. Depth 변형의 RGB 예측은 각 조건의 960개 배열 모두 깨끗한 원본과 bitwise 동일함. 이 감사는 결과 수치·판정의 독립 검산이며 모델 실행, 보조 Spearman 전체 재계산이나 앞선 모든 source hash 검사를 반복한 것은 아님.
+
+##### 7. 판단과 다음 최소 작업 — 아직 미실행
+
+**현재 결합 모델 그대로의 fusion은 보류함.** 깨끗한 새 배치·물체 감소·단일 외부 물체·5% block 누락에서 상대적인 개선이 유지된 결과와, Gaussian depth noise에서 우위가 사라진 결과를 함께 보존함. 이번 미통과는 가시 count라는 Complexity 신호 전체가 무효라는 뜻이 아니며, 지금의 depth 표현·전처리·학습 분포에서 통합 전 해결할 조건이 남았다는 판단임.
+
+다음 최소 방향은 기존 count 정의와 모델 비교 범위를 유지하면서 **train/validation에서 depth noise augmentation과 제거 후 물체 수 분포를 보완**하고, 별도로 새로 수집한 held-out 자료에서 같은 장면별 GT 기준으로 재검증하는 것임. 현재 test의 결과를 보고 설정을 고친다면 이번 자료는 진단 자료가 되므로, 같은 test 재평가만으로 일반화 개선을 확정하지 않음. 이 보완 학습·새 held-out 수집·fusion pilot은 **아직 실행하지 않음**.
+
+Depth 노이즈의 원인을 MultiMAE 하나로 확정하지 않음. 관측 표준화·frozen 특징·학습한 결합 경로가 함께 영향을 줄 수 있음. 새 대형 모델 탐색을 먼저 늘리기보다, 고정한 후보가 필요한 관측 변화와 물체 수 변화에서 신호를 유지하는지 확인하는 단계임. 최종 Complexity 정의·모델 채택·탐색 효용 검증은 여전히 미완료임.
+
+##### 8. 실제 근거 경로
+
+아래 경로는 Git clone이 아닌 `<DEV_ROOT>` 기준임. 원시 코드·weights·checkpoint·관측 배열·결과 JSON은 로컬에 보존하며 공개에는 설명·결과·그림만 반영함.
+
+| 근거 | 실제 경로 |
+|---|---|
+| 고정 조건·checkpoint hash | `outputs/complexity_preintegration_20261001/locked_protocol.json` |
+| 새 캡처·완료 목록 | `outputs/complexity_instance_capture_20261001_preintegration/capture_manifest.json`, `capture_completion.json` |
+| 캡처 source snapshot·실행 기록 | 같은 캡처 root의 `source_snapshot/`, `protocol.json`, `logs/` |
+| 새 장면 GT·검산 | `outputs/complexity_preintegration_20261001/test_data/manifest.json`, `audit.json` |
+| 통합 평가 목록 | `outputs/complexity_preintegration_20261001/test_data/combined_manifest.json` |
+| Depth 변형 관측·생성 기록 | `outputs/complexity_preintegration_20261001/noise_data/`의 `manifest.json`, `audit.json` |
+| GT와 분리된 새 추론 | `outputs/complexity_preintegration_20261001/inference_spec.json`, `predictions/`, `predictions/completion.json` |
+| 전체 평가·조건별 결과 | `outputs/complexity_preintegration_20261001/evaluation.json`, `report/summary.json` |
+| 독립 수치 감사·사후 bias | `outputs/complexity_preintegration_20261001/audit/independent_results_v1.json`, 같은 폴더의 `audit_results.py` |
+| 그림·camera/scale별 지표 | 같은 `report/`의 `condition_comparison.png`, `maximum_error.png`, `camera_metrics.csv`, `per_scale_metrics.csv` |
+| 깊이 변형·예측·평가 실행 로그 | `outputs/complexity_preintegration_20261001/logs/` |
+| 재사용한 깨끗한 장면 GT·예측 | `outputs/complexity_depth_pretrain_20261001_test_data/manifest.json`, `outputs/complexity_depth_pretrain_20261001/predictions/` |
+| 재사용한 RGB checkpoint | `outputs/complexity_local_count_20260930_pilot/run/rgb_seed*/best.pt` |
+| 재사용한 결합 checkpoint | `outputs/complexity_depth_pretrain_20261001/run/rgb_predepth_seed*/best.pt` |
+| 평가·예측 구현 | `experiments/complexity_preintegration_20261001/` |
+| 물리 캡처 구현 | `<CAPTURE_ROOT>/vectorized_scene_stress_20261001.py`, `stress_capture_plan.py` |
+| 첫 중단 원본 | `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1601/` |
+| 두 번째 중단 원본 | `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1604/` |
+
+Phase 40의 개선은 당시 깨끗한 장면 비교 결과로 보존함. Phase 38 미채택 및 GT 관계 회귀 공개 철회도 유지함. 이번 결과는 GT를 추론에 입력한 관계 회귀와 구분되는, 단일 RGB-D의 가시 count 예측 결과임.
+
+---
+
 <a id="evidence-index"></a>
 
 ## D. 근거·로그·체크포인트·이미지 색인 전체
@@ -4756,15 +5066,31 @@ RGB + MultiMAE depth의 warm median은 RGB의 **약 1.96배**, peak allocated는
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-10-01 (Asia/Seoul); Phase 40 완료·GT 관계 회귀 공개 철회 유지; 공개용 이미지 63개 예정; 실제 게시는 최신 publication manifest 확인
+> 마지막 문서 갱신: 2026-10-01 (Asia/Seoul); Phase 41 평가 완료·primary MAE·regret 독립 수치 감사 통과·GT 관계 회귀 공개 철회 유지; 실제 게시는 최신 publication manifest 확인
 > 목적: 새 agent가 요약된 결론뿐 아니라 그 결론의 코드, 수치, 이미지와 이전 실험을 직접 추적하도록 안내
 
 ### 1. 이 문서가 보장하는 범위
 
 
-#### 최신 연구 상태 — 2026-10-01 Phase 40 사전학습 depth 비교 완료
+#### 최신 연구 상태 — 2026-10-01 Phase 41 통합 전 제한 검증; 현재 후보의 fusion 보류
 
-이번 재개는 Phase 40과 `docs/complexity_results/depth_pretrain_comparison_20261001.md`를 우선함. Complexity 방법을 먼저 검증하며 최종 모델·GT 확정과 fusion은 수행하지 않음. 단일 RGB-D의 고정 연산 추론을 유지하고 각 장면의 IsaacSim GT에 예측을 대조함.
+이번 재개는 **Phase 41**과 `docs/complexity_results/preintegration_validation_20261001.md`를 우선함. Phase 40의 RGB+MultiMAE depth 후보를 고정하여 물체 감소·외부 물체·합성 depth 열화 조건을 평가했으며, 여섯 조건 중 depth 잡음 조건이 사전 기준을 통과하지 못함. **현재 후보 그대로의 fusion 진행은 보류**하고 최종 Complexity 모델·GT를 채택하지 않음. Phase 40의 개선 결과를 철회하거나 지역 count의 거친 혼잡 신호 가능성 전체를 부정하는 판단은 아님.
+
+- **고정 모델·완료 범위:** 기존 RGB와 RGB+MultiMAE depth × seeds 0/1/2의 **6개 checkpoint를 그대로 사용**함. Backbone·head를 모두 고정하고 새 학습·모델 선택·fusion·시간 benchmark를 실행하지 않음. 새 물리 수집 320장 + 기존 관측에 depth 열화를 가한 640장의 960개 입력을 새로 추론하고, Phase 40의 clean reference 320장 예측을 재사용하여 총 1,280개 관측 조건을 평가함. 서로 다른 물리 장면 1,280개라는 뜻이 아님.
+- **물체 감소:** book_1/fruit_1/packaged_food_1/toy_1의 4 anchor × 4 env = **16개 trajectory**에서 16→12→8개 활성 물체를 관측함. 각 상태 5views, 조건별 80장·합계 240장임. 관측/GT/예측을 보기 전에 seed로 category마다 anchor가 아닌 물체 한 개씩 두 차례 제거하도록 고정하고 매 제거 뒤 120 physics steps를 수행함. 초기 authored 자세·선속도·각속도 reset은 trajectory 시작에 수행하며, 후속 단계에서는 생존 물체를 다시 배치하지 않음. 단계와 다섯 view는 서로 연관된 관측이며 학습된 제거 정책이나 탐색 성공률을 검증한 실험이 아님.
+- **외부 물체:** `packaged_food_4`를 `packaged_food_5/World1`으로 교체하여 정확히 16개인 별도 16 layouts·80장을 수집함. **packaged_food_5는 이번 평가에만 포함하며 학습 GT에서는 계속 제외**함. 과거 부적격 17개 물체 자료를 재사용하지 않음. 외부 물체가 window 안에 16px 이상 보이는 영역을 별도 평가하며 한 종류의 외부 asset 결과를 넓은 unseen 일반화로 확대하지 않음.
+- **Depth 열화:** Phase 40의 64 layouts·320장에 유효 depth의 독립 Gaussian 잡음(σ=5mm), 또는 8×8 block 단위로 영상 영역의 5%를 선택한 결측을 각각 적용하여 640개 입력을 만듦. RGB·물리 장면·장면별 GT는 유지함. 이 합성 강도는 실측 센서 잡음이나 실제 센서 성능을 뜻하지 않음.
+- **사전 판단 결과:** `clean16`, `remaining12`, `remaining8`, `external16`, `dropout5pct`는 평균 MAE·상위20% count regret이 RGB보다 작고 seeds **3/3**에서 두 지표가 함께 개선되어 통과함. `noise5mm`는 **0/3**으로 실패하여 여섯 조건 전체 통과 기준은 미충족임. 잡음에서 RGB의 MAE/regret **0.531415/0.159187**에 비해 후보는 **0.566553/0.159109**임. 절대 count 오차가 커지고 선택 개선도 거의 소실됨. 최종 fusion 효용이나 실패를 직접 측정한 결과가 아님.
+- **정확한 count와 상대 혼잡의 구분:** `remaining8` 후보 MAE는 **1.176313**으로 절대 개수 예측의 한계가 남음. 동시에 RGB 대비 Spearman **0.905194→0.916799**, regret **0.074308→0.052600**으로 상대 순위·높은 count 영역 선택은 개선됨. 따라서 이 조건의 높은 MAE만으로 거친 혼잡 신호까지 무효라고 쓰지 않음.
+- **GT·입력 경계:** 각 물리 상태의 원본 instance ID→활성 physical root에서 48/96/160px window의 가시 물체 수를 계산함(최소 16px, stride16). 제거 후 metadata에는 활성 물체만 남기고 physical ID는 재번호 부여하지 않음. 합성 depth 열화는 같은 장면 GT를 재사용함. 단일 RGB-D 추론에 GT·물체 ID·활성 수·reference를 주지 않고 예측 저장 후 별도 평가함. 새 수집 GT의 원본 window 11,520개와 외부 영역 mask 11,520개를 검산했고 unknown은 0임. **독립 CPU 수치 감사 완료:** 1,280장×6모델의 23,040개 image-scale primary MAE·top20 regret을 재산출하여 60,746개 검사를 통과했고 여섯 조건의 gate 판정이 일치함. 근거는 `outputs/complexity_preintegration_20261001/audit/independent_results_v1.json`이며, GPU 추론·학습을 재실행한 감사는 아님.
+- **구현·보존:** 정식 capture의 reset/단계별 물리 상태/5view drift/활성 ID/hash 검사는 모두 통과함. 첫 두 incomplete gate는 `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1601/`, 같은 prefix의 `_failed_20261001_1604/`에 보존하고 정식 평가에서 제외함. Stress fork의 object clone을 독립 복제하고 설치된 Isaac torch backend에 맞춰 visibility를 torch.bool로 전달하는 구현 수정임. 조건·seed·제거 선택·GT·평가 기준은 유지함. 원본 collector와 이전 자료는 변경하지 않음.
+- **다음 — 미실행:** Train/validation 안에서 depth noise augmentation과 제거 후 물체 수·배치 분포 보완을 검토한 뒤, 고정된 새 protocol의 별도 heldout에서 확인함. 현재 test를 반복 튜닝하거나 곧바로 fusion을 학습한 것으로 해석하지 않음. 이 보완 학습·새 heldout 확인·fusion은 아직 실행하지 않음.
+- **실제 경로:** 코드 `experiments/complexity_preintegration_20261001/`; 수집 driver `../scene_generator/capture_preintegration_20261001.py`, 독립 collector `../scene_generator/vectorized_scene_stress_20261001.py`, 계획 `../scene_generator/stress_capture_plan.py`; 정식 capture `outputs/complexity_instance_capture_20261001_preintegration/`의 `capture_manifest.json`, `capture_completion.json`, `implementation_validation.json`, `source_snapshot/`, `logs/`. 평가 root는 `outputs/complexity_preintegration_20261001/`이며 `locked_protocol.json`, `test_data/{manifest,combined_manifest,audit}.json`, `noise_data/{manifest,audit}.json`, `predictions/completion.json`, `evaluation.json`, `report/summary.json`, `logs/`를 연결해 확인함.
+- **공개:** 상세 보고서는 `docs/complexity_results/preintegration_validation_20261001.md`, 게시 상태는 `docs/public_agent_context_preintegration_20261001.json`의 실제 commit·remote 검증을 참조함. 문서 생성·로컬 수정만으로 commit/push 완료를 추정하지 않음. Phase 38 미채택·GT 관계 회귀 공개 철회와 Phase 39/40의 원본 결과는 유지함.
+
+#### 이전 재개 기준 — 2026-10-01 Phase 40 사전학습 depth 비교 완료
+
+다음은 Phase 40 완료 당시의 재개 기록임. 현재 판단은 위 Phase 41 결과를 우선하며, 당시 상세 근거는 `docs/complexity_results/depth_pretrain_comparison_20261001.md`에 보존함. Complexity 방법을 먼저 검증하며 최종 모델·GT 확정과 fusion은 수행하지 않음. 단일 RGB-D의 고정 연산 추론을 유지하고 각 장면의 IsaacSim GT에 예측을 대조함.
 
 - **완료:** Phase 39 train 640장·validation 160장을 그대로 사용해 RGB+MultiMAE depth와 MultiMAE depth 단독의 head를 seeds 0/1/2로 새로 학습함. 기존 RGB·RGB-D head 6개를 재사용해 총 12개 checkpoint를 비교함. 새 테스트는 원래 16개 seen assets의 **64배치·320장·5뷰 각 64장**임. 기존 960장과 관측·배치 pose의 정확한 hash 중복이 없으며 test를 보고 설정을 수정하지 않음. `packaged_food_5/World1`은 이번 학습·수집에서 제외함.
 - **구조:** RGB는 frozen DINOv3 ViT-B/16 + 원본 RGB 소형 CNN임. 새 결합은 기존 RGB 경로와 count decoder를 유지하고 depth CNN을 frozen MultiMAE ViT-B depth 특징의 학습 projection으로 교체함. 특징은 concat하며 count 3×30×40와 중간 특징 64×30×40를 출력함. 두 frozen backbone은 학습하지 않고 작은 경로·head만 학습함. SAM·반복 crop·재추론은 사용하지 않음.
@@ -4916,7 +5242,7 @@ Phase 1–38 이력: development_log.md
 <REPO_ROOT>/development_log.md
 ```
 
-아래 색인은 Phase 1–38을 공개 `development_log.md`와 로컬 실행 근거에 연결한다. 공개 문서의 최신 반영
+아래 색인은 Phase 1–41을 공개 `development_log.md`와 로컬 실행 근거에 연결한다. 공개 문서의 최신 반영
 범위·commit은 Git에서 확인한다. Complexity Phase 33–37은 `PROJECT_CONTEXT.md` 8절과
 각 working-root run의 실제 결과를 우선한다.
 
@@ -4951,6 +5277,8 @@ Phase 1–38 이력: development_log.md
 | 37 | 기존 DINO의 어려운 순수 patch 대응·GT 가시 접경·단일-label block 근사 공동 진단; 추가 학습 없음 | `development_log.md` Phase 37, Context 8.9, 로컬 joint diagnostic 보고서·summary·audit |
 | 38 | RGB/Depth/RGB-D 원본 접경 9-head 학습; RGB-D head 미채택 | `development_log.md` Phase 38, Context 8.10, boundary v2 summary/audit |
 | 39 | 원본 instance GT와 지역 count 예측 비교; depth 추가 효과 미확인 | `development_log.md` Phase 39, `local_count_pilot_20260930.md`, pilot summary/gt_audit/independent_audit |
+| 40 | Frozen MultiMAE depth 결합의 새 320장 비교; 개선·비용 증가, 최종 미채택 | `depth_pretrain_comparison_20261001.md`, depth_pretrain run/report/audit |
+| 41 | 고정 후보의 물체 감소·외부 물체·합성 depth 열화 검증; 잡음 조건 실패로 fusion 보류 | `preintegration_validation_20261001.md`, preintegration evaluation/report/locked_protocol; primary MAE·regret 독립 수치 감사 통과 |
 
 `PROJECT_CONTEXT.md`의 `6.7`과 `7.13`은 위 기록을 현재 판단에 필요한 수준으로 압축한 표다.
 2026-09-16 Phase 35 공개 commit은 `1c63f1b`(README와 비교 그림 4장)이다.
@@ -5228,7 +5556,27 @@ Full16 이전에 root에 남아 있는 두 training run도 역사 자료다.
 두 폴더에는 protocol/history/training summary, completion manifest, checkpoint hash가 있으나 현재
 full16 baseline은 아니다.
 
-### 7. Complexity Phase 33–39 근거
+### 7. Complexity Phase 33–41 근거
+
+#### 2026-10-01 Phase 41 — 고정 후보의 제한 검증; fusion 보류
+
+- 상세 보고서: `docs/complexity_results/preintegration_validation_20261001.md`.
+- Source: `experiments/complexity_preintegration_20261001/{prepare,noise,merge,predict,evaluate,report}.py`. 수집은 `../scene_generator/{capture_preintegration_20261001,vectorized_scene_stress_20261001,stress_capture_plan}.py`임.
+- 고정 조건: `outputs/complexity_preintegration_20261001/locked_protocol.json`; SHA256 `604f05252d3bbebdec6f67519493688f8117f8eac9ddf25c0d37034f09b78061`.
+- 새 320장: `outputs/complexity_instance_capture_20261001_preintegration/{capture_manifest,capture_completion,completion,implementation_validation}.json`, `source_snapshot/`, `logs/`. 16 paired trajectories × 3상태 × 5views=240장과 별도 외부 16layouts × 5views=80장을 구분함.
+- 새 physical GT 320장: `outputs/complexity_preintegration_20261001/test_data/{manifest,audit}.json`; 같은 폴더 `combined_manifest.json`은 새 수집320+depth열화640+clean reference320의 1,280개 관측 조건 inventory임.
+- Depth 열화640·clean reference320 연결: `outputs/complexity_preintegration_20261001/noise_data/{manifest,audit}.json`; reference 원본은 Phase40 test_data/manifest와 predictions임.
+- 고정6개 head의 추론: 같은 평가 root의 `predictions/completion.json`, `logs/predict.log`; 새 학습·시간 benchmark는 없음.
+- 수치·그림: 같은 평가 root의 `evaluation.json`, `report/{summary.json,condition_comparison.png,maximum_error.png,camera_metrics.csv,per_scale_metrics.csv}`와 `logs/evaluate.log`. 대표 사례는 사전 순서로 고정한6조건 center 영상, 실패 그림은 후보 seed0의 새 입력 중 세 scale 평균 primary MAE 최댓값을 사후 선택한 사례임.
+- 독립 수치 감사 완료: `outputs/complexity_preintegration_20261001/audit/independent_results_v1.json`. 1,280장×6모델의 23,040개 image-scale primary MAE·top20 regret을 CPU에서 재산출하여 60,746개 검사를 통과함. 원본 지표와의 최대 차이는 각각 4.523e-7/4.633e-7이고 여섯 조건의 gate가 모두 일치함. GPU 추론·학습 및 앞서 수행한 전체 provenance 검사를 재실행한 것은 아님.
+- 실패한 capture gate는 `_failed_20261001_1601/`, `_failed_20261001_1604/`의 별도 root에 보존하며 combined_manifest에 포함하지 않음. 구현 수정·source 보존 근거는 정식 capture의 `implementation_validation.json`임.
+- 현재 판단: 6조건 중5조건은3/3seed 통과, noise5mm는0/3으로 전체 기준 미충족. 다음 train/val 보완·새 heldout·fusion은 미실행임.
+
+#### 2026-10-01 Phase 40 — 사전학습 depth 표현 비교
+
+- `docs/complexity_results/depth_pretrain_comparison_20261001.md`와 `outputs/complexity_depth_pretrain_20261001/{locked_protocol,evaluation,completion}.json`, 같은 root의 `report/`, `audit/audit_v3_fresh_results.json`을 확인함.
+- 당시 최종 미채택과 모델 연산시간 한계는 유지하며, 이후 robustness 판단은 위 Phase41을 우선함.
+
 
 #### 2026-09-30 Phase 39 — 지역 count pilot 완료, 최종 Complexity 미채택
 
@@ -5499,7 +5847,7 @@ Archive GT도 현재 production GT와 섞지 않는다.
 
 2026-09-16 공개 파일 45개와 2026-09-17 Similarity·Occlusion 구조 설명 PNG·SVG 8개를 보존하고,
 전체 architecture PNG·SVG 2개를 추가했을 때 inventory는 55개였다. 구조도 추가는 정성 예측
-결과를 추가한 것이 아니었다. Phase 37 결과 PNG 2개를 더한57개를 보존하고, Phase 38 경계 PNG2개만 남겨 당시59개였음. Phase 39의 고정 비교·실패 PNG2개를 추가하여 현재 공개용 inventory는61개임. 실제 원격 반영은 publication manifest를 확인함.
+결과를 추가한 것이 아니었다. Phase 37 결과 PNG 2개를 더한57개를 보존하고, Phase 38 경계 PNG2개만 남겨 당시59개였음. Phase 39의 고정 비교·실패 PNG2개를 추가하여 Phase39 시점 공개용 inventory는61개였음. Phase40/41 추가 그림과 실제 원격 반영은 각 최신 publication manifest를 확인함.
 복사·파일 검증·게시 상태는 `docs/public_agent_context_depth_boundary_20260921.json`을 따른다.
 공통 그림은 `img/` root, stream별 그림은 기존 세 폴더에 둔다.
 실험별 하위 폴더를 만들지 않으며, `docs/image_path_migration_20260916.json`에 이전 경로 대응이 있다.
@@ -5570,7 +5918,7 @@ README 표시에는 사용하지 않는다. 다른 repo에 문서를 복사할 �
 - `img/occlusion/occlusion_film_conditioning.png`
 - `img/occlusion/occlusion_film_conditioning.svg`
 
-#### `img/complexity/` — 24개 (기존18개 + Phase37 결과2개 + Phase38 경계2개 + Phase39 count2개)
+#### `img/complexity/` — Phase39 시점24개 (기존18개 + Phase37 결과2개 + Phase38 경계2개 + Phase39 count2개)
 
 - `img/complexity/phase39_local_count_heldout_20260930.png` ← `outputs/complexity_local_count_20261001_public_results/heldout_comparison.png`
 - `img/complexity/phase39_local_count_worst_20260930.png` ← `outputs/complexity_local_count_20261001_public_results/heldout_worst_case.png`
@@ -5699,17 +6047,33 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 
 - `PROJECT_CONTEXT.md`: 현재 목표, 데이터, architecture, 주요 실험 이력, 검증 결과, 알려진 한계와
   다음 Step을 설명하는 실행용 handoff
-- `PROJECT_LOG_INDEX.md`: Phase 1–40의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
+- `PROJECT_LOG_INDEX.md`: Phase 1–41의 상세 기록과 실제 JSON, log, checkpoint, 이미지, archive를
   찾아가기 위한 근거 자료 색인
 
 Complexity를 이어갈 때는 위 세 문서 이후
 `docs/complexity_results/rgbd_grouping_next_step_20260921.md`도 끝까지 읽는다.
-이 문서는 9월21일의 **미실행 계획**으로 보존함. 이후 계획과 완료 범위를 구분하기 위해 `docs/complexity_results/local_count_plan_20260929.md`와 최신 완료 보고서 `docs/complexity_results/local_count_pilot_20260930.md`도 끝까지 읽음. 이후 완료 보고서 `docs/complexity_results/depth_pretrain_comparison_20261001.md`도 끝까지 읽음. 현재 재개는 아래 완료된 Phase 40 기준을 우선함.
+이 문서는 9월21일의 **미실행 계획**으로 보존함. 이후 계획과 완료 범위를 구분하기 위해 `docs/complexity_results/local_count_plan_20260929.md`와 최신 완료 보고서 `docs/complexity_results/local_count_pilot_20260930.md`도 끝까지 읽음. 이후 완료 보고서 `docs/complexity_results/depth_pretrain_comparison_20261001.md`도 끝까지 읽음. 이후 `docs/complexity_results/preintegration_validation_20261001.md`도 끝까지 읽음. 현재 재개는 아래 Phase 41 결과와 감사 상태를 우선함.
 
 
-#### 최신 연구 상태 — 2026-10-01 Phase 40 사전학습 depth 비교 완료
+#### 최신 연구 상태 — 2026-10-01 Phase 41 통합 전 제한 검증; 현재 후보의 fusion 보류
 
-이번 재개는 Phase 40과 `docs/complexity_results/depth_pretrain_comparison_20261001.md`를 우선함. Complexity 방법을 먼저 검증하며 최종 모델·GT 확정과 fusion은 수행하지 않음. 단일 RGB-D의 고정 연산 추론을 유지하고 각 장면의 IsaacSim GT에 예측을 대조함.
+이번 재개는 **Phase 41**과 `docs/complexity_results/preintegration_validation_20261001.md`를 우선함. Phase 40의 RGB+MultiMAE depth 후보를 고정하여 물체 감소·외부 물체·합성 depth 열화 조건을 평가했으며, 여섯 조건 중 depth 잡음 조건이 사전 기준을 통과하지 못함. **현재 후보 그대로의 fusion 진행은 보류**하고 최종 Complexity 모델·GT를 채택하지 않음. Phase 40의 개선 결과를 철회하거나 지역 count의 거친 혼잡 신호 가능성 전체를 부정하는 판단은 아님.
+
+- **고정 모델·완료 범위:** 기존 RGB와 RGB+MultiMAE depth × seeds 0/1/2의 **6개 checkpoint를 그대로 사용**함. Backbone·head를 모두 고정하고 새 학습·모델 선택·fusion·시간 benchmark를 실행하지 않음. 새 물리 수집 320장 + 기존 관측에 depth 열화를 가한 640장의 960개 입력을 새로 추론하고, Phase 40의 clean reference 320장 예측을 재사용하여 총 1,280개 관측 조건을 평가함. 서로 다른 물리 장면 1,280개라는 뜻이 아님.
+- **물체 감소:** book_1/fruit_1/packaged_food_1/toy_1의 4 anchor × 4 env = **16개 trajectory**에서 16→12→8개 활성 물체를 관측함. 각 상태 5views, 조건별 80장·합계 240장임. 관측/GT/예측을 보기 전에 seed로 category마다 anchor가 아닌 물체 한 개씩 두 차례 제거하도록 고정하고 매 제거 뒤 120 physics steps를 수행함. 초기 authored 자세·선속도·각속도 reset은 trajectory 시작에 수행하며, 후속 단계에서는 생존 물체를 다시 배치하지 않음. 단계와 다섯 view는 서로 연관된 관측이며 학습된 제거 정책이나 탐색 성공률을 검증한 실험이 아님.
+- **외부 물체:** `packaged_food_4`를 `packaged_food_5/World1`으로 교체하여 정확히 16개인 별도 16 layouts·80장을 수집함. **packaged_food_5는 이번 평가에만 포함하며 학습 GT에서는 계속 제외**함. 과거 부적격 17개 물체 자료를 재사용하지 않음. 외부 물체가 window 안에 16px 이상 보이는 영역을 별도 평가하며 한 종류의 외부 asset 결과를 넓은 unseen 일반화로 확대하지 않음.
+- **Depth 열화:** Phase 40의 64 layouts·320장에 유효 depth의 독립 Gaussian 잡음(σ=5mm), 또는 8×8 block 단위로 영상 영역의 5%를 선택한 결측을 각각 적용하여 640개 입력을 만듦. RGB·물리 장면·장면별 GT는 유지함. 이 합성 강도는 실측 센서 잡음이나 실제 센서 성능을 뜻하지 않음.
+- **사전 판단 결과:** `clean16`, `remaining12`, `remaining8`, `external16`, `dropout5pct`는 평균 MAE·상위20% count regret이 RGB보다 작고 seeds **3/3**에서 두 지표가 함께 개선되어 통과함. `noise5mm`는 **0/3**으로 실패하여 여섯 조건 전체 통과 기준은 미충족임. 잡음에서 RGB의 MAE/regret **0.531415/0.159187**에 비해 후보는 **0.566553/0.159109**임. 절대 count 오차가 커지고 선택 개선도 거의 소실됨. 최종 fusion 효용이나 실패를 직접 측정한 결과가 아님.
+- **정확한 count와 상대 혼잡의 구분:** `remaining8` 후보 MAE는 **1.176313**으로 절대 개수 예측의 한계가 남음. 동시에 RGB 대비 Spearman **0.905194→0.916799**, regret **0.074308→0.052600**으로 상대 순위·높은 count 영역 선택은 개선됨. 따라서 이 조건의 높은 MAE만으로 거친 혼잡 신호까지 무효라고 쓰지 않음.
+- **GT·입력 경계:** 각 물리 상태의 원본 instance ID→활성 physical root에서 48/96/160px window의 가시 물체 수를 계산함(최소 16px, stride16). 제거 후 metadata에는 활성 물체만 남기고 physical ID는 재번호 부여하지 않음. 합성 depth 열화는 같은 장면 GT를 재사용함. 단일 RGB-D 추론에 GT·물체 ID·활성 수·reference를 주지 않고 예측 저장 후 별도 평가함. 새 수집 GT의 원본 window 11,520개와 외부 영역 mask 11,520개를 검산했고 unknown은 0임. **독립 CPU 수치 감사 완료:** 1,280장×6모델의 23,040개 image-scale primary MAE·top20 regret을 재산출하여 60,746개 검사를 통과했고 여섯 조건의 gate 판정이 일치함. 근거는 `outputs/complexity_preintegration_20261001/audit/independent_results_v1.json`이며, GPU 추론·학습을 재실행한 감사는 아님.
+- **구현·보존:** 정식 capture의 reset/단계별 물리 상태/5view drift/활성 ID/hash 검사는 모두 통과함. 첫 두 incomplete gate는 `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1601/`, 같은 prefix의 `_failed_20261001_1604/`에 보존하고 정식 평가에서 제외함. Stress fork의 object clone을 독립 복제하고 설치된 Isaac torch backend에 맞춰 visibility를 torch.bool로 전달하는 구현 수정임. 조건·seed·제거 선택·GT·평가 기준은 유지함. 원본 collector와 이전 자료는 변경하지 않음.
+- **다음 — 미실행:** Train/validation 안에서 depth noise augmentation과 제거 후 물체 수·배치 분포 보완을 검토한 뒤, 고정된 새 protocol의 별도 heldout에서 확인함. 현재 test를 반복 튜닝하거나 곧바로 fusion을 학습한 것으로 해석하지 않음. 이 보완 학습·새 heldout 확인·fusion은 아직 실행하지 않음.
+- **실제 경로:** 코드 `experiments/complexity_preintegration_20261001/`; 수집 driver `../scene_generator/capture_preintegration_20261001.py`, 독립 collector `../scene_generator/vectorized_scene_stress_20261001.py`, 계획 `../scene_generator/stress_capture_plan.py`; 정식 capture `outputs/complexity_instance_capture_20261001_preintegration/`의 `capture_manifest.json`, `capture_completion.json`, `implementation_validation.json`, `source_snapshot/`, `logs/`. 평가 root는 `outputs/complexity_preintegration_20261001/`이며 `locked_protocol.json`, `test_data/{manifest,combined_manifest,audit}.json`, `noise_data/{manifest,audit}.json`, `predictions/completion.json`, `evaluation.json`, `report/summary.json`, `logs/`를 연결해 확인함.
+- **공개:** 상세 보고서는 `docs/complexity_results/preintegration_validation_20261001.md`, 게시 상태는 `docs/public_agent_context_preintegration_20261001.json`의 실제 commit·remote 검증을 참조함. 문서 생성·로컬 수정만으로 commit/push 완료를 추정하지 않음. Phase 38 미채택·GT 관계 회귀 공개 철회와 Phase 39/40의 원본 결과는 유지함.
+
+#### 이전 재개 기준 — 2026-10-01 Phase 40 사전학습 depth 비교 완료
+
+다음은 Phase 40 완료 당시의 재개 기록임. 현재 판단은 위 Phase 41 결과를 우선하며, 당시 상세 근거는 `docs/complexity_results/depth_pretrain_comparison_20261001.md`에 보존함. Complexity 방법을 먼저 검증하며 최종 모델·GT 확정과 fusion은 수행하지 않음. 단일 RGB-D의 고정 연산 추론을 유지하고 각 장면의 IsaacSim GT에 예측을 대조함.
 
 - **완료:** Phase 39 train 640장·validation 160장을 그대로 사용해 RGB+MultiMAE depth와 MultiMAE depth 단독의 head를 seeds 0/1/2로 새로 학습함. 기존 RGB·RGB-D head 6개를 재사용해 총 12개 checkpoint를 비교함. 새 테스트는 원래 16개 seen assets의 **64배치·320장·5뷰 각 64장**임. 기존 960장과 관측·배치 pose의 정확한 hash 중복이 없으며 test를 보고 설정을 수정하지 않음. `packaged_food_5/World1`은 이번 학습·수집에서 제외함.
 - **구조:** RGB는 frozen DINOv3 ViT-B/16 + 원본 RGB 소형 CNN임. 새 결합은 기존 RGB 경로와 count decoder를 유지하고 depth CNN을 frozen MultiMAE ViT-B depth 특징의 학습 projection으로 교체함. 특징은 concat하며 count 3×30×40와 중간 특징 64×30×40를 출력함. 두 frozen backbone은 학습하지 않고 작은 경로·head만 학습함. SAM·반복 crop·재추론은 사용하지 않음.
