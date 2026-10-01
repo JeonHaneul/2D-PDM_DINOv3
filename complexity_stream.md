@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · **Complexity** · [Development Log](development_log.md) · [연구 문맥](agent.md)
 <!-- navigation:end -->
 
-> **현재 상태 — 2026-09-29 첫 검증 방향:** 고정 DINOv3의 RGB 특징과 별도 경량 depth encoder를 결합하여 지역별 가시 물체 수를 직접 예측하는 경로를 우선 검증함. 학습 정답은 IsaacSim의 물체별 instance segmentation에서 생성하며, 추론 입력은 단일 RGB-D로 제한함. 이 방향의 전체 실험 결과와 최종 모델 채택은 아직 확정하지 않음. Phase 38 접경 decoder는 RGB 대비 일관된 개선이 없어 미채택이며, GT 관계 회귀의 성과·수치·그림은 공개 철회 상태를 유지함.
+> **현재 상태 — 2026-10-01 Phase 40 완료:** 단일 RGB-D에서 지역별 가시 물체 수를 직접 예측함. 장면별 IsaacSim GT와 비교하여 DINO·원본 RGB CNN에 frozen MultiMAE depth 특징을 결합했을 때 count 오차·상위 영역 선택의 개선을 확인함. 추가 검증할 주후보로 유지하지만 연산 비용과 외부 물체·관측 변화 검증이 남아 최종 Complexity 채택과 fusion은 보류함. Phase 38 접경 decoder 미채택과 GT 관계 회귀의 공개 철회는 유지함.
 
 ## 1. 연구 목적
 
@@ -18,7 +18,7 @@ Phase 38에서는 그 정보를 원본 영상의 접경 위치에 연결하는 �
 
 ## 2. 연구 질문의 연결
 
-①–⑨는 아래 본문의 설명 순서임. 근접도와 정적 제거를 검사한 Phase 34–35는 별도로 시도한 관계 점수 후보이므로 옆 경로로 표시함. **⑦의 공동 진단과 ⑧의 RGB-D 접경 학습 비교는 완료함.** ⑤의 feature 집계 범위 비교와 ⑥의 다중 뷰 활용은 여전히 미실행 제안임. **⑨는 2026-09-29에 정한 첫 검증 방향이며, 완료 실험이나 최종 채택 모델과 구분함.**
+①–⑩는 아래 본문의 설명 순서임. 근접도와 정적 제거를 검사한 Phase 34–35는 별도로 시도한 관계 점수 후보이므로 옆 경로로 표시함. **⑦의 공동 진단·⑧의 접경 학습·⑨의 Phase 39 지역 count 비교·⑩의 Phase 40 사전학습 depth 비교는 완료함.** ⑤의 feature 집계 범위 비교와 ⑥의 다중 뷰 활용은 여전히 미실행 제안임. ⑩의 결합 모델은 추가 검증할 주후보이며 최종 채택·fusion과 구분함.
 
 ```mermaid
 flowchart TD
@@ -30,13 +30,15 @@ flowchart TD
     N6["⑥ 다중 뷰 활용 검토 · 미실행<br/>다른 각도가 물체 구분 실패를 보완하는지 확인<br/>학습은 다중 뷰, 추론은 단일 RGB-D 방향"]
     N7["⑦ Phase 37 공동 진단 · 완료<br/>어려운 순수 patch 대응과 가시 접경을 별도 평가<br/>혼합 patch·경계·물체 묶음 보완 과제 확인"]
     N8["⑧ Phase 38 RGB-D 접경 학습 · 완료<br/>결합 decoder의 일관된 개선 없음<br/>현재 decoder 미채택"]
-    N9["⑨ 지역별 가시 물체 수 · 첫 검증 방향<br/>고정 DINO + 경량 depth encoder<br/>물체별 GT 감독 · 단일 RGB-D 추론"]
+    N9["⑨ Phase 39 지역별 가시 물체 수 · 완료<br/>DINO + 원본 RGB CNN + 작은 depth CNN<br/>장면별 GT 비교 · depth 추가 효과 미확인"]
+    N10["⑩ Phase 40 사전학습 depth 특징 · 완료<br/>RGB + frozen MultiMAE depth의 count 예측 개선<br/>연산 비용 증가 · 주후보 추가 검증 · 최종 미채택"]
     H["별도 관계 후보: Phase 34–35<br/>GT 물체 ID를 사용한 근접도·정적 제거 진단<br/>5절에 목적과 결과 보존"]
     N1 --> N2 --> N3
     N3 -->|"개수 오차 외에 물체 구분 정보를 직접 점검"| N4
     N4 -->|"고정한 DINO·판별기로 어려운 조건 재평가"| N7
     N7 -->|"전체 영상에서 접경을 직접 예측"| N8
     N8 -->|"고정 연산 경로에서 지역 count를 먼저 검증"| N9
+    N9 -->|"depth 표현을 바꾸어 같은 count 과제 비교"| N10
     N4 -. "문맥 범위의 이득을 비교할 후보" .-> N5
     N4 -. "추가 관측이 제공하는 정보 검토" .-> N6
     N3 -. "별도로 검토한 후보" .-> H
@@ -462,7 +464,7 @@ Phase 38 이후에는 **관계 표현의 생성부터 최종 평가까지 단일
 
 RGB 결과에는 frozen DINO와 원본 RGB 세부 경로가 함께 포함됨. DINO 단독 성능이나 depth 전체의 정보 한계로 해석하지 않음. 공통 test key 2개·seen assets의 소규모 비교이므로 외부 물체·새 관측과 작은 가시 물체 등의 오류 검증을 남김. 수치·고정 비교와 큰 오류 그림·처리시간 조건은 [Development Log의 Phase 39](development_log.md#2026-09-30--phase-39--원본-instance-gt와-지역-count의-새-배치-비교)에 보존함. Fusion은 아직 진행하지 않음.
 
-#### 현재 판단 모델
+#### Phase 39에서 비교한 모델
 
 실제 모델은 **DINO 특징과 소형 CNN 특징으로 지역 count를 직접 예측하는 회귀 모델**임. 먼저 물체별 segmentation을 만들고 검출된 물체를 세는 경로가 아님.
 
@@ -517,7 +519,19 @@ Phase 33은 저장된 색상 label-group count와 고정 camera reference를 사
 3. **직접 예측 평가:** 고정 DINO와 depth encoder의 count 예측을 검증함. 같은 정답·평가 영역에서 RGB·depth 정보의 기여를 구분함.
 4. **채택 판단:** 장면 안의 지역 순위, 혼잡한 상위 영역 포착, count 오차와 처리시간을 함께 확인함. 작은 물체·심한 가림 및 별도로 추가한 unseen 물체를 평가한 뒤 Complexity 방법을 판단함.
 
-평가는 GT 없이 RGB-D에서 예측 파일을 먼저 완성한 뒤 별도 평가기가 GT를 읽는 경로로 구성함. Crop 보정은 작은 물체나 세밀한 경계의 오류가 확대 처리로 실제 줄어든다는 근거가 생겼을 때 검토할 후속 후보임. 기존 자동 영역·추가 encoder·다중 뷰 제안은 미실행 이력으로 보존하며, Complexity 방법을 먼저 검증한 뒤 fusion 단계로 진행함.
+평가는 GT 없이 RGB-D에서 예측 파일을 먼저 완성한 뒤 별도 평가기가 GT를 읽는 경로로 구성함. Crop 보정은 작은 물체나 세밀한 경계의 오류가 확대 처리로 실제 줄어든다는 근거가 생겼을 때 검토할 후속 후보임. Phase 39 당시 자동 영역·추가 encoder·다중 뷰 제안은 미실행 이력으로 보존함. 이후 사전학습 depth encoder 비교는 Phase 40에서 완료했으며 ⑩을 따름. 자동 영역·다중 뷰 및 fusion은 아직 실행하지 않음.
+
+### ⑩ 사전학습된 depth 특징의 결합 — 2026-10-01 Phase 40
+
+Phase 39의 작은 depth CNN 대신 **고정된 MultiMAE depth encoder**를 사용한 표현을 비교함. RGB 경로는 DINOv3 특징과 원본 RGB 소형 CNN을 유지하고, depth 특징의 projection과 count CNN head를 학습함. 물체별 segmentation을 먼저 복원하지 않고 단일 RGB-D에서 지역 count를 직접 예측하는 방향은 같음.
+
+새로 수집한 원래 16개 seen assets의 64배치·320영상에서 **RGB + MultiMAE depth는 RGB와 기존 RGB-D보다 count MAE·상위 영역 regret이 개선됨.** 사전 기준은 두 지표의 동시 개선이며 두 비교 모두 3/3 seeds·4/4 공통 scene keys에서 만족함. 이 결과에 따라 결합 모델을 추가 검증할 주후보로 둠. 전체 수치·5개 view별 비교·고정 사례·큰 오류 그림은 [Development Log의 Phase 40](development_log.md#2026-10-01--phase-40--사전학습된-depth-특징과-지역-count-비교)에 보존함.
+
+다만 이 실험에서는 encoder 구조·사전학습·전처리·parameter 수가 함께 바뀜. 사전학습 하나의 효과를 분리한 결과가 아니며 기존 RGB head를 고정한 채 depth만 추가한 실험도 아님. 공식 checkpoint는 여러 modality로 사전학습됐지만 우리 depth encoder 추론에는 관측 depth만 제공함. GT는 각 장면의 학습 감독·별도 평가에만 사용함.
+
+성능 개선에는 RGB 대비 모델 연산시간 **약 1.96배**와 peak allocated memory **약 2.10배**의 비용이 따름. 새 encoder도 고정된 한 번의 처리 경로이지만 실제 지연 예산의 충족과는 구분함. 예측의 과대추정과 혼잡 위치를 넓게 퍼뜨리는 오류도 남음.
+
+**최종 Complexity 채택과 fusion은 보류함.** 다음 우선순위는 학습에 쓰지 않은 물체·depth 노이즈·관측 변화에서 같은 장면별 GT 정의로 검증하고, 유지되는 개선과 연산 비용을 함께 판단하는 것임. 공통 test key 4개의 소규모 비교를 일반화 성능이나 완벽한 물체 구분의 증거로 확대하지 않음. 이 후속 검증은 아직 실행하지 않음.
 
 ## 4. 보존한 Density Pilot의 구현과 GT
 

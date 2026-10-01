@@ -43,11 +43,11 @@
 
 **③ Occlusion — 그 target이 어디에 가려질 수 있는가.** Scene RGB feature와 함께 depth encoder가 만든 **현재 서랍의 depth feature**를 사용함. Target RGB는 물체의 appearance를 제공하고, reference mask는 크기·윤곽을 나타내는 `68-D` geometry를 제공함. 공유 MLP가 geometry에서 FiLM 계수를 계산하여 scene depth의 256채널 값을 조절함. 이렇게 조절한 depth 256채널과 scene 768·target 768·cosine 1을 합친 **1793채널**을 MatchingBlock에 전달하고, 네 layer를 통합하여 `F_O`를 만듦. Target이 달라지면 같은 모델에서 조절값이 달라지는 구조임.
 
-**④ Complexity — 현재는 RGB-D density pilot.** Target 조건 없이 scene의 DINO feature와 depth 단서를 결합함. DINO `768→64`, depth cue `9→64`를 각각 변환한 뒤 합쳐 학습 feature 55개를 만들고, 원본 depth cue 9개를 다시 붙여 `F_C`의 64채널을 구성함. Depth cue 계산에는 고정 camera의 workspace와 empty-depth reference를 사용함. 현재 head는 국소 label-group count 3개와 occupancy 1개를 예측하도록 학습했으며, **더미 내부의 구조적 Complexity를 표현할 최종 모델·GT는 검증 중**임.
+**④ Complexity — 도식에 보존한 Phase 33 density pilot.** Target 조건 없이 scene의 DINO feature와 depth 단서를 결합함. DINO `768→64`, depth cue `9→64`를 각각 변환한 뒤 합쳐 학습 feature 55개를 만들고, 원본 depth cue 9개를 다시 붙여 `F_C`의 64채널을 구성함. Depth cue 계산에는 고정 camera의 workspace와 empty-depth reference를 사용함. 현재 head는 국소 label-group count 3개와 occupancy 1개를 예측하도록 학습했으며, **더미 내부의 구조적 Complexity를 표현할 최종 모델·GT는 검증 중**임.
 
 **⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 stream은 같은 `30×40` 위치마다 서로 다른 64개 숫자를 제공함. 이를 같은 위치끼리 이어 붙이면 **`64+64+64=192채널`**이며 공간 격자는 유지됨. 그림에서 오른쪽으로 갈라지는 prediction head는 각 stream의 GT를 예측하는 경로이고, 아래 fusion은 그 head 이전의 feature를 받도록 계획함. 이후 learned fusion·decoder로 최종 target 위치 map을 만들고 탐색 정책에 연결할 예정임. 현재 density `F_C`의 최종 채택은 Complexity 정의·관계 표현 검증 후 판단함.
 
-Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측을 평가함. GT 관계 회귀는 사용자 요청에 따라 공개에서 철회함. RGB-D 접경 모델도 채택 기준을 통과하지 못하여 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임.
+Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측을 평가함. GT 관계 회귀는 사용자 요청에 따라 공개에서 철회함. RGB-D 접경 모델도 채택 기준을 통과하지 못하여 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임. 위 도식은 Phase 33의 구현을 보존한 것이며, 최신 Phase 40의 RGB + MultiMAE depth count 모델은 추가 검증할 주후보로서 아직 최종 stream으로 채택하지 않음.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
@@ -213,7 +213,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
 | Complexity Phase 33 pilot | RGB-D visible label-group count 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 당시 정의·수치를 보존하며 새 instance count 성능과 구분함 |
-| Complexity 최신 연구 | Phase 39 장면별 instance GT와 새 배치의 지역 count 예측 비교 완료; RGB MAE 0.515799, RGB-D 0.521641 | 현재 depth 추가 효과는 미확인; RGB 기준 후보 유지·최종 Complexity 미채택·fusion 미실행 |
+| Complexity 최신 연구 | Phase 40 새 test 320영상에서 RGB + MultiMAE depth의 MAE 0.480365; RGB 대비 9.61% 감소 | 연산시간 약 1.96배; 외부 물체·관측 변화 검증과 지연 예산 판단 후 채택 검토. 최종 Complexity 미채택·fusion 미실행 |
 | Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | 관계 복원을 지역 count 학습의 필수 선행 단계로 두지 않음. GT 관계 회귀의 성과·수치·그림은 공개 철회 상태 유지 |
 | Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 같은 물체 내부 단차·물체–배경·평평한 물체 간 접경의 실패를 보존 |
 | Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | Complexity 방법 검증·선택 이후 최종 GT·loss·decoder 구현, 통합 학습·ablation |

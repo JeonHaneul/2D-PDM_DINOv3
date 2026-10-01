@@ -19,6 +19,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 | Complexity 정의 점검 | Count/occupancy → 관측 근접도 → 실제 더미의 정적 제거 효과 | RGB-D density 예측 개선 확인; 근접도 평균은 제거 효과와 상관이 약해 GT로 채택하지 않고 관계 표현 검증으로 진행 | Phase 33–35 |
 | Complexity 표현 진단 | 기존 feature의 정보 부족과 학습 목표의 한계를 구분 | DINO의 순수 patch 대응은 거의 포화; 다음은 경계·관계 능력과 보완 표현의 검증 | Phase 36 |
 | Complexity 후속 검증 | 어려운 대응·전체 접경·원본 instance 지역 count 비교 | 접경 결합 모델은 미채택; 새 배치의 장면별 GT와 지역 count 예측을 비교했고 depth 추가 효과는 미확인 | Phase 37–39 |
+| Complexity depth 표현 비교 | 작은 depth CNN 대신 frozen MultiMAE 특징 결합 | 새 test에서 count 오차·상위 영역 선택 개선; 연산시간 증가와 추가 일반화 검증을 고려하여 최종 채택 보류 | Phase 40 |
 
 ## 지표와 범위 읽는 법
 
@@ -1430,6 +1431,131 @@ GT는 현재 영상에서 보이는 지역 물체 수이며, 겹친 window 지�
 | 구현 | `experiments/complexity_local_count_20260929/`; 실제 capture는 `../scene_generator/vectorized_scene_v2.py` |
 
 최종 Complexity 모델은 미채택이며 fusion·unseen asset 평가·실제 RGB-D 평가는 미실행임. 기존 Phase 38 RGB-D 접경 모델 미채택과 GT 관계 회귀 공개 철회도 그대로 유지함.
+
+## 2026-10-01 · Phase 40 — 사전학습된 depth 특징과 지역 count 비교
+
+**사전학습된 depth 특징을 결합했을 때 장면별 지역 count 오차와 혼잡 영역 선택이 개선됨.** 새 64개 배치·320영상에서 RGB + MultiMAE depth의 MAE는 **0.480365**, 상위 20% count regret은 **0.126615**임. 같은 test의 RGB 대비 각각 **9.61%·20.46% 감소**함. 사전 개선 기준을 통과하여 추가 검증할 주후보로 두지만, 모델 연산시간이 약 두 배로 증가하므로 최종 Complexity 채택과 fusion은 보류함.
+
+### 1. 기존 작은 depth CNN 이후 확인한 것
+
+Phase 39에서는 RGB에 작은 depth CNN을 추가해도 일관된 이득을 확인하지 못함. 이는 그 입력 표현·모델·학습 조건의 결과이므로 depth 전체의 정보 한계로 일반화하지 않음. 이번에는 기존 RGB 경로와 count 과제를 유지하고, 작은 depth CNN 대신 **고정된 MultiMAE depth encoder의 특징**을 제공하는 방법을 비교함.
+
+모든 모델은 물체별 segmentation을 먼저 생성한 뒤 세는 방식이 아니라 **지역별 가시 물체 수를 직접 회귀**함. 학습·평가 정답은 각 장면의 IsaacSim 원본 물체 ID에서 계산함. 추론에는 단일 RGB-D만 제공하며 GT·물체 ID·workspace mask·empty-depth reference·추가 view를 주지 않음. SAM·crop 재시도·fusion은 실행하지 않음.
+
+### 2. 네 비교 모델과 사전학습 depth 경로
+
+| 모델 | 실제 입력 특징과 학습 상태 |
+|---|---|
+| RGB | Frozen DINOv3 ViT-B/16 + 원본 RGB 소형 CNN + count CNN head. Phase 39의 seeds 0/1/2 checkpoint를 그대로 재사용함 |
+| 기존 RGB-D | 위 RGB 특징 + 학습한 작은 depth CNN. Phase 39의 seeds 0/1/2 checkpoint를 그대로 재사용함 |
+| RGB + MultiMAE depth | RGB 특징 + frozen MultiMAE depth 특징을 결합함. 같은 seed의 공통 head 초기값에서 projection·RGB CNN·count head를 새로 학습함 |
+| MultiMAE depth 단독 | Frozen MultiMAE depth 특징만 사용하고 DINO·RGB 경로를 차단함. Depth projection과 count head를 새로 학습함 |
+
+MultiMAE는 공식 ViT-B MultiViT checkpoint를 사용함. 해당 checkpoint의 사전학습은 RGB·depth·semantic segmentation을 포함하지만, **이번 depth encoder의 추론 입력은 관측 depth 하나뿐**임. RGB·semantic adapter와 복원 decoder는 사용하지 않음. DINO와 MultiMAE를 모두 고정하고 우리 데이터로 backbone을 재학습하지 않음.
+
+관측 depth의 유효한 값에서 하위·상위 10%를 제외한 값들의 평균·표본 분산으로 영상별 표준화를 수행함. 비유효 depth는 표준화 후 0으로 채움. 원본 480×640을 crop·resize·random masking 없이 처리하고, 공식 위치 embedding 보간을 사용함. 마지막 global token을 제외한 `768×30×40` 공간 특징을 정규화·32채널 projection하여 RGB의 두 32채널 경로와 결합함. 결과는 `64×30×40` 특징과 세 scale의 `3×30×40` count임.
+
+사용한 frozen depth encoder는 **85,403,136 parameters**, 새 head의 저장 구조는 **199,395 parameters**임. 기존 head의 194,467개와 구분하며 DINO parameter는 이 head 수에 포함하지 않음. 입력 경로를 차단한 단독 비교군은 저장한 전체 parameter와 실제 활성 경로가 다름.
+
+새 결합 모델은 이미 학습한 RGB head를 고정한 채 depth만 붙인 모델이 아님. 공통 모듈의 구조·seed별 초기 tensor를 맞춘 뒤 RGB 세부 경로와 count head도 함께 다시 학습함. 따라서 **encoder 구조·사전학습·전처리·parameter 수가 함께 바뀐 depth 표현의 비교**이며 사전학습 하나의 인과 효과를 분리한 실험은 아님.
+
+### 3. 학습과 새 test 범위
+
+학습·validation은 Phase 39의 원래 16개 asset 자료 중 **640/160영상**을 그대로 사용함. 이전 test 160영상은 새 모델 학습·checkpoint 선택에 사용하지 않음. `RGB + MultiMAE depth`, `MultiMAE depth 단독` × seeds 0/1/2의 **6개 head를 새로 학습**하고, 기존 RGB/RGB-D의 **6개 checkpoint를 재사용**하여 총 12개 head를 같은 새 test에 평가함.
+
+신규 학습은 20 epochs·batch 8·AdamW lr `0.001`·weight decay `0.01`·gradient clip `5`임. RGB/DINO의 공통 초기값과 sample 순서를 seed별로 맞추고, 빈/비어 있지 않은 window → scale → 영상 동일 가중 SmoothL1을 유지함. Validation loss가 최소인 checkpoint를 선택하며 frozen 특징 cache·head 연산은 FP32, TF32 off임.
+
+새 test는 16 pools × 4 layouts × 5 views의 **64개 물리적 배치·320영상**임. 공통 key는 `scene00004_env0000…0003`, view별로 64영상임. 모든 물체는 학습에서 본 원래 16개 asset이며 unseen asset·실제 센서 평가는 아님. 이번 학습 GT와 동일 분포 수집에는 `packaged_food_5`를 포함하지 않음.
+
+새 seed·run ID를 사용하고 매 장면의 초기 자세·선속도·각속도를 초기화함. RGB·depth hash가 이전 수집이나 새 test 안에서 완전히 중복되지 않는지 검사함. GT 정의는 stride 16의 중심에서 48/96/160px window 안에 16px 이상 보이는 서로 다른 물리적 물체 수임. 영상 안에 완전히 들어오고 unknown이 없는 window만 감독·평가에 사용함. 새 test의 원본 pixel ID에서 **11,520개 window를 독립 검산**했으며 unknown pixel은 0임.
+
+이번 표의 RGB/RGB-D 수치는 기존 checkpoint를 **새 320영상에서 다시 평가한 값**임. Test 장면이 다르므로 Phase 39의 160영상 수치와 직접 증감 비교하지 않음.
+
+### 4. 장면별 GT와 예측 결과
+
+Primary는 유효 window 가운데 원본 중심 pixel이 GT 물체인 영역의 **count MAE와 상위 20% count regret**임. GT mask는 모든 모델에 공통인 평가 범위로만 사용함. Spearman은 보조 순위 지표로 함께 표시함.
+
+Regret은 정답 count가 높은 상위 20% 위치의 정답 평균에서 모델이 선택한 상위 20% 위치의 정답 평균을 뺀 값이며 낮을수록 좋음. 예측 경계 동점은 분수 가중으로 처리함. GT 상수인 경우 regret은 0, Spearman은 NA와 coverage로 보존함. 예측만 상수인 경우 Spearman은 0임. Camera → pool → 공통 scene key를 동일 가중 평균하고 세 window scale·세 seed도 동일 가중 평균함.
+
+| 모델 | Count MAE ↓ | 상위 20% count regret ↓ | Spearman ↑ |
+|---|---:|---:|---:|
+| RGB: DINO + 원본 RGB CNN | 0.531415 | 0.159187 | 0.925399 |
+| RGB-D: 기존 depth CNN 결합 | 0.529781 | 0.157719 | 0.925616 |
+| RGB + MultiMAE depth | 0.480365 | 0.126615 | 0.937931 |
+| MultiMAE depth 단독 | 0.565023 | 0.184749 | 0.915710 |
+
+| 비교 | MAE 절대 감소 | MAE 상대 감소 | Regret 절대 감소 | Regret 상대 감소 |
+|---|---:|---:|---:|---:|
+| RGB 대비 | 0.051050 | 9.61% | 0.032571 | 20.46% |
+| 기존 RGB-D 대비 | 0.049415 | 9.33% | 0.031104 | 19.72% |
+
+사전 기준은 **seed별 전체 MAE와 regret이 모두 낮아지는 seed가 3개 중 2개 이상이며, seed 평균을 낸 각 공통 key에서도 두 지표가 모두 낮아지는 key가 4개 중 3개 이상인 것**임. RGB + MultiMAE depth는 RGB 대비와 기존 RGB-D 대비 모두 **3/3 seeds·4/4 keys**에서 두 지표가 개선되어 통과함. 이 기준은 이번 pilot의 비교 판단이며 최종 모델 자동 채택이나 통계적 유의성의 검정이 아님.
+
+RGB 대비 seed별 MAE 감소는 0.055964/0.057393/0.039792, regret 감소는 0.035252/0.035925/0.026537임. 공통 key별 감소는 각각 MAE 0.045445–0.055320, regret 0.028894–0.035697임. 모든 seed·key의 실제 값과 차이는 원본 `report/summary.json`에 보존함.
+
+아래는 각 camera의 count MAE임. 각각 64영상에서 세 scale·세 seed를 같은 방식으로 집계함. 결합 모델은 **5/5 views에서 RGB와 기존 RGB-D보다 낮은 MAE**를 보임. Camera들은 같은 물리 장면을 보는 상관된 관측이므로 다섯 개의 독립 실험으로 해석하지 않음.
+
+| Camera | RGB | 기존 RGB-D | RGB + MultiMAE depth | MultiMAE depth 단독 |
+|---|---:|---:|---:|---:|
+| center | 0.502714 | 0.501421 | 0.451349 | 0.541850 |
+| left | 0.539279 | 0.538783 | 0.491989 | 0.579960 |
+| right | 0.533843 | 0.530086 | 0.479635 | 0.564083 |
+| top | 0.539254 | 0.537093 | 0.487737 | 0.572626 |
+| bottom | 0.541983 | 0.541520 | 0.491116 | 0.566594 |
+
+MultiMAE depth 단독도 장면별 count를 예측하지만 이번 조건에서는 RGB보다 오차와 regret이 큼. 결합 모델의 개선을 depth 단독의 우월성으로 바꾸어 주장하지 않음. 이전 Phase 39의 작은 depth CNN 단독 수치와는 test가 다르므로 직접 비교하지 않음.
+
+### 5. 실제 장면 비교와 남은 실패
+
+![Phase 40 fixed fresh-scene comparison](img/complexity/phase40_depth_pretrain_heldout_20261001.png)
+
+각 category의 첫 pool(`book_1`, `fruit_1`, `packaged_food_1`, `toy_1`), 첫 test key `scene00004_env0000`, center view, seed 0을 고정한 사례임. 열은 실제 RGB / 해당 장면 GT / RGB / 기존 RGB-D / RGB + MultiMAE depth / MultiMAE depth 단독임. 96px window를 표시하고 각 행의 모든 map에 같은 색 범위를 사용함. GT 유효 mask는 표시·평가에만 사용함. 고정 예시에도 과대추정이 남으며 이 네 장면으로 전체 평균을 대신하지 않음.
+
+![Phase 40 largest-regret example](img/complexity/phase40_depth_pretrain_worst_20261001.png)
+
+실패 그림은 **RGB + MultiMAE depth seed 0의 세 scale 평균 foreground regret이 가장 큰 test 영상**을 사후 선택함. `packaged_food_2`, `scene00004_env0000`, top view이며 선택 지표는 **0.574713**임. 표시한 96px 지도와 선택 기준인 세 scale 평균은 구분함. GT에서 높은 count가 모인 위치보다 예측이 넓고 오른쪽으로 퍼지는 오류가 남음. 평균 성능의 개선은 모든 지역 count나 segmentation의 정확성을 보장하지 않음. 해당 사례만으로 해상도나 특정 물체를 원인으로 확정하지 않음.
+
+### 6. 연산시간·메모리와 해석
+
+| 모델 | 첫 입력(ms) | Warm median(ms) | Warm p95(ms) | Warm peak allocated(MiB) |
+|---|---:|---:|---:|---:|
+| RGB: DINO + 원본 RGB CNN | 289.396 | 10.464 | 11.122 | 405.9 |
+| RGB-D: 기존 depth CNN 결합 | 334.667 | 10.928 | 11.269 | 405.9 |
+| RGB + MultiMAE depth | 337.268 | 20.521 | 21.087 | 851.0 |
+| MultiMAE depth 단독 | 384.448 | 10.362 | 10.695 | 523.6 |
+
+RTX 5090·FP32·TF32 off·batch 1에서 mode별 새 프로세스로 seed 0의 동일 test 입력(`book_1_scene00004_env0000_bottom`)을 측정함. 첫 연산 1회와 이후 같은 입력 20회 warm 연산을 구분함. 각 모델이 실제 사용하는 backbone과 head를 모두 포함하며 depth 단독은 DINO를 실행하지 않음.
+
+모델 로딩·파일 I/O·CPU→GPU 전송·hash·저장은 제외한 **모델 연산시간**임. 메모리는 해당 프로세스 CUDA allocator의 peak allocated 값으로 활성 모델·입력·중간 tensor를 포함하며 전체 장치 사용량과 다름. 배포 FPS나 다양한 장면의 장기 지연 분포로 해석하지 않음.
+
+RGB + MultiMAE depth의 warm median은 RGB의 **약 1.96배**, peak allocated는 **약 2.10배**임. 정확도 개선과 함께 별도 frozen depth backbone의 비용이 증가함. 고정된 한 번의 추론 경로라는 조건은 유지하지만, 그 사실만으로 기존 stream과 결합할 지연 예산을 만족한다고 판단하지 않음.
+
+### 7. 판단·검증과 실제 근거
+
+**RGB + MultiMAE depth를 다음 검증의 주후보로 유지함. 최종 Complexity 채택과 fusion은 보류함.** 우선 학습에 쓰지 않은 물체·depth 노이즈·관측 변화에서 같은 정의의 장면별 GT와 count 예측을 비교하고, 정확도 개선이 추가 연산 비용을 감당할 만큼 유지되는지 확인해야 함. 이 후속 실험은 아직 실행하지 않음.
+
+공통 test key가 4개인 소규모 seen-asset 비교이며 신뢰할 만한 cluster 신뢰구간·통계적 유의성·넓은 일반화를 주장하지 않음. 가시 count는 숨은 총 물체 수·물리 면적 밀도·관계 전체·제거 효용의 정답과 구분함. 이번 개선만으로 최종 Complexity 정의가 확정된 것도 아님.
+
+독립 감사에서 320영상 × 12개 head × 3 scales의 MAE·regret을 별도 알고리즘으로 재계산하고, 두 비교의 3/3 seeds·4/4 keys 통과를 확인함. 최대 차이는 MAE 1.73e-7·regret 4.63e-7로 FP32 반올림 범위임. 저장한 예측 3,840개와 hash·GT 차단 기록의 연결을 확인하고, 원본 GT window 5,760개를 추가 검산함. 감사는 모델 학습 재실행이나 보조 Spearman 전체의 독립 재계산을 뜻하지 않음.
+
+12개 head의 예측을 먼저 저장한 뒤 별도 평가기가 장면 GT를 읽었음. 예측 및 각 mode의 독립 시간 측정에서 알려진 Python I/O 경로의 GT·capture metadata 차단을 검사했으며 예기치 않은 차단 시도는 0건임. 이 검사는 운영체제 수준의 일반적인 native I/O 격리를 뜻하지 않음. 원시 코드·weights·checkpoint·배열·결과 JSON은 로컬에 보존하고 공개에는 설명·결과 표·그림만 반영함.
+
+| 근거 | 실제 개발 폴더 기준 경로 |
+|---|---|
+| 고정 조건 | `outputs/complexity_depth_pretrain_20261001/locked_protocol.json` |
+| 새 test capture | `outputs/complexity_instance_capture_20261001_depth_pretrain_test/` |
+| 장면별 GT·검산 | `outputs/complexity_depth_pretrain_20261001_test_data/manifest.json`, 같은 폴더의 `audit.json` |
+| 기존 train/validation | `outputs/complexity_local_count_20260930_pilot_data/manifest.json`의 train 640·val 160행 |
+| 재사용한 RGB/RGB-D | `outputs/complexity_local_count_20260930_pilot/run/`의 해당 mode·seed checkpoint |
+| 신규 학습·cache·checkpoint | `outputs/complexity_depth_pretrain_20261001/run/`, `training_complete.json` |
+| GT와 분리된 예측·시간 | `outputs/complexity_depth_pretrain_20261001/predictions/`, `completion.json`, `deployment_timing.json` |
+| 전체 평가 | `outputs/complexity_depth_pretrain_20261001/evaluation.json` |
+| 독립 수치 감사 | `outputs/complexity_depth_pretrain_20261001/audit/audit_v3_fresh_results.json` |
+| 요약·그림·camera/scale 표 | `outputs/complexity_depth_pretrain_20261001/report/`의 `summary.json`, 두 PNG, `camera_metrics.csv`, `per_scale_metrics.csv` |
+| 실제 구현 | `experiments/complexity_depth_pretrain_20261001/` |
+| 공식 depth encoder 계약 | `outputs/complexity_depth_pretrain_20261001_adapter_check.json`; official revision `66910f5b5ba236f5e731883db85fe4f24ee01106` |
+
+기존 Phase 38 모델 미채택·GT 관계 회귀 공개 철회와 Phase 39의 당시 비교 결과를 유지함. 이번 결과는 단일 RGB-D에서 직접 예측한 count에 관한 것이며 철회한 GT 관계 입력의 회귀와 혼동하지 않음.
 
 <!-- navigation:start -->
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Development Log** · [연구 문맥](agent.md)
