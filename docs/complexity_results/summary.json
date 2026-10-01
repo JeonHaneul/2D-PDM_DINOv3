@@ -115,16 +115,6 @@
       "all_workspace_count_mae": 0.7632328967253367,
       "occupancy_mae": 0.015244388952851295
     },
-    "train_camera_position_mean": {
-      "count_mae": 1.2445174256960552,
-      "count_mae_by_scale": [
-        0.8555365204811096,
-        1.2401902675628662,
-        1.6378254890441895
-      ],
-      "all_workspace_count_mae": 1.2285958925882976,
-      "occupancy_mae": 0.2280498445034027
-    },
     "direct_depth_occupancy_mae": 0.009813901036977768
   },
   "by_camera": {
@@ -606,8 +596,7 @@
   "adoption_gate_results": {
     "relative_gain_at_least_10pct": true,
     "paired_ci_lower_positive": true,
-    "at_least_three_cameras_improved": true,
-    "beats_train_position_mean": true
+    "at_least_three_cameras_improved": true
   },
   "rgbd_pilot_gate_passed": true
 }

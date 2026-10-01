@@ -213,7 +213,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
 | Complexity Phase 33 pilot | RGB-D visible label-group count 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 당시 정의·수치를 보존하며 새 instance count 성능과 구분함 |
-| Complexity 최신 연구 | Phase 39 원본 instance GT의 새 배치 지역 count 비교 완료; 학습 위치 평균 대비 개선 확인 | 현재 depth 추가 효과는 미확인; RGB 기준 후보 유지·최종 Complexity 미채택·fusion 미실행 |
+| Complexity 최신 연구 | Phase 39 장면별 instance GT와 새 배치의 지역 count 예측 비교 완료; RGB MAE 0.515799, RGB-D 0.521641 | 현재 depth 추가 효과는 미확인; RGB 기준 후보 유지·최종 Complexity 미채택·fusion 미실행 |
 | Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | 관계 복원을 지역 count 학습의 필수 선행 단계로 두지 않음. GT 관계 회귀의 성과·수치·그림은 공개 철회 상태 유지 |
 | Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 같은 물체 내부 단차·물체–배경·평평한 물체 간 접경의 실패를 보존 |
 | Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | Complexity 방법 검증·선택 이후 최종 GT·loss·decoder 구현, 통합 학습·ablation |

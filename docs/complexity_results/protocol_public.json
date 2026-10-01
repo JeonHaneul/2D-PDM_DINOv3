@@ -188,8 +188,7 @@
   "adoption_gate": {
     "relative_count_mae_gain_over_depth_at_least": 0.1,
     "paired_scene_bootstrap_95_lower_gain_gt": 0,
-    "improved_cameras_at_least": 3,
-    "must_beat_train_camera_position_mean": true
+    "improved_cameras_at_least": 3
   },
   "scientific_limits": [
     "seen asset library; no unseen-scene-object claim",

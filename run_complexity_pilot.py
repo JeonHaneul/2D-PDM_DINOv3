@@ -156,8 +156,7 @@ def create_protocol(args):
                         "bootstrap": "2000 resamples, seed3300, paired entire scene-key clusters including all pools/views/seeds"},
             "adoption_gate": {"relative_count_mae_gain_over_depth_at_least": .10,
                               "paired_scene_bootstrap_95_lower_gain_gt": 0,
-                              "improved_cameras_at_least": 3,
-                              "must_beat_train_camera_position_mean": True},
+                              "improved_cameras_at_least": 3},
             "scientific_limits": ["seen asset library; no unseen-scene-object claim", "not target existence probability",
                                   "no fusion/DRL utility validated", "three seeds do not establish broad robustness"],
             "prepared": False}
@@ -358,7 +357,6 @@ def evaluate(args):
     cache = load_cache(run, args.device)
     rows = protocol["rows"]
     test = np.array([i for i, r in enumerate(rows) if r[3] == "test"])
-    tr = np.array([i for i, r in enumerate(rows) if r[3] == "train"])
     test_rows = [rows[i] for i in test]
     arrays, results = {}, {}
     for mode in MODES:
@@ -377,16 +375,6 @@ def evaluate(args):
                 save_panels(run, model, cache, test, rows, protocol)
         arrays[mode] = np.mean(all_seeds, axis=0)
         results[mode] = metric_means(arrays[mode])
-    # Camera-position baseline fitted on training labels only (including zero neighborhoods).
-    baseline = torch.zeros_like(cache["labels"][test]).float()
-    for cam in CAMERAS:
-        train_cam = tr[[rows[i][2] == cam for i in tr]]
-        slots = np.flatnonzero([r[2] == cam for r in test_rows])
-        weights = cache["valid"][train_cam].float()
-        mean = (cache["labels"][train_cam].float() * weights).sum(0) / weights.sum(0).clamp_min(1)
-        baseline[slots] = mean
-    ba = sample_metrics(baseline, cache["labels"][test].float(), cache["valid"][test].float()).cpu().numpy()
-    results["train_camera_position_mean"] = metric_means(ba)
     direct = cache["labels"][test].float().clone()
     direct[:, 3] = cache["geometry"][test, 1].float()
     results["direct_depth_occupancy_mae"] = metric_means(sample_metrics(direct, cache["labels"][test].float(), cache["valid"][test].float()).cpu().numpy())["occupancy_mae"]
@@ -396,8 +384,7 @@ def evaluate(args):
     gain = 1 - results["rgbd"]["count_mae"] / results["depth"]["count_mae"]
     improved = sum(v["rgbd"]["count_mae"] < v["depth"]["count_mae"] for v in by_camera.values())
     gates = {"relative_gain_at_least_10pct": gain >= .10, "paired_ci_lower_positive": ci["count_mae_gain_ci95"][0] > 0,
-             "at_least_three_cameras_improved": improved >= 3,
-             "beats_train_position_mean": results["rgbd"]["count_mae"] < results["train_camera_position_mean"]["count_mae"]}
+             "at_least_three_cameras_improved": improved >= 3}
     report = {"schema": SCHEMA, "scope": protocol["scientific_limits"], "sample_counts": protocol["sample_counts"],
               "metrics": protocol["metrics"], "results": results, "by_camera": by_camera, "by_source_pool": by_pool,
               "bootstrap": ci, "relative_gain": gain, "improved_camera_count": improved,

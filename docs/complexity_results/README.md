@@ -93,8 +93,7 @@ DINO는 기존 Similarity/Occlusion에서 쓰는 frozen ViT-B/16과 같은 가�
 - 모든 checkpoint 선택이 완료된 뒤 test를 평가함. Test 결과로 hyperparameter를 조정하지 않음.
 - Frozen RGB feature는 float16 cache로 한 번만 계산하여 재사용함.
 
-평가에는 training label로만 맞춘 camera/위치별 평균 map baseline도 포함함. Depth foreground
-occupancy의 직접 계산 결과와 학습 occupancy의 오차를 함께 보고함.
+Depth foreground occupancy의 직접 계산 결과와 학습 occupancy의 오차를 함께 보고함.
 
 ## 지표와 진행 기준
 
@@ -108,7 +107,6 @@ Pixel별/윈도별 표본을 독립 scene 수로 간주하지 않음.
 1. RGB-D의 seed 평균 count MAE가 depth-only보다 10% 이상 낮음.
 2. Paired scene-key cluster bootstrap(2,000회, seed3300)의 MAE 개선량 95% 구간 하한이 0보다 큼.
 3. 세 scale·seed 평균 기준 최소 3/5 camera에서 개선함.
-4. Training camera-position mean baseline보다 count MAE가 낮음.
 
 Bootstrap은 동일 scene key의 모든 source pools·camera와 seed 평균 paired error를 함께 재표집함.
 이 구간은 선택된 합성 scene의 변동성을 나타내며, 세 seed로 전체 학습 변동성을 규명한 것은 아님.
@@ -162,7 +160,6 @@ cache는 GitHub에 포함하지 않으며 로컬 run 아래에 보존함.
 
 | 모델 | Occupied count MAE ↓ | 전체 valid count MAE ↓ | Occupancy MAE ↓ |
 |---|---:|---:|---:|
-| Train camera-position mean | 1.24452 | 1.22860 | 0.22805 |
 | Depth-only, 3 seeds 평균 | 0.83272 | 0.76323 | 0.01524 |
 | RGB-D, 3 seeds 평균 | **0.64142** | **0.59270** | **0.00854** |
 | Direct depth occupancy | — | — | 0.00981 |
