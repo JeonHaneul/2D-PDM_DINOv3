@@ -15,7 +15,7 @@
 |---|---|
 | [Similarity Stream](similarity_stream.md) | DINOv3·SigLIP, semantic adapter, MatchingBlock, GT·학습·zero-shot 결과 |
 | [Occlusion Stream](occlusion_stream.md) | RGB-D·target geometry·FiLM, adaptive GT, full16·외부 target 평가 |
-| [Complexity Stream](complexity_stream.md) | 복잡도 가정, density pilot, 물체 표현 진단과 다음 검증 |
+| [Complexity Stream](complexity_stream.md) | DINOv3·RGB CNN·MultiMAE, 지역 가시 물체 수 GT·학습·독립 검증 |
 | [Development Log](development_log.md) | Phase 1–42의 주요 가정·실험·사진·결과·판단 |
 | [연구 문맥·근거 색인](agent.md) | 다른 agent와 외부 독자를 위한 문맥·상세 보고서·작업 지침 |
 
@@ -29,7 +29,7 @@
 |---|---|---|
 | Similarity | Target과 외형·의미가 관련된 가시 영역 찾기 | DINOv3 + SigLIP 구현, unseen-target zero-shot 동작 정성 확인; 여러 target의 정량 평가 남음 |
 | Occlusion | 해당 target이 가려질 수 있는 위치 추론 | Adaptive GT 생성·full16 가림확률 예측·외부 target의 zero-shot 정량 평가 완료; 여러 target·실제 관측 조건으로 평가 확장 |
-| Complexity | 단일 RGB-D에서 지역별 가시 물체 수를 예측하여 혼잡 위치 표현 | Phase 42에서 과대추정·depth 오류 조건 개선; 정상 16개 장면의 선택 성능 유지 미충족으로 최종 채택·fusion 보류 |
+| Complexity | 단일 RGB-D에서 지역별 가시 물체 수를 예측하여 혼잡 위치 표현 | Phase 42 보완 학습 후 새 clean16 160장 검증 통과; 현재 count stream을 통합 실험의 기준 모델로 정리 |
 
 ### 전체 아키텍처
 
@@ -37,23 +37,23 @@
 
 그림은 **현재 구현된 stream 내부 구조와 계획 중인 통합 경로**를 함께 나타냄. 파란색은 frozen encoder, 주황색은 학습 모듈, 초록색은 고정 연산이며, 보라색 점선은 후속 구현 단계임. Tensor는 `channel × 세로 × 가로`로 표시하고 batch `B`는 생략함.
 
-**① Scene 입력과 공통 backbone.** 현재 서랍의 RGB `3×480×640`을 DINOv3로 처리하면 각 위치가 768개 숫자로 표현된 `768×30×40` feature가 나옴. Similarity·Occlusion은 layer `2,5,8,11`의 feature를 사용하고, Complexity pilot은 마지막 layer `11`을 사용함. 그림 상단은 이 공통 backbone 규격을 모아 표시한 것이며, 현재 실행은 stream별로 이루어짐.
+**① Scene 입력과 공통 backbone.** 현재 서랍의 RGB `3×480×640`을 DINOv3로 처리하면 각 위치가 768개 숫자로 표현된 `768×30×40` feature가 나옴. Similarity·Occlusion은 layer `2,5,8,11`의 feature를 사용하고, Complexity는 마지막 layer `11`을 사용함. 그림 상단은 공통 backbone 규격이며 현재 실행은 stream별로 이루어짐. 동일 관측·가중치·전처리·정밀도를 맞춘 통합 구현에서 scene DINO 특징을 공유할 수 있음.
 
 **② Similarity — 무엇을 찾을 것인가.** Target reference RGB와 mask에서 물체 영역을 잘라 DINO appearance `768-D`를 만들고, SigLIP은 reference 이미지와 이름·category를 `1152-D` 의미 조건으로 표현함. 학습 adapter가 이를 `768-D`로 변환하여 appearance에 더한 값이 검색 query임. 이 변환은 similarity-map GT를 통해 학습되며, DINO 자체의 weight는 고정됨. 각 scene 위치에서 **scene 768 + query 768 + cosine 1 = 1537채널**을 MatchingBlock이 64채널로 해석하고, 네 layer의 출력을 통합하여 `F_S`를 만듦.
 
 **③ Occlusion — 그 target이 어디에 가려질 수 있는가.** Scene RGB feature와 함께 depth encoder가 만든 **현재 서랍의 depth feature**를 사용함. Target RGB는 물체의 appearance를 제공하고, reference mask는 크기·윤곽을 나타내는 `68-D` geometry를 제공함. 공유 MLP가 geometry에서 FiLM 계수를 계산하여 scene depth의 256채널 값을 조절함. 이렇게 조절한 depth 256채널과 scene 768·target 768·cosine 1을 합친 **1793채널**을 MatchingBlock에 전달하고, 네 layer를 통합하여 `F_O`를 만듦. Target이 달라지면 같은 모델에서 조절값이 달라지는 구조임.
 
-**④ Complexity — 도식에 보존한 Phase 33 density pilot.** Target 조건 없이 scene의 DINO feature와 depth 단서를 결합함. DINO `768→64`, depth cue `9→64`를 각각 변환한 뒤 합쳐 학습 feature 55개를 만들고, 원본 depth cue 9개를 다시 붙여 `F_C`의 64채널을 구성함. Depth cue 계산에는 고정 camera의 workspace와 empty-depth reference를 사용함. 현재 head는 국소 label-group count 3개와 occupancy 1개를 예측하도록 학습했으며, **더미 내부의 구조적 Complexity를 표현할 최종 모델·GT는 검증 중**임.
+**④ Complexity — 지역 가시 물체 수.** 같은 관측의 RGB를 frozen DINOv3와 원본 RGB 세부 CNN에, depth를 frozen MultiMAE에 넣음. DINO와 MultiMAE의 위치별 768채널을 각각 32채널로 변환하고 RGB CNN의 32채널과 이어 붙여 **96채널**을 만듦. 세 단계 CNN이 이를 학습 표현 `F_C:64×30×40`으로 바꾸고, `1×1 Conv 64→3 + softplus`가 48·96·160px 창의 가시 물체 수를 동시에 출력함. Workspace·빈 서랍 reference·scene segmentation을 추론 입력으로 사용하지 않음.
 
-**⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 stream은 같은 `30×40` 위치마다 서로 다른 64개 숫자를 제공함. 이를 같은 위치끼리 이어 붙이면 **`64+64+64=192채널`**이며 공간 격자는 유지됨. 그림에서 오른쪽으로 갈라지는 prediction head는 각 stream의 GT를 예측하는 경로이고, 아래 fusion은 그 head 이전의 feature를 받도록 계획함. 이후 learned fusion·decoder로 최종 target 위치 map을 만들고 탐색 정책에 연결할 예정임. 현재 density `F_C`의 최종 채택은 Complexity 정의·관계 표현 검증 후 판단함.
+**⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 stream은 같은 `30×40` 위치마다 서로 다른 64개 숫자를 제공함. 이를 같은 위치끼리 이어 붙이면 **`64+64+64=192채널`**이며 공간 격자는 유지됨. 그림에서 오른쪽으로 갈라지는 prediction head는 각 stream의 GT를 예측하는 경로이고, 아래 fusion은 그 head 이전의 feature를 받도록 계획함. 현재 count stream을 통합 실험의 기준으로 두고 learned fusion·decoder·탐색 정책에서 추가 효용을 확인할 예정임. 같은 관측의 세 출력을 결합해야 하며 고정된 추론 경로가 세 stream의 처리시간까지 같다는 뜻은 아님.
 
-Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측을 평가함. GT 관계 회귀는 사용자 요청에 따라 공개에서 철회함. RGB-D 접경 모델도 채택 기준을 통과하지 못하여 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임. 위 도식은 Phase 33의 구현을 보존한 것이며, 최신 Phase 42에서는 RGB + MultiMAE depth count 모델의 적은 물체 수 과대추정·합성 depth 오류 조건을 보완함. 다만 정상 16개 장면의 혼잡 영역 선택 손실이 기존보다 7.97% 늘어 사전 유지 기준을 넘었으므로, 최종 stream 채택·fusion은 계속 보류함.
+Similarity·Occlusion·Complexity는 각각의 GT를 예측하는 stream 단위 구현임. **Three-stream fusion, 최종 위치 확률의 GT·loss·decoder와 DRL은 아직 구현·평가하지 않음.** Complexity는 Phase 42에서 물체 감소·합성 depth 오류를 보완한 뒤, 고정 모델의 새 clean16 32배치·5뷰·160장 확인에서 이전 결합 대비 MAE +1.13%·선택 손실 +0.93%로 사전 5% 유지 기준을 통과함. RGB 대비 두 지표 개선도 3/3 seeds에서 확인함. 이전 Phase 42 test의 선택 손실 +7.97% 실패는 보존하며 새 결과로 대체하지 않음. 이번 판정은 다섯 view 평균과 seed 기준이고 모든 camera에서 5% 이내라는 뜻은 아님. 세부 한계와 수치는 [Complexity Stream](complexity_stream.md)에 정리함.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
 ### 입력과 감독 정보
 
-**Complexity 후속 구현의 외부 입력은 단일 RGB와 depth임.** 필요한 물체·관계 표현은 관측에서 모델 내부가 생성하며, GT 물체 ID·개수·관계 숫자를 별도로 제공하지 않음. GT는 학습 감독과 출력 평가에만 사용함. 아래 fixed reference는 보존한 density pilot의 기존 입력이며 후속 모델의 필수 입력으로 승계하지 않음.
+**현재 Complexity의 외부 입력은 단일 RGB와 depth임.** 관측에서 지역 count와 중간 특징을 계산하며 GT 물체 ID·개수를 별도로 제공하지 않음. GT는 학습 감독과 출력 평가에만 사용함. 완전히 가려진 물체 수나 제거 난이도의 정답으로 해석하지 않음.
 
 **Scene은 현재 서랍의 관측 영상**, **target reference는 찾을 물체를 별도로 촬영한 영상**임. Reference mask는 그 별도 영상에서 target이 차지하는 영역이며, scene 속 가려진 target의 위치를 알려 주는 mask가 아님.
 
@@ -64,10 +64,10 @@ Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평
 | Target RGB | 찾을 물체의 reference 영상 | Similarity·Occlusion의 target 조건 |
 | Target mask | Reference 영상의 물체 윤곽 | Similarity crop/pooling, Occlusion geometry 계산 |
 | Target text | Instance name·category 등의 설명 | Similarity의 SigLIP 의미 조건 |
-| Empty depth / workspace | 빈 서랍 depth와 고정 camera의 관심 영역 | Complexity의 고정 reference; Occlusion의 GT·학습 영역·표시 후처리에 사용 |
-| Scene segmentation / target mesh | Pixel label / 시뮬레이션 형상 | GT 생성과 일부 teacher 진단에 사용; 학습 모델의 scene 입력과 구분 |
+| Empty depth / workspace | 빈 서랍 depth와 고정 camera의 관심 영역 | Occlusion의 GT·학습 영역·표시 후처리에 사용. 현재 Complexity에는 불필요 |
+| Scene segmentation / target mesh | Pixel label / 시뮬레이션 형상 | Stream별 GT 생성에 사용. Complexity count는 원본 물리 instance ID에서 계산하며 추론 입력과 구분 |
 | GT map | 정의한 규칙에 따른 감독값 | Loss 계산·평가 |
-| Prediction map | 관측 입력에서 계산한 예측값 | Stream별 평가 및 후속 fusion 입력 후보 |
+| Prediction map | 관측 입력에서 계산한 예측값 | Stream별 GT 평가. 계획한 fusion에는 head 이전의 `F_S/F_O/F_C`를 전달 |
 
 **GT(Ground Truth)는 이 연구에서 정의한 학습 목표**임. Simulation 정보로 GT를 생성하더라도 추론에는 각 stream이 요구하는 관측 입력만 사용함. GT 예측 오차와 GT 정의 자체의 타당성은 별도로 검증함.
 
@@ -112,7 +112,7 @@ B × 3 × 480 × 640    →      B × 768 × 30 × 40
 | `C` | Channel 수 | DINO feature 768, stream feature 64 |
 | `H,W` | 입력 영상의 세로·가로 | `480×640` |
 | `H_p,W_p` | Feature grid의 세로·가로 | `30×40` |
-| `ℓ` 또는 `l` | Backbone block index, 0부터 시작 | Similarity·Occlusion은 `2,5,8,11`, Complexity pilot은 `11` |
+| `ℓ` 또는 `l` | Backbone block index, 0부터 시작 | Similarity·Occlusion은 `2,5,8,11`, Complexity는 `11` |
 | `(u,v)` | 영상 또는 feature grid의 공간 위치 | 각 수식에서 좌표계 명시 |
 | `D` in `768-D` | Dimension, vector 길이 | Depth와 구분 |
 | `B` in `ViT-B` | Base 모델 크기 | Batch size와 구분 |
@@ -123,7 +123,7 @@ B × 3 × 480 × 640    →      B × 768 × 30 × 40
 
 | 연산·모듈 | 계산 | 프로젝트에서의 역할 |
 |---|---|---|
-| Encoder / backbone | 입력을 feature로 변환 | DINOv3의 위치별 외형·문맥, SigLIP의 image/text 의미 표현 |
+| Encoder / backbone | 입력을 feature로 변환 | DINOv3의 외형·문맥, SigLIP의 image/text 의미, MultiMAE의 관측 depth 표현 |
 | Head | Feature를 감독 목표의 출력으로 변환 | Stream feature에서 score map 생성 |
 | Projection / Linear | `y=Wx+b` | SigLIP `1152→768`, geometry→FiLM 조건 등 학습 가능한 변환 |
 | Pooling | 위치별 평균·가중 평균 | Target patch들을 대표 vector로 요약 |
@@ -135,6 +135,7 @@ B × 3 × 480 × 640    →      B × 768 × 30 × 40
 | ReLU / GELU | 비선형 activation | 단순 선형 변환으로 표현하기 어려운 관계 학습 |
 | GroupNorm | Sample별 channel group의 channel·공간 통계로 정규화 | 중간 feature의 수치 scale 조절 |
 | Logit / sigmoid | `z → σ(z)=1/(1+exp(−z))` | 제한 없는 출력을 `0–1` 범위로 변환 |
+| Softplus | `log(1+exp(z))` | Complexity count를 음수가 아닌 연속값으로 출력. 0–1 확률로 제한하지 않음 |
 | Loss / gradient | GT와의 오차 / parameter별 미분 | Trainable module의 weight 갱신 |
 
 **Projection.** Similarity의 `Linear(1152,768)`은 `W: 768×1152`, `b: 768`을 학습함. 출력의 각 성분은 1152개 입력 전체의 가중합으로 계산됨. 차원을 맞추는 동시에 similarity-map loss에 맞게 semantic 표현을 변환하는 역할임.
@@ -169,10 +170,10 @@ Similarity는 appearance와 projected semantics를 **더해 query를 생성**하
 | `P_S` | `B×1×30×40` | Target과 scene의 정의된 관계 점수 |
 | `F_O` | `B×64×30×40` | Occlusion GT 예측을 위해 학습한 중간 표현 |
 | `P_O` | `B×1×30×40` | 해당 pixel을 덮는 후보 pose 중 가림 조건을 만족한 비율 GT의 예측 |
-| 현재 `F_C` | `B×64×30×40` | Density pilot의 학습 feature 55개 + 직접 depth cue 9개 |
-| Complexity auxiliary maps | `B×4×30×40` | Count score 3개 + occupancy 1개 |
+| `F_C` | `B×64×30×40` | DINO·RGB 세부·MultiMAE 특징에서 지역 count GT로 학습한 중간 표현 |
+| Complexity count maps | `B×3×30×40` | 48·96·160px 창의 가시 물체 수. Softplus 출력이며 count/16 정규화 없음 |
 
-**출력 범위가 같아도 의미는 다름.** Similarity의 `0.8`은 관계 점수, Occlusion GT의 `0.8`은 후보 pose의 가림 비율, occupancy의 `0.8`은 알려진 영역 중 물체 pixel의 면적 비율임. Sigmoid는 위치마다 독립적으로 적용되므로 map 전체의 합을 1로 만들지 않음.
+**Stream마다 출력의 의미와 범위가 다름.** Similarity의 `0.8`은 관계 점수, Occlusion GT의 `0.8`은 후보 pose의 가림 조건 통과 비율임. Complexity의 `2.7`은 지역 가시 물체 수의 연속 추정치이며 0–1로 제한하지 않음. 어느 출력도 그대로 최종 target 존재 확률을 뜻하지 않으며 map 전체의 합도 1이 아님.
 
 ```text
 Concat(F_S, F_O, F_C): B × 192 × 30 × 40
@@ -212,16 +213,15 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion GT | Target/yaw별 adaptive pose grid로 full16 240,000 maps 생성; fixed grid의 target별 coverage 누락 보완 | 새 target·관측 조건에서 geometry와 coverage 확인 |
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
-| Complexity Phase 33 pilot | RGB-D visible label-group count 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 당시 정의·수치를 보존하며 새 instance count 성능과 구분함 |
-| Complexity 최신 연구 | Phase 42에서 물체 감소 과대추정 보완, 새 RGB 대비 정상·잡음·누락 9조건 개선 | Test의 정상 16개 선택 손실 +7.97%로 유지 기준 미충족; 후속 validation +2.28%는 독립 test가 아니며 추가 학습·fusion 보류 |
-| Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | 관계 복원을 지역 count 학습의 필수 선행 단계로 두지 않음. GT 관계 회귀의 성과·수치·그림은 공개 철회 상태 유지 |
-| Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 같은 물체 내부 단차·물체–배경·평평한 물체 간 접경의 실패를 보존 |
-| Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | Complexity 방법 검증·선택 이후 최종 GT·loss·decoder 구현, 통합 학습·ablation |
+| Complexity count model | DINOv3 + RGB CNN + MultiMAE; Phase 42에서 감소 상태·depth 오류 보완. 고정 모델의 새 clean16 유지·RGB 대비 개선 기준을 각 3/3 seeds로 통과하여 통합 실험의 기준 모델로 정리 | 원래 test의 +7.97% 실패와 새 평가의 camera별 한계를 보존. 새로운 물체·camera·실제 sensor 및 탐색 효용은 별도 검증 |
+| Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | 같은 RGB-D 관측의 실행·DINO 공유·전체 지연 확인, 최종 GT·loss·decoder 구현과 S+O 대비 S+O+C 평가 |
 | Exploration / deployment | Stream별 관측 입력·출력과 탐색 prior 연결 방향 정리 | DRL 통합 구현 후 탐색 효용·실제 RGB-D 적용 평가 |
+
+이전 Complexity의 density·물체 대응·접경 모델과 미실행 가설은 [Development Log](development_log.md)와 [변경 전 문서](https://github.com/JeonHaneul/2D-PDM_DINOv3/blob/a705c458a058ace1b37276d25bf510e2435b4f98/complexity_stream.md)에 보존함. Phase 38 미채택과 GT 관계 회귀 공개 철회는 유지함.
 
 ### Core Files
 
-아래는 현재 연구의 구현 파일과 역할임. 최신 실험의 재현 기준은 로컬 개발 코드와 해당 run의 설정·결과이며, 공개 clone에는 검증하여 게시한 코드가 포함됨. 일부 Occlusion 실행 파일은 이전 버전이거나 로컬에만 있으므로 사용할 run과 코드 버전을 함께 확인함. 상세 경로는 `agent.md`에 정리함.
+아래는 현재 연구의 구현 파일과 역할임. 최신 실험의 재현 기준은 로컬 개발 코드와 해당 run의 설정·결과임. **현재 지역 count 모델·학습·평가 코드는 로컬 개발 폴더에 있으며 이 공개 clone에 배포하지 않음.** 일부 Occlusion 실행 파일도 이전 버전이거나 로컬에만 있으므로 사용할 run과 코드 버전을 함께 확인함. 상세 경로는 `agent.md`에 정리함.
 
 | 기능 | 구현 파일 | 역할 |
 |---|---|---|
@@ -233,24 +233,26 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion GT | `generate_occlusion_map.py`, `generate_occlusion_gt_batched_v2.py` | Adaptive pose 표집, depth 비교, probability/coverage 누적 |
 | Occlusion 기하 | `mesh_utils.py`, `mesh_cache.py`, `depth_rasterizer_gpu.py` | Mesh 좌표 변환·단순화와 GPU depth 렌더링 |
 | Occlusion 학습·평가 | `occlusion_dataset.py`, `train_occlusion.py`, `evaluate_occlusion_checkpoint.py` | Coverage를 반영한 학습과 저장 split·external target 평가 |
-| Complexity GT·depth | `complexity_cues.py` | Window count, occupancy와 empty-reference 보정 geometry |
-| Complexity 모델 | `complexity_model.py` | RGB-D feature 55개와 직접 geometry 9개의 결합 |
-| Complexity 실행 | `run_complexity_pilot.py`, `inference_complexity.py` | Frozen feature cache, 비교 학습, segmentation 없는 pilot 추론 |
+| Complexity GT | `experiments/complexity_local_count_20260929/ground_truth.py` | **로컬 전용.** 원본 물체 ID에서 48/96/160px 창의 count·유효 GT 생성 |
+| Complexity count head | `experiments/complexity_depth_pretrain_20261001/model.py` | **로컬 전용.** DINO32·RGB32·depth32 결합, 학습 F_C64와 count3 출력 |
+| Complexity depth 표현 | `experiments/complexity_depth_pretrain_20261001/multimae_depth.py` | **로컬 전용.** 관측 depth 정규화와 frozen MultiMAE 추출 |
+| Complexity 학습·추론 | `experiments/complexity_robust_count_20261006/{cache,train,predict}.py` | **로컬 전용.** 고정 특징 cache, Phase 42 학습, GT 없는 단일 RGB-D 추론 |
+| Complexity 독립 확인 | `experiments/complexity_clean16_confirmation_20261006/` | **로컬 전용.** 고정 checkpoint의 새 clean16 평가·보고 |
+
+공개 저장소의 `complexity_cues.py`, `complexity_model.py`, `run_complexity_pilot.py`, `inference_complexity.py`는 보존한 이전 density pilot임. 현재 count stream의 실행 파일로 사용하지 않음. 일부 DINO loading helper의 재사용과 과거 model class는 구분함.
 
 ---
 
 ## Roadmap
 
-Similarity의 unseen-target 정성 동작, Occlusion의 GT 생성·full16·외부 target 정량 평가, Complexity의 density·표현·RGB-D 접경 진단까지 완료함. 실제 RGB-D 입력의 평가 결과를 기준으로 다음 범위를 확인함. 완료된 세부 실험은 [Development Log](development_log.md)에 정리함.
+Similarity의 unseen-target 정성 동작, Occlusion의 full16·외부 target 정량 평가와 Complexity의 지역 count 학습·후속 독립 확인을 완료함. 현재 count stream을 통합 실험의 기준으로 두며, 최종 위치 GT와 탐색 효용은 통합 단계에서 확인함. 완료된 세부 실험과 이전 실패는 [Development Log](development_log.md)에 보존함.
 
 - [ ] Similarity 기준 checkpoint와 재현 설정을 확정하고 정량 unseen target 평가 수행
 - [ ] Occlusion을 여러 외부 target과 실제 reference mask 추정 조건에서 평가
-- [ ] 고정 camera reference에 대한 의존성과 camera/환경 변화의 영향을 검증
-- [x] 실제 더미에서 경계 주변·분리 조각 대응과 GT 기반 가시 관계를 공동 진단 (Phase 37)
-- [x] 원본 해상도 RGB/Depth/RGB-D 접경 예측을 평가 (Phase 38)
-- [ ] 단일 RGB-D에서 물체·관계 표현을 생성하는 추론 경로를 구현하고, GT 입력 없이 얻은 예측의 coverage·관계 보존·효용을 평가
-- [ ] 부족한 능력이 확인된 조건에서 물체 묶음·공간 사전학습 표현을 공정하게 비교
-- [ ] Complexity의 출력 의미와 GT 타당성을 확정
+- [x] 원본 물체 ID 기반 지역 count GT와 단일 RGB-D 추론을 구현하고 감소 상태·depth 오류를 검증
+- [x] 고정한 Phase 42 count 모델을 새로운 clean16 장면에서 확인하고 통합 실험의 기준으로 정리
+- [ ] 같은 관측의 세 stream 실행, DINO 특징 공유와 전체 처리시간을 확인
+- [ ] Camera·환경·새 물체·실제 depth 조건에서 적용 범위를 확인
 - [ ] Fusion의 GT·loss·decoder를 정의하고 S+O 대비 S+O+C를 비교
 - [ ] DRL 탐색 효용과 실제 RGB-D 환경을 검증
 
