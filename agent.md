@@ -8,7 +8,7 @@
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
-이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–42 Development Log, Complexity의 가정·실험·후속 계획 보고서 12개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
+이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–42 Development Log, Complexity의 가정·실험·후속 계획 보고서 13개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
@@ -30,13 +30,18 @@
 | Complexity Phase 40 depth 표현 | 새 배치 64개·320영상에서 RGB + MultiMAE depth MAE 0.480365·regret 0.126615; RGB 대비 9.61%·20.46% 감소 | 당시 clean 관측의 개선; 약 1.96배 연산 비용, 이후 Phase41 관측 변화 검증과 구분함 |
 | Complexity Phase 41 추가 검증 | 고정 6개 checkpoint로 물체 감소·외부 물체·depth 오류 평가; 5조건 개선 유지, 5mm 잡음에서 MAE 악화·선택 이점 거의 소실 | 당시 fusion 보류; 이후 Phase 42에서 학습 분포 보완과 새 held-out 평가 완료 |
 | Complexity Phase 42 보완 학습 | 새 128개 배치·1,920장으로 학습/검증/시험 분리; 12/8개 과대추정 감소, 새 RGB 대비 9조건 모두 개선 | 정상 16개 선택 손실 +7.97%로 사전 5% 유지 기준 미충족; 최종 채택·fusion 보류 |
+| Phase 42 후속 validation 진단 | 기존 validation 480영상·1,440관측 조건의 고정 9개 head; 정상 16개 선택 손실 +2.28%, 5% 초과 1/3 seed | 추가 학습 진입 기준 미충족으로 2:1:1 학습·새 수집 미실행; 독립 test가 아니며 기존 test 실패 유지 |
 | B/C 및 최종 결합 | 비교 계획과 일부 준비 코드, stream별 feature 규격 정리 | 필요한 능력을 특정한 뒤 B/C 실행·비교; 최종 Complexity GT·fusion·DRL은 후속 구현 단계 |
 
 최신 완료 연구는 **Phase 42 물체 감소·depth 오류 보완 학습**임. 기존 GT 정의와 frozen DINOv3·MultiMAE, head 구조를 유지하고, 실제 16→12→8개 장면을 새로 수집함. 배치 과정 전체와 5 views를 묶어 train 960장·validation 480장·test 480장으로 나눔. RGB/결합 모델을 같은 자료·학습 횟수로 각각 3 seeds 학습하고, 새 test의 정상·5mm 잡음·5% 누락 총 1,440개 관측 조건에서 새 6개와 기존 결합 3개 checkpoint를 비교함. 추론 입력은 단일 RGB-D이며 GT는 학습 감독과 저장 예측의 평가에만 사용함.
 
 8개 상태의 결합 count MAE는 기존 **1.197569→0.305348**, 평균 과대추정은 **+1.185593→+0.018356**으로 감소함. 12개 상태도 사전 보완 기준을 통과함. 새 결합은 새 RGB보다 9조건 모두 두 주요 지표에서 3/3 seeds 개선됨. 그러나 정상 16개 장면의 선택 손실은 기존 **0.115045→0.124218(+7.97%)**로 커져 사전 5% 유지 기준을 넘음. 이 조건의 MAE 증가는 3.99%이며, 두 지표를 함께 보존한 seed는 0/3임. **전체 기준 미충족으로 최종 Complexity 채택·fusion은 계속 보류함.** 독립 학습 출처 감사 22,594개와 결과 수치 감사 58,450개 검사를 통과했고 이 판정도 일치함.
 
-다음은 train/validation에서 정상 16개 장면의 선택 성능도 유지하도록 최소 보완을 검토하고 새로운 held-out에서 확인하는 단계이며 **추가 보완 학습·새 평가·fusion은 아직 미실행**임. 이번 test를 보며 반복 조정하거나 판정 문턱을 사후 완화하지 않음. 기존 모델 대비 변경은 물체 수·잡음의 학습 분포와 학습량을 함께 보완한 것이므로 원인을 하나로 단정하지 않음. 원래 16개 asset·category별 균등 제거·고정 5뷰·합성 depth 오류의 제한된 결과이며 실제 센서·새로운 물체·탐색 효용의 증거가 아님. packaged_food_5는 Phase 42 전체에서 제외했고 SAM·반복 crop·추론 반복도 사용하지 않음.
+이후 **Phase 42 후속 validation 진단**에서 같은 모델들의 기존 validation 480영상·1,440개 관측 조건을 계산함. 정상 16개 선택 손실은 기존 **0.114020→현재 0.116618(+2.28%)**이며 작은 악화는 남음. 그러나 평균과 2/3 이상 seeds에서 각각 5%를 초과할 때만 2:1:1 보완 학습을 진행한다는 사전 조건에서, 5% 초과는 1/3 seed여서 추가 학습에 착수하지 않음. 독립 감사 11,402개 검사에서 clean16의 2,880개 image-scale과 이 판정을 확인함. 새 backbone 추론·재학습·새 물리 수집은 수행하지 않음.
+
+이 validation은 Phase 42 checkpoint 선택에 이미 사용한 자료이므로 독립 시험이 아님. **기존 test의 +7.97% 및 미통과 판정은 유지하며, 학습 비중 감소가 원인이라는 가설을 반박한 것으로도 쓰지 않음.** 현재 모델을 고정한 새로운 정상 16개 장면에서 저하 규모를 제한적으로 확인하는 방안이 남아 있으며 그 확인·추가 학습·fusion은 미실행임. 최종 Complexity 모델·GT는 미채택임.
+
+Phase 42에서 기존 모델 대비 변경한 것은 물체 수·잡음의 학습 분포와 학습량을 함께 보완한 것이므로 원인을 하나로 단정하지 않음. 원래 16개 asset·category별 균등 제거·고정 5뷰·합성 depth 오류의 제한된 결과이며 실제 센서·새로운 물체·탐색 효용의 증거가 아님. packaged_food_5는 Phase 42와 후속 validation 전체에서 제외했고 SAM·반복 crop·추론 반복도 사용하지 않음.
 
 GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 유지함. Phase38 경계 결과와 이전 가정·실패 기록은 보존함. 의미 있는 비교 결과는 Development Log에, 중요한 가정·방향은 Complexity 본문에 선별적으로 반영함. Complexity 방법 채택 뒤 fusion을 진행하며, 최종 확정 전 현재 연구 이력을 임의 삭제하지 않음.
 
@@ -56,6 +61,7 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 | C10. Phase 40 depth 특징 비교 | Frozen MultiMAE·새 test 320영상·장면별 GT count 오차와 선택 개선·연산 비용·남은 실패 |
 | C11. Phase 41 통합 전 검증 | 고정 checkpoint·16→12→8·외부 물체·depth 오류·잡음 조건 실패·통합 보류 |
 | C12. Phase 42 보완 학습 | 새 자료·6개 head 학습·과대추정 감소·9조건 개선·정상 16개 보존 실패·독립 감사 |
+| C13. Phase 42 후속 validation 진단 | 기존 validation 고정 모델 비교·추가 학습 진입 기준 미충족·기존 test 실패 유지 |
 | D. 근거와 이미지 색인 | Current/legacy 구분, JSON·log·checkpoint·그림 위치, 기록 공백 |
 | E. 인수인계·작업 규칙 | Source of truth, split·문서화·사용자 방향·게시 범위 |
 
@@ -126,6 +132,8 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 
 2026-10-06 Phase42에서 물체 감소·depth 오류를 포함한 보완 학습과 새 held-out 검증을 완료함. 적은 물체 수의 과대추정과 잡음 조건을 개선했지만 정상 16개 선택 성능 유지 기준을 넘지 못해 fusion 보류를 유지함. 실제 RGB·GT·기존/새 예측과 최대 오류 PNG2장을 함께 기록함. 게시 근거는 `docs/public_agent_context_robust_count_20261006.json`(LOCAL)임.
 
+같은 날 Phase 42 후속 validation 진단을 완료함. 정상 16개 선택 손실의 작은 악화는 남았지만 사전에 정한 5% 초과 재현 조건을 충족하지 않아 2:1:1 재학습·새 수집을 실행하지 않음. 기존 test 실패를 뒤집지 않으며, validation 실제 RGB·GT·기존/현재 결합의 고정 비교 PNG 1장을 추가함. 게시 근거는 `docs/public_agent_context_count_balance_validation_20261006.json`(LOCAL)임.
+
 앞의 현재 상태는 뒤의 과거 가정과 미실행 제안을 해석하는 기준이다. 과거 보고서의 문헌·모델 호환성 조사 내용은 각 작성 당시 확인 범위다. 2026-09-18 다중 뷰 관련 두 논문은 이번 논의에서 확인한 근거이며, 해당 방법을 우리 데이터에서 실행·검증한 결과와 구분한다.
 
 ---
@@ -137,7 +145,7 @@ GT 관계 회귀의 성과·수치·그림은 공개에서 철회한 상태를 �
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-10-06 (Asia/Seoul); Phase 42 보완 학습·새 평가·독립 감사 완료; 물체 감소·잡음 보완 확인, clean16 성능 유지 기준 미충족으로 fusion 보류; 실제 게시는 최신 publication manifest 확인
+> 마지막 문서 갱신: 2026-10-06 (Asia/Seoul); 마지막 학습은 Phase 42; 후속 validation 진단에서 사전 추가 학습 시작 조건 미충족으로 종료; 기존 test 미통과·fusion 보류 유지; 실제 게시는 최신 publication manifest 확인
 > Similarity/Occlusion의 기존 교차검증 기준일: 2026-08-28
 > 대상: `<DEV_ROOT>`
 > 목적: 이전 대화를 보지 못한 agent가 현재 코드와 데이터로 연구를 안전하게 이어가기 위한 문서
@@ -162,7 +170,20 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 
 ### 1. 처음 읽는 agent를 위한 핵심 요약
 
-#### 최신 연구 상태 — 2026-10-06 Phase 42 보완 학습 완료; 16개 정상 입력의 성능 유지 기준 미충족
+#### 최신 재개 상태 — 2026-10-06 Phase 42 후속 validation 진단
+
+마지막 새 학습 모델은 **Phase 42**임. 이번은 기존 validation에서 추가 학습을 시작할 조건이 성립하는지 확인한 후속 진단이며 새 모델·새 Phase 완료로 기록하지 않음. `docs/complexity_results/count_balance_validation_20261006.md`를 끝까지 읽음.
+
+- **범위:** 기존 validation 32 trajectory·480영상·5뷰의 clean/noise/dropout **1,440개 관측 조건**, 기존 9개 head를 고정함. Phase 42의 frozen 특징 cache를 재사용하며 backbone 재실행·새 수집·새 학습은 없음. Train/test 원시 관측이나 test GT를 평가에 사용하지 않음.
+- **Clean16 결과:** 기존 결합→Phase 42 결합의 MAE **0.497415→0.498948(+0.308%)**, 상위20% count regret **0.114020→0.116618(+2.28%)**임. Regret 증가 자체는 **2/3 seeds**, 기존 대비 **5% 초과 증가는 1/3 seeds**임. 약한 평균 악화는 남아 있음.
+- **사전 시작 조건:** 평균 regret과 같은 seed의 비교 2/3 이상에서 기존의 1.05배+1e−6를 넘어야 16:12:8 학습 비율을 2:1:1로 바꾸는 한 번의 학습을 시작하도록 고정함. 평균 +2.28%·5% 초과 1/3이므로 **trigger=false**, 추가 학습 없이 종료함. 기준을 사후 완화하지 않음.
+- **해석:** 이 validation은 Phase 42 checkpoint 선택에 이미 사용됐으므로 독립 시험이 아님. 기존 **Phase 42 test의 clean16 regret +7.97% 및 유지 기준 미충족은 그대로 유효**함. 이번 결과로 문제가 해결됐거나 학습 비율이 원인이 아니라는 결론을 내리지 않음.
+- **감사:** 독립 CPU **11,402개 검사 PASS**. Clean16 160영상×기존/Phase 42 결합 6개 head×3개 scale=**2,880 image-scale**의 MAE·regret·평균 편향과 시작 조건을 재산출함. 전체 1,440개 입력 참조가 등록된 validation 480개/cache에만 연결됨을 확인했으며 원시 test를 읽지 않음. GPU 재추론·OS 접근 감시는 아님.
+- **다음 Step — 미실행:** 2:1:1 재학습·새 수집·fusion은 수행하지 않음. 학습 비율을 자동 변경하지 않으며, 독립 확인을 이어간다면 **기존 checkpoint를 고정한 새 clean16 장면만의 최소 확인**을 검토함. 이 확인도 미실행이고 최종 모델 채택·fusion 보류는 유지함.
+- **근거:** `outputs/complexity_count_balance_20261006/`의 `locked_protocol.json`(SHA256 `e428b7efc8479c9295b6e5094712867ed63f01c5721b46a8a2b86b98da7de896`), `validation_baseline/{cached_spec,validation_manifest,evaluation,summary}.json`, `validation_baseline/predictions/completion.json`, `audit/validation_trigger_audit.json`, `report/validation_comparison.png`, `logs/`를 확인함. 코드·원시 자료는 로컬에 보존함.
+- **게시:** 실제 commit·remote 상태는 `docs/public_agent_context_count_balance_validation_20261006.json`을 확인함. 원래 Phase 42 보고서·결과·게시 이력은 변경하지 않음.
+
+#### 최신 학습 결과 — 2026-10-06 Phase 42 보완 학습 완료; 16개 정상 입력의 성능 유지 기준 미충족
 
 이번 재개는 **Phase 42**와 `docs/complexity_results/robust_count_training_20261006.md`를 우선함. Phase 41에서 확인한 적은 물체 수의 과대추정과 depth 잡음 취약성을 보완하는 학습·새 heldout 평가·독립 감사를 완료함. 두 약점은 이번 조건에서 개선됐으나, 정상 depth·16개 물체에서 기존 결합 모델 대비 상위 혼잡 영역 선택 손실 증가가 사전 허용 5%를 넘음. **최종 Complexity 모델·GT는 미채택이며 fusion은 계속 보류함.** 아래 Phase 41/40의 결과와 당시 미실행 계획은 이력으로 보존함.
 
@@ -173,7 +194,7 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 - **Depth 추가 이점:** 새 결합은 같은 데이터·학습량으로 학습한 새 RGB보다 **9조건 모두** MAE와 상위20% count regret이 작고 seeds **3/3**에서 두 지표가 함께 개선됨. 예를 들어 σ5mm·16개에서 새 RGB의 MAE/regret **0.526440/0.146679** 대비 새 결합은 **0.512211/0.133618**임. 따라서 이번 합성 잡음 조건에서는 추가 depth 경로의 이점이 남음. 실측 센서·외부 asset·모든 노이즈에 대한 일반화 검증은 아님.
 - **남은 조건과 판단:** Clean16의 기존 결합→새 결합 MAE는 **0.474159→0.493096(+3.99%)**, regret은 **0.115045→0.124218(+7.97%)**임. 두 지표 모두 기존 대비 5% 이내여야 한다는 사전 유지 기준은 **0/3 seeds**로 미충족이고 전체 gate는 fail임. 적은 물체 수·잡음의 개선을 부정하지 않되 정상 16개 장면의 선택 성능 저하를 남은 문제로 기록함. 새 RGB보다 낫다는 비교와 기존 결합 성능을 유지했다는 비교를 혼동하지 않음. 5%는 사전 실용 기준이며 통계적 유의성 기준이 아님.
 - **GT·추론·감사:** 원본 physical instance ID에서 48/96/160px 창의 가시 물체 수를 계산하는 정의(16 original pixels 이상, stride16)는 유지함. 단일 RGB-D 추론에 GT·물체 ID·활성 물체 수·평가 mask를 제공하지 않고 예측 저장 뒤 별도 평가함. 새 raw GT **69,120 window** 검산, 독립 CPU 학습출처 **22,594검사 PASS**, 수치 **58,450검사 PASS**임. 수치 감사는 1,440×9×3=**38,880 image-scale** MAE·regret·평균 편향을 재산출하고 모든 gate를 재현함. RGB 변형 간 **2,880개 예측 배열**도 bitwise 동일함. 학습출처 감사는 파일·source·history·checkpoint 확인이며 OS 수준 GT 접근 감시나 학습 재실행이 아님.
-- **다음 Step — 미실행:** Train/validation 안에서 **clean16 선택 성능을 유지하는 보완**을 검토하고, 현재 test로 반복 선택하지 않은 새 heldout에서 확인하는 단계임. 물체 수 분포·변형 입력·학습량이 함께 달라졌으므로 이번 결과만으로 각 보완 요소의 원인을 따로 확정하지 않음. 추가 보완 학습·새 heldout·fusion은 아직 실행하지 않음. 기존 SAM2 자동 영역 비교도 과거 미실행 계획으로 남김.
+- **Phase 42 완료 당시 다음 계획:** Train/validation에서 clean16 선택 성능을 유지하는 보완을 검토했으며 이후 시작 조건 진단만 위와 같이 완료함. 자동 학습 비율 변경은 중단했고 추가 보완 학습·새 heldout·fusion은 미실행임. 현재 다음 Step은 문서 앞 후속 진단을 따름. 기존 SAM2 자동 영역 비교도 과거 미실행 계획으로 남김.
 - **실제 경로:** 코드 `experiments/complexity_robust_count_20261006/`; capture `outputs/complexity_instance_capture_20261006_robust_count/`; 실험 root `outputs/complexity_robust_count_20261006/`의 `locked_protocol.json`, `data/{manifest,trainval_manifest,test_manifest,audit}.json`, `frozen_cache/manifest.json`, `run/{protocol,training_complete}.json`, `test_observations/{manifest,audit}.json`, `inference_spec.json`, `predictions/completion.json`, `evaluation.json`, `report/`, `audit/`, `logs/`를 확인함. CUDA 미노출로 feature 생성 전 중단된 cache 준비는 `frozen_cache_failed_no_cuda/`와 `logs/cache_failed_no_cuda.log`에 별도 보존함.
 - **공개:** 의미 있는 결과와 그림은 Development Log, 중요한 판단은 Complexity에 선별 반영함. 실제 commit·remote 확인은 `docs/public_agent_context_robust_count_20261006.json`을 따르며 문서 생성만으로 게시 완료를 추정하지 않음. 코드·weights·원시 배열은 로컬에 유지하고 Phase 38 미채택·GT 관계 회귀 공개 철회와 Phase 39–41 원본 결과는 보존함.
 
@@ -306,7 +327,7 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 > 먼저 구분한다. Phase 36 A 진단 (C4. 표현 A 완료 보고서)에서
 > 순수 patch의 가시 asset 대응은 DINO+position AUROC 0.998953으로 거의 포화됐다.
 > Phase 37에서는 어려운 순수 patch 대응과 GT 기반 가시 접경 관계를 함께 검사했다.
-> Phase 38에서 원본 접경 학습을 평가했다. GT 관계 회귀는 공개에서 철회했다. 현재 다음 Step은 문서 앞 Phase 42와 최신 완료 보고서를 따른다.
+> Phase 38에서 원본 접경 학습을 평가했다. GT 관계 회귀는 공개에서 철회했다. 현재 다음 Step은 문서 앞 Phase 42 후속 validation 진단과 최신 보고서를 따른다.
 > B/C 후속 계획 (C5. B/C 계획)은 미실행이다.
 > 아래에 남은 가림 방향/제거 횟수 제안은 당시 이력이며 새 GT·모델은 채택하지 않았다.
 
@@ -1939,9 +1960,9 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 5. GPU가 필요한 작업은 실제 terminal에서 CUDA visibility를 확인한다.
 6. 장시간 생성·학습 전 smoke/preflight, output root, overwrite 방지, 예상 시간을 확인한다.
 7. 결과를 볼 때 metric 정의, sample 수, target seen/unseen, scene split, camera correlation을 함께 기록한다.
-8. Complexity는 `robust_count_training_20261006.md`와 Phase 42 평가·독립 감사를 끝까지 확인함.
-   감소 상태의 과대추정과 합성 잡음의 개선은 완료됐지만 clean16 선택 성능 유지가 남았음.
-   Train/validation 안의 후속 보완·새 heldout·fusion은 미실행임. 같은 배치의 제거 단계·다섯 view를 함께 분리하고,
+8. Complexity는 `robust_count_training_20261006.md` 뒤 `count_balance_validation_20261006.md`까지 읽음.
+   Validation의 약한 악화는 남지만 추가 학습 시작 조건은 미충족이어서 자동 비율 변경을 하지 않음.
+   다음 최소 확인은 기존 checkpoint를 고정한 새 clean16 장면 평가를 검토하는 것이며 미실행임. 기존 test 미통과·fusion 보류를 유지함. 같은 배치의 단계·시점을 함께 분리하고,
    packaged_food_5 학습 제외·단일 RGB-D 추론·GT 평가 분리를 유지함. SAM·반복 crop을 자동으로 추가하지 않음.
 9. Occlusion 구조를 다시 복잡하게 만들기 전 adaptive GT baseline이 해결하지 못한 구체적 failure를
    actual scene/GT/prediction panel로 먼저 입증한다.
@@ -2000,6 +2021,13 @@ renderer를 수정해 PNG·SVG를 함께 재생성한다. 다섯 renderer의 정
 - `experiments/complexity_joint_diagnostic/`: 로컬 실행·GT 관계·어려운 pair·audit·unit tests·renderer
 - `docs/public_agent_context_joint_diagnostic_20260918.json`: 공개 통합본·그림 복사·게시 상태 기록 위치
 
+#### Complexity Phase 42 후속 validation 진단
+
+- `docs/complexity_results/count_balance_validation_20261006.md`
+- `outputs/complexity_count_balance_20261006/validation_baseline/{evaluation,summary}.json`
+- 같은 root의 `locked_protocol.json`, `audit/validation_trigger_audit.json`, `report/validation_comparison.png`
+- `docs/public_agent_context_count_balance_validation_20261006.json`: 실제 게시 상태
+
 #### Complexity Phase 42 current evidence
 
 - `docs/complexity_results/robust_count_training_20261006.md`: 최신 완료 보고서와 남은 clean16 조건
@@ -2057,6 +2085,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 | Complexity depth 표현 비교 | 작은 depth CNN 대신 frozen MultiMAE 특징 결합 | 새 test에서 count 오차·상위 영역 선택 개선; 연산시간 증가와 추가 일반화 검증을 고려하여 최종 채택 보류 | Phase 40 |
 | Complexity 통합 전 검증 | 고정된 후보의 물체 감소·외부 물체·depth 변화 비교 | 다섯 조건에서 개선 유지, Gaussian depth noise에서 순위 이점 거의 소실; 관측 변화와 개수 분포 보완 전 fusion 보류 | Phase 41 |
 | Complexity 물체 감소·깊이 오류 보완 | 새 16→12→8개 자료와 깊이 변형으로 같은 구조 재학습 | 과대추정 감소·새 RGB 대비 9조건 개선; 정상 16개 선택 손실 +7.97%로 보존 기준 미충족, fusion 보류 유지 | Phase 42 |
+| Complexity 학습 비중 변경 전 진단 | 기존 validation에서 정상 16개 조건의 저하 규모 확인 | 선택 손실 +2.28%·5% 초과1/3seed로 추가 학습 조건 미충족; 재학습·새 수집 없이 종료, 기존 test 실패 유지 | Phase 42 후속 |
 
 ### 지표와 범위 읽는 법
 
@@ -3874,9 +3903,78 @@ Phase 38 미채택과 GT 관계 회귀 공개 철회, Phase 39–41의 원본 �
 
 ---
 
+### 2026-10-06 — Phase 42 후속 validation 진단 — 16개 정상 입력과 조건부 학습 판단
+
+> 2026-10-06 · 기존 validation 재사용 · 새 모델 학습·새 test·fusion 없음
+
+**기존 validation에서 현재 결합 모델의 clean16 선택 손실은 이전 결합 모델보다 2.28% 높았음.** 성능 저하가 전혀 없다는 결과가 아님. 다만 사전에 정한 **평균 5% 초과·같은 seed끼리 비교해 2/3 이상에서 5% 초과**라는 추가 학습 착수 조건은 충족하지 않음. 따라서 예정한 물체 수 학습 비율 `16:12:8=2:1:1` 비교를 실행하지 않고 이번 진단에서 종료함.
+
+**이 자료는 Phase 42 checkpoint 선택에 이미 사용한 validation임.** 새로운 독립 시험이 아니므로 Phase 42 test의 clean16 선택 손실 **+7.97%**를 뒤집거나, 학습에서 16개 장면의 비중이 줄어든 것이 원인이라는 가설을 반박한 결과로 해석하지 않음. 원래 test의 사전 기준 미충족과 fusion 보류는 유지함.
+
+#### 1. 목적·실행 범위
+
+Phase 42에서 감소 상태의 과대추정과 depth 잡음 대응은 개선됐으나, 깨끗한 깊이·16개 상태의 기존 성능 보존 기준을 통과하지 못함. 이를 보완하려고 바로 학습 설정을 바꾸기 전에 **기존 validation에서도 사전에 정한 수준의 저하가 나타나는지** 확인함. 그 조건을 만족할 때만 구조·총 update·깊이 변형·checkpoint 선택을 유지하고 물체 수별 학습 비율 하나를 변경하도록 먼저 고정함.
+
+기존 validation **32개 trajectory·480영상**의 16/12/8개 상태에 clean·σ5mm 잡음·5% block 누락을 적용한 **1,440개 관측 조건**을 사용함. 각 조건은 160영상이며 동일 배치의 단계·다섯 시점·깊이 변형은 서로 연관됨. 원래 16개 asset만 포함하고 `packaged_food_5/World1`은 없음.
+
+이전 Phase 40 결합 3개, 현재 Phase 42 결합 3개와 RGB 3개의 **저장 checkpoint 9개를 모두 고정**함. 기존 validation용 DINO·MultiMAE 특징 cache만 읽고 RGB 세부 CNN에는 원본 RGB를 입력함. 새 backbone 추론·학습·물리 수집은 실행하지 않음. 두 head의 raw depth 인자는 shape 확인용이며, 실제 depth 정보는 이미 추출한 해당 변형의 frozen 특징으로 들어감.
+
+예측 count를 모두 저장한 뒤 별도 평가 단계에서 validation GT를 읽음. GT는 기존 원본 instance ID 기준 48/96/160px 창의 가시 물체 수이며 창마다 16 original pixels 이상 보이는 물체를 셈. 추론에 GT·ID·활성 물체 수를 제공하지 않음. Primary는 중심 pixel이 물체인 유효 창이며 camera·scale·trajectory·seed 동일 가중과 Phase 42 지표 정의를 유지함. 평균 count 지도나 새 정답 정의를 추가하지 않음.
+
+#### 2. Clean16 결과와 학습 착수 조건
+
+MAE는 각 창의 예측 count와 실제 count의 절대 차이임. 선택 손실은 정답 count가 높은 상위 20% 위치의 실제 평균에서 모델이 고른 상위 20% 위치의 실제 평균을 뺀 값이며 낮을수록 좋음.
+
+| Clean16 validation | 이전 결합 | 현재 결합 | 변화 |
+|---|---:|---:|---:|
+| Count MAE ↓ | 0.497415 | 0.498948 | +0.31% |
+| 상위 20% 선택 손실 ↓ | 0.114020 | 0.116618 | +2.28% |
+
+| Seed | 이전 결합 선택 손실 | 현재 결합 선택 손실 | 이전 대비 5% 초과 |
+|---|---:|---:|---|
+| 0 | 0.109359 | 0.116456 | 해당함 |
+| 1 | 0.115990 | 0.117340 | 해당하지 않음 |
+| 2 | 0.116711 | 0.116059 | 해당하지 않음 |
+
+착수 조건은 현재 평균 선택 손실이 이전 평균의 `1.05배+1e-6`보다 크고, 같은 seed 비교에서도 이를 만족하는 seed가 **2/3 이상**인 것임. 실제로 평균 증가는 **2.28%**, 5%를 넘은 seed는 **1/3**이므로 두 조건 모두 미충족임. Seed 0·1에서 손실이 증가했지만 정해둔 심각도 기준을 넘은 것은 seed 0뿐임. 이 문턱은 이번 실행 범위를 정한 사전 실용 기준이며 통계 검정이 아님.
+
+#### 3. 같은 validation의 나머지 조건
+
+아래 RGB와 결합은 모두 **Phase 42에서 이미 학습한 모델**임. 이번에 다시 학습한 모델이 아님. 세 seed·세 창 크기의 동일 가중 평균임.
+
+| Validation 조건 | RGB MAE ↓ | 결합 MAE ↓ | RGB 선택 손실 ↓ | 결합 선택 손실 ↓ |
+|---|---:|---:|---:|---:|
+| Clean·16개 | 0.550083 | 0.498948 | 0.144744 | 0.116618 |
+| Clean·12개 | 0.463684 | 0.428476 | 0.108168 | 0.086763 |
+| Clean·8개 | 0.361095 | 0.329569 | 0.061220 | 0.046901 |
+| 5mm 잡음·16개 | 0.550083 | 0.524734 | 0.144744 | 0.128224 |
+| 5mm 잡음·12개 | 0.463684 | 0.447732 | 0.108168 | 0.099608 |
+| 5mm 잡음·8개 | 0.361095 | 0.339084 | 0.061220 | 0.054097 |
+| 5% 누락·16개 | 0.550083 | 0.510310 | 0.144744 | 0.121604 |
+| 5% 누락·12개 | 0.463684 | 0.435240 | 0.108168 | 0.091444 |
+| 5% 누락·8개 | 0.361095 | 0.336032 | 0.061220 | 0.050677 |
+
+Phase 42와 같은 기준을 적용하면, 이 validation에서는 9조건의 RGB 대비 두 지표 개선이 각 **3/3 seeds**, 감소 상태의 과대추정 보완도 통과함. Clean16의 MAE·선택 손실을 함께 5% 안으로 보존한 seed는 **2/3**이므로 validation 기준은 통과함. **Validation 통과는 기존 test 미통과를 대체하지 않음.** 시점·크기·trajectory별 지표와 bias는 원본 `evaluation.json`에 보존함.
+
+#### 4. 고정된 실제 장면 비교
+
+![Fixed validation scene comparisons](img/complexity/phase42_validation_conditions_20261006.png)
+
+Validation의 trajectory ID 정렬상 첫 배치·center view에서 clean16/12/8을 표시함. 열은 실제 RGB / 장면 GT / 이전 Phase 40 결합 / 현재 Phase 42 결합임. Seed 0·96px 창을 표시하고 각 행의 지도에는 같은 색 범위를 사용함. 성능이 좋은 장면이나 큰 오류 장면을 따로 고르지 않음. 이 그림은 같은 배치의 실제 예측 차이를 보여 주며 전체 정량 결과를 대신하지 않음.
+
+#### 5. 감사·판단·다음 범위
+
+독립 CPU 감사 **11,402개 검사 PASS**로 clean16의 160영상×6개 결합 head×3 scales = **2,880개 image-scale**의 MAE·선택 손실·bias와 학습 착수 판정을 재산출함. 최대 차이는 MAE `2.10e-7`, 선택 손실 `4.66e-7` 미만, bias는 0이며 착수 조건 미충족 판정이 일치함. 전체 1,440개 입력 참조가 등록된 validation 480영상·cache와 연결됨도 확인함. 나머지 조건 전체의 독립 수치 감사나 GPU 재실행으로 확대하지 않음.
+
+**이번에 완료한 것은 validation 진단이며, 조건부로 계획한 2:1:1 보완 학습은 실행하지 않음.** 학습 빈도 변화가 원인인지 아닌지도 아직 확정하지 않음. 후속 확인을 진행한다면 기존 모델을 고정하고 독립적인 새 clean16 장면에서 저하 규모가 반복되는지 제한적으로 확인하는 것이 검토 가능한 범위임. 이 새 확인은 아직 실행하지 않았으며 학습 설정 변경·새 구조·fusion으로 자동 진행하지 않음. 현재 Complexity 모델·GT는 최종 미채택임.
+
+실제 개발 폴더 기준 실험 root는 `outputs/complexity_count_balance_20261006/`임. `locked_protocol.json`은 실행 전 기준, `validation_baseline/`의 `cached_spec.json`, `validation_manifest.json`, `predictions/completion.json`, `evaluation.json`, `summary.json`은 입력·예측·판정 근거임. `audit/validation_trigger_audit.json`은 독립 감사, `report/{validation_comparison.png,figure_selection.json}`은 그림·고정 선택 기록임. 실행 코드는 `experiments/complexity_count_balance_20261006/{validation,validation_report}.py`, 실행 로그는 실험 root의 `logs/`에 보존함. Phase 42 원본 결과·코드·checkpoint는 수정하지 않음.
+
+---
+
 ## C. Complexity 가정·진단·실행 계획 상세 기록
 
-아래 열두 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
+아래 열세 문서는 현재 판단에 이른 과정과 각 단계의 한계를 보존한다. 당시 제안과 완료 상태를 함께 읽는다.
 
 <a id="definition-review"></a>
 
@@ -5369,6 +5467,80 @@ Phase 38 미채택과 GT 관계 회귀 공개 철회, Phase 39–41의 원본 �
 
 ---
 
+<a id="count-balance-validation"></a>
+
+### C13. Phase 42 후속 validation 진단
+
+> 원본: `<DEV_ROOT>/docs/complexity_results/count_balance_validation_20261006.md`
+> 기록 당시의 가정·다음 Step은 해당 시점의 이력이다. 현재 상태는 문서 앞의 기준과 A의 최신 사용자 방향을 우선한다.
+
+> 2026-10-06 · 기존 validation 재사용 · 새 모델 학습·새 test·fusion 없음
+
+**기존 validation에서 현재 결합 모델의 clean16 선택 손실은 이전 결합 모델보다 2.28% 높았음.** 성능 저하가 전혀 없다는 결과가 아님. 다만 사전에 정한 **평균 5% 초과·같은 seed끼리 비교해 2/3 이상에서 5% 초과**라는 추가 학습 착수 조건은 충족하지 않음. 따라서 예정한 물체 수 학습 비율 `16:12:8=2:1:1` 비교를 실행하지 않고 이번 진단에서 종료함.
+
+**이 자료는 Phase 42 checkpoint 선택에 이미 사용한 validation임.** 새로운 독립 시험이 아니므로 Phase 42 test의 clean16 선택 손실 **+7.97%**를 뒤집거나, 학습에서 16개 장면의 비중이 줄어든 것이 원인이라는 가설을 반박한 결과로 해석하지 않음. 원래 test의 사전 기준 미충족과 fusion 보류는 유지함.
+
+##### 1. 목적·실행 범위
+
+Phase 42에서 감소 상태의 과대추정과 depth 잡음 대응은 개선됐으나, 깨끗한 깊이·16개 상태의 기존 성능 보존 기준을 통과하지 못함. 이를 보완하려고 바로 학습 설정을 바꾸기 전에 **기존 validation에서도 사전에 정한 수준의 저하가 나타나는지** 확인함. 그 조건을 만족할 때만 구조·총 update·깊이 변형·checkpoint 선택을 유지하고 물체 수별 학습 비율 하나를 변경하도록 먼저 고정함.
+
+기존 validation **32개 trajectory·480영상**의 16/12/8개 상태에 clean·σ5mm 잡음·5% block 누락을 적용한 **1,440개 관측 조건**을 사용함. 각 조건은 160영상이며 동일 배치의 단계·다섯 시점·깊이 변형은 서로 연관됨. 원래 16개 asset만 포함하고 `packaged_food_5/World1`은 없음.
+
+이전 Phase 40 결합 3개, 현재 Phase 42 결합 3개와 RGB 3개의 **저장 checkpoint 9개를 모두 고정**함. 기존 validation용 DINO·MultiMAE 특징 cache만 읽고 RGB 세부 CNN에는 원본 RGB를 입력함. 새 backbone 추론·학습·물리 수집은 실행하지 않음. 두 head의 raw depth 인자는 shape 확인용이며, 실제 depth 정보는 이미 추출한 해당 변형의 frozen 특징으로 들어감.
+
+예측 count를 모두 저장한 뒤 별도 평가 단계에서 validation GT를 읽음. GT는 기존 원본 instance ID 기준 48/96/160px 창의 가시 물체 수이며 창마다 16 original pixels 이상 보이는 물체를 셈. 추론에 GT·ID·활성 물체 수를 제공하지 않음. Primary는 중심 pixel이 물체인 유효 창이며 camera·scale·trajectory·seed 동일 가중과 Phase 42 지표 정의를 유지함. 평균 count 지도나 새 정답 정의를 추가하지 않음.
+
+##### 2. Clean16 결과와 학습 착수 조건
+
+MAE는 각 창의 예측 count와 실제 count의 절대 차이임. 선택 손실은 정답 count가 높은 상위 20% 위치의 실제 평균에서 모델이 고른 상위 20% 위치의 실제 평균을 뺀 값이며 낮을수록 좋음.
+
+| Clean16 validation | 이전 결합 | 현재 결합 | 변화 |
+|---|---:|---:|---:|
+| Count MAE ↓ | 0.497415 | 0.498948 | +0.31% |
+| 상위 20% 선택 손실 ↓ | 0.114020 | 0.116618 | +2.28% |
+
+| Seed | 이전 결합 선택 손실 | 현재 결합 선택 손실 | 이전 대비 5% 초과 |
+|---|---:|---:|---|
+| 0 | 0.109359 | 0.116456 | 해당함 |
+| 1 | 0.115990 | 0.117340 | 해당하지 않음 |
+| 2 | 0.116711 | 0.116059 | 해당하지 않음 |
+
+착수 조건은 현재 평균 선택 손실이 이전 평균의 `1.05배+1e-6`보다 크고, 같은 seed 비교에서도 이를 만족하는 seed가 **2/3 이상**인 것임. 실제로 평균 증가는 **2.28%**, 5%를 넘은 seed는 **1/3**이므로 두 조건 모두 미충족임. Seed 0·1에서 손실이 증가했지만 정해둔 심각도 기준을 넘은 것은 seed 0뿐임. 이 문턱은 이번 실행 범위를 정한 사전 실용 기준이며 통계 검정이 아님.
+
+##### 3. 같은 validation의 나머지 조건
+
+아래 RGB와 결합은 모두 **Phase 42에서 이미 학습한 모델**임. 이번에 다시 학습한 모델이 아님. 세 seed·세 창 크기의 동일 가중 평균임.
+
+| Validation 조건 | RGB MAE ↓ | 결합 MAE ↓ | RGB 선택 손실 ↓ | 결합 선택 손실 ↓ |
+|---|---:|---:|---:|---:|
+| Clean·16개 | 0.550083 | 0.498948 | 0.144744 | 0.116618 |
+| Clean·12개 | 0.463684 | 0.428476 | 0.108168 | 0.086763 |
+| Clean·8개 | 0.361095 | 0.329569 | 0.061220 | 0.046901 |
+| 5mm 잡음·16개 | 0.550083 | 0.524734 | 0.144744 | 0.128224 |
+| 5mm 잡음·12개 | 0.463684 | 0.447732 | 0.108168 | 0.099608 |
+| 5mm 잡음·8개 | 0.361095 | 0.339084 | 0.061220 | 0.054097 |
+| 5% 누락·16개 | 0.550083 | 0.510310 | 0.144744 | 0.121604 |
+| 5% 누락·12개 | 0.463684 | 0.435240 | 0.108168 | 0.091444 |
+| 5% 누락·8개 | 0.361095 | 0.336032 | 0.061220 | 0.050677 |
+
+Phase 42와 같은 기준을 적용하면, 이 validation에서는 9조건의 RGB 대비 두 지표 개선이 각 **3/3 seeds**, 감소 상태의 과대추정 보완도 통과함. Clean16의 MAE·선택 손실을 함께 5% 안으로 보존한 seed는 **2/3**이므로 validation 기준은 통과함. **Validation 통과는 기존 test 미통과를 대체하지 않음.** 시점·크기·trajectory별 지표와 bias는 원본 `evaluation.json`에 보존함.
+
+##### 4. 고정된 실제 장면 비교
+
+![Fixed validation scene comparisons](img/complexity/phase42_validation_conditions_20261006.png)
+
+Validation의 trajectory ID 정렬상 첫 배치·center view에서 clean16/12/8을 표시함. 열은 실제 RGB / 장면 GT / 이전 Phase 40 결합 / 현재 Phase 42 결합임. Seed 0·96px 창을 표시하고 각 행의 지도에는 같은 색 범위를 사용함. 성능이 좋은 장면이나 큰 오류 장면을 따로 고르지 않음. 이 그림은 같은 배치의 실제 예측 차이를 보여 주며 전체 정량 결과를 대신하지 않음.
+
+##### 5. 감사·판단·다음 범위
+
+독립 CPU 감사 **11,402개 검사 PASS**로 clean16의 160영상×6개 결합 head×3 scales = **2,880개 image-scale**의 MAE·선택 손실·bias와 학습 착수 판정을 재산출함. 최대 차이는 MAE `2.10e-7`, 선택 손실 `4.66e-7` 미만, bias는 0이며 착수 조건 미충족 판정이 일치함. 전체 1,440개 입력 참조가 등록된 validation 480영상·cache와 연결됨도 확인함. 나머지 조건 전체의 독립 수치 감사나 GPU 재실행으로 확대하지 않음.
+
+**이번에 완료한 것은 validation 진단이며, 조건부로 계획한 2:1:1 보완 학습은 실행하지 않음.** 학습 빈도 변화가 원인인지 아닌지도 아직 확정하지 않음. 후속 확인을 진행한다면 기존 모델을 고정하고 독립적인 새 clean16 장면에서 저하 규모가 반복되는지 제한적으로 확인하는 것이 검토 가능한 범위임. 이 새 확인은 아직 실행하지 않았으며 학습 설정 변경·새 구조·fusion으로 자동 진행하지 않음. 현재 Complexity 모델·GT는 최종 미채택임.
+
+실제 개발 폴더 기준 실험 root는 `outputs/complexity_count_balance_20261006/`임. `locked_protocol.json`은 실행 전 기준, `validation_baseline/`의 `cached_spec.json`, `validation_manifest.json`, `predictions/completion.json`, `evaluation.json`, `summary.json`은 입력·예측·판정 근거임. `audit/validation_trigger_audit.json`은 독립 감사, `report/{validation_comparison.png,figure_selection.json}`은 그림·고정 선택 기록임. 실행 코드는 `experiments/complexity_count_balance_20261006/{validation,validation_report}.py`, 실행 로그는 실험 root의 `logs/`에 보존함. Phase 42 원본 결과·코드·checkpoint는 수정하지 않음.
+
+---
+
 <a id="evidence-index"></a>
 
 ## D. 근거·로그·체크포인트·이미지 색인 전체
@@ -5376,13 +5548,26 @@ Phase 38 미채택과 GT 관계 회귀 공개 철회, Phase 39–41의 원본 �
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
-> 마지막 문서 갱신: 2026-10-06 (Asia/Seoul); Phase 42 보완 학습·새 평가·독립 감사 완료; 물체 감소·잡음 보완 확인, clean16 성능 유지 기준 미충족으로 fusion 보류; 실제 게시는 최신 publication manifest 확인
+> 마지막 문서 갱신: 2026-10-06 (Asia/Seoul); 마지막 학습은 Phase 42; 후속 validation 진단에서 사전 추가 학습 시작 조건 미충족으로 종료; 기존 test 미통과·fusion 보류 유지; 실제 게시는 최신 publication manifest 확인
 > 목적: 새 agent가 요약된 결론뿐 아니라 그 결론의 코드, 수치, 이미지와 이전 실험을 직접 추적하도록 안내
 
 ### 1. 이 문서가 보장하는 범위
 
 
-#### 최신 연구 상태 — 2026-10-06 Phase 42 보완 학습 완료; 16개 정상 입력의 성능 유지 기준 미충족
+#### 최신 재개 상태 — 2026-10-06 Phase 42 후속 validation 진단
+
+마지막 새 학습 모델은 **Phase 42**임. 이번은 기존 validation에서 추가 학습을 시작할 조건이 성립하는지 확인한 후속 진단이며 새 모델·새 Phase 완료로 기록하지 않음. `docs/complexity_results/count_balance_validation_20261006.md`를 끝까지 읽음.
+
+- **범위:** 기존 validation 32 trajectory·480영상·5뷰의 clean/noise/dropout **1,440개 관측 조건**, 기존 9개 head를 고정함. Phase 42의 frozen 특징 cache를 재사용하며 backbone 재실행·새 수집·새 학습은 없음. Train/test 원시 관측이나 test GT를 평가에 사용하지 않음.
+- **Clean16 결과:** 기존 결합→Phase 42 결합의 MAE **0.497415→0.498948(+0.308%)**, 상위20% count regret **0.114020→0.116618(+2.28%)**임. Regret 증가 자체는 **2/3 seeds**, 기존 대비 **5% 초과 증가는 1/3 seeds**임. 약한 평균 악화는 남아 있음.
+- **사전 시작 조건:** 평균 regret과 같은 seed의 비교 2/3 이상에서 기존의 1.05배+1e−6를 넘어야 16:12:8 학습 비율을 2:1:1로 바꾸는 한 번의 학습을 시작하도록 고정함. 평균 +2.28%·5% 초과 1/3이므로 **trigger=false**, 추가 학습 없이 종료함. 기준을 사후 완화하지 않음.
+- **해석:** 이 validation은 Phase 42 checkpoint 선택에 이미 사용됐으므로 독립 시험이 아님. 기존 **Phase 42 test의 clean16 regret +7.97% 및 유지 기준 미충족은 그대로 유효**함. 이번 결과로 문제가 해결됐거나 학습 비율이 원인이 아니라는 결론을 내리지 않음.
+- **감사:** 독립 CPU **11,402개 검사 PASS**. Clean16 160영상×기존/Phase 42 결합 6개 head×3개 scale=**2,880 image-scale**의 MAE·regret·평균 편향과 시작 조건을 재산출함. 전체 1,440개 입력 참조가 등록된 validation 480개/cache에만 연결됨을 확인했으며 원시 test를 읽지 않음. GPU 재추론·OS 접근 감시는 아님.
+- **다음 Step — 미실행:** 2:1:1 재학습·새 수집·fusion은 수행하지 않음. 학습 비율을 자동 변경하지 않으며, 독립 확인을 이어간다면 **기존 checkpoint를 고정한 새 clean16 장면만의 최소 확인**을 검토함. 이 확인도 미실행이고 최종 모델 채택·fusion 보류는 유지함.
+- **근거:** `outputs/complexity_count_balance_20261006/`의 `locked_protocol.json`(SHA256 `e428b7efc8479c9295b6e5094712867ed63f01c5721b46a8a2b86b98da7de896`), `validation_baseline/{cached_spec,validation_manifest,evaluation,summary}.json`, `validation_baseline/predictions/completion.json`, `audit/validation_trigger_audit.json`, `report/validation_comparison.png`, `logs/`를 확인함. 코드·원시 자료는 로컬에 보존함.
+- **게시:** 실제 commit·remote 상태는 `docs/public_agent_context_count_balance_validation_20261006.json`을 확인함. 원래 Phase 42 보고서·결과·게시 이력은 변경하지 않음.
+
+#### 최신 학습 결과 — 2026-10-06 Phase 42 보완 학습 완료; 16개 정상 입력의 성능 유지 기준 미충족
 
 이번 재개는 **Phase 42**와 `docs/complexity_results/robust_count_training_20261006.md`를 우선함. Phase 41에서 확인한 적은 물체 수의 과대추정과 depth 잡음 취약성을 보완하는 학습·새 heldout 평가·독립 감사를 완료함. 두 약점은 이번 조건에서 개선됐으나, 정상 depth·16개 물체에서 기존 결합 모델 대비 상위 혼잡 영역 선택 손실 증가가 사전 허용 5%를 넘음. **최종 Complexity 모델·GT는 미채택이며 fusion은 계속 보류함.** 아래 Phase 41/40의 결과와 당시 미실행 계획은 이력으로 보존함.
 
@@ -5393,7 +5578,7 @@ Phase 38 미채택과 GT 관계 회귀 공개 철회, Phase 39–41의 원본 �
 - **Depth 추가 이점:** 새 결합은 같은 데이터·학습량으로 학습한 새 RGB보다 **9조건 모두** MAE와 상위20% count regret이 작고 seeds **3/3**에서 두 지표가 함께 개선됨. 예를 들어 σ5mm·16개에서 새 RGB의 MAE/regret **0.526440/0.146679** 대비 새 결합은 **0.512211/0.133618**임. 따라서 이번 합성 잡음 조건에서는 추가 depth 경로의 이점이 남음. 실측 센서·외부 asset·모든 노이즈에 대한 일반화 검증은 아님.
 - **남은 조건과 판단:** Clean16의 기존 결합→새 결합 MAE는 **0.474159→0.493096(+3.99%)**, regret은 **0.115045→0.124218(+7.97%)**임. 두 지표 모두 기존 대비 5% 이내여야 한다는 사전 유지 기준은 **0/3 seeds**로 미충족이고 전체 gate는 fail임. 적은 물체 수·잡음의 개선을 부정하지 않되 정상 16개 장면의 선택 성능 저하를 남은 문제로 기록함. 새 RGB보다 낫다는 비교와 기존 결합 성능을 유지했다는 비교를 혼동하지 않음. 5%는 사전 실용 기준이며 통계적 유의성 기준이 아님.
 - **GT·추론·감사:** 원본 physical instance ID에서 48/96/160px 창의 가시 물체 수를 계산하는 정의(16 original pixels 이상, stride16)는 유지함. 단일 RGB-D 추론에 GT·물체 ID·활성 물체 수·평가 mask를 제공하지 않고 예측 저장 뒤 별도 평가함. 새 raw GT **69,120 window** 검산, 독립 CPU 학습출처 **22,594검사 PASS**, 수치 **58,450검사 PASS**임. 수치 감사는 1,440×9×3=**38,880 image-scale** MAE·regret·평균 편향을 재산출하고 모든 gate를 재현함. RGB 변형 간 **2,880개 예측 배열**도 bitwise 동일함. 학습출처 감사는 파일·source·history·checkpoint 확인이며 OS 수준 GT 접근 감시나 학습 재실행이 아님.
-- **다음 Step — 미실행:** Train/validation 안에서 **clean16 선택 성능을 유지하는 보완**을 검토하고, 현재 test로 반복 선택하지 않은 새 heldout에서 확인하는 단계임. 물체 수 분포·변형 입력·학습량이 함께 달라졌으므로 이번 결과만으로 각 보완 요소의 원인을 따로 확정하지 않음. 추가 보완 학습·새 heldout·fusion은 아직 실행하지 않음. 기존 SAM2 자동 영역 비교도 과거 미실행 계획으로 남김.
+- **Phase 42 완료 당시 다음 계획:** Train/validation에서 clean16 선택 성능을 유지하는 보완을 검토했으며 이후 시작 조건 진단만 위와 같이 완료함. 자동 학습 비율 변경은 중단했고 추가 보완 학습·새 heldout·fusion은 미실행임. 현재 다음 Step은 문서 앞 후속 진단을 따름. 기존 SAM2 자동 영역 비교도 과거 미실행 계획으로 남김.
 - **실제 경로:** 코드 `experiments/complexity_robust_count_20261006/`; capture `outputs/complexity_instance_capture_20261006_robust_count/`; 실험 root `outputs/complexity_robust_count_20261006/`의 `locked_protocol.json`, `data/{manifest,trainval_manifest,test_manifest,audit}.json`, `frozen_cache/manifest.json`, `run/{protocol,training_complete}.json`, `test_observations/{manifest,audit}.json`, `inference_spec.json`, `predictions/completion.json`, `evaluation.json`, `report/`, `audit/`, `logs/`를 확인함. CUDA 미노출로 feature 생성 전 중단된 cache 준비는 `frozen_cache_failed_no_cuda/`와 `logs/cache_failed_no_cuda.log`에 별도 보존함.
 - **공개:** 의미 있는 결과와 그림은 Development Log, 중요한 판단은 Complexity에 선별 반영함. 실제 commit·remote 확인은 `docs/public_agent_context_robust_count_20261006.json`을 따르며 문서 생성만으로 게시 완료를 추정하지 않음. 코드·weights·원시 배열은 로컬에 유지하고 Phase 38 미채택·GT 관계 회귀 공개 철회와 Phase 39–41 원본 결과는 보존함.
 
@@ -5884,6 +6069,14 @@ full16 baseline은 아니다.
 
 ### 7. Complexity Phase 33–42 근거
 
+#### 2026-10-06 Phase 42 후속 — validation의 조건부 학습 시작 여부 진단
+
+- 보고서 `docs/complexity_results/count_balance_validation_20261006.md`, 실제 게시 상태 `docs/public_agent_context_count_balance_validation_20261006.json`. 새 모델·새 Phase가 아님.
+- Source `experiments/complexity_count_balance_20261006/validation.py`; 고정 조건은 `outputs/complexity_count_balance_20261006/locked_protocol.json`임.
+- 같은 root의 `validation_baseline/{cached_spec,validation_manifest,prepare_completion,evaluation,summary}.json`, `validation_baseline/predictions/completion.json`, `validation_baseline/validation_source.py`, `logs/`가 입력·고정 모델·실행 근거임. 기존 val480만 사용한 1,440개 변형 관측으로 시험 자료를 재평가하지 않음.
+- 독립 trigger 감사 `audit/{audit_validation_trigger.py,validation_trigger_audit.json}`: 160장×6head×3scale=2,880조합·11,402검사 PASS. 표·그림은 `report/validation_comparison.png`에 연결함.
+- 평균 regret +2.28%, 5% 초과 seed1/3으로 시작 조건 미충족임. 사전 계획대로 2:1:1 학습·새 수집을 하지 않음. Validation은 checkpoint 선택 자료이며 Phase 42 test +7.97%의 기존 실패를 철회하지 않음.
+
 #### 2026-10-06 Phase 42 — 감소 상태·depth 변형 보완 학습; clean16 유지 조건 미충족
 
 - 최신 보고서: `docs/complexity_results/robust_count_training_20261006.md`; 게시 상태: `docs/public_agent_context_robust_count_20261006.json`의 실제 commit·remote 확인을 따름.
@@ -6333,8 +6526,8 @@ Banana query 패널의 Book/Avocado/Orange 파일명은 scene 쪽 이름이며 t
 4. sample 수, split, target seen/unseen, camera 범위, metric 정의를 확인한다.
 5. 새 실행 전 output path와 overwrite 방지를 확인한다.
 6. Complexity는 Phase 39/40/41 완료 보고서 뒤 `robust_count_training_20261006.md`까지 끝까지 읽는다.
-   현재 다음 Step은 train/validation 안에서 clean16 선택 성능 유지 보완을 검토한 뒤 새 heldout으로 확인하는 것임.
-   추가 보완·새 heldout·fusion은 미실행이며 test를 반복 튜닝하지 않는다. 9월21일 자동 영역 비교는
+   이후 `count_balance_validation_20261006.md`의 후속 진단까지 읽고 추가 학습 시작 조건 미충족을 우선함.
+   학습 비율을 자동 변경하지 않으며 기존 checkpoint를 고정한 새 clean16 최소 확인은 검토 단계임. 추가 학습·수집·fusion은 미실행이고 test를 반복 튜닝하지 않는다. 9월21일 자동 영역 비교는
    이전 미실행 계획으로 보존하고 현재 학습 경로에 SAM·반복 crop을 자동 추가하지 않는다.
 7. 진행 보고는 주요 milestone 중심으로 남긴다. 예상 실행 시간에 맞춰 대기하고 짧은 간격의
    반복 polling 및 epoch 로그 중계를 피한다.
@@ -6394,10 +6587,23 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 
 Complexity를 이어갈 때는 위 세 문서 이후
 `docs/complexity_results/rgbd_grouping_next_step_20260921.md`도 끝까지 읽는다.
-이 문서는 9월21일의 **미실행 계획**으로 보존함. 이후 계획과 완료 범위를 구분하기 위해 `docs/complexity_results/local_count_plan_20260929.md`와 최신 완료 보고서 `docs/complexity_results/local_count_pilot_20260930.md`도 끝까지 읽음. 이후 완료 보고서 `docs/complexity_results/depth_pretrain_comparison_20261001.md`도 끝까지 읽음. 이후 `docs/complexity_results/preintegration_validation_20261001.md`도 끝까지 읽음. 이후 `docs/complexity_results/robust_count_training_20261006.md`도 끝까지 읽음. 현재 재개는 아래 Phase 42 결과와 감사 상태를 우선함.
+이 문서는 9월21일의 **미실행 계획**으로 보존함. 이후 계획과 완료 범위를 구분하기 위해 `docs/complexity_results/local_count_plan_20260929.md`와 최신 완료 보고서 `docs/complexity_results/local_count_pilot_20260930.md`도 끝까지 읽음. 이후 완료 보고서 `docs/complexity_results/depth_pretrain_comparison_20261001.md`도 끝까지 읽음. 이후 `docs/complexity_results/preintegration_validation_20261001.md`도 끝까지 읽음. 이후 `docs/complexity_results/robust_count_training_20261006.md`도 끝까지 읽음. 이후 `docs/complexity_results/count_balance_validation_20261006.md`도 끝까지 읽음. 현재 재개는 아래 Phase 42 후속 validation 진단을 우선하고 마지막 학습 결과는 Phase 42로 유지함.
 
 
-#### 최신 연구 상태 — 2026-10-06 Phase 42 보완 학습 완료; 16개 정상 입력의 성능 유지 기준 미충족
+#### 최신 재개 상태 — 2026-10-06 Phase 42 후속 validation 진단
+
+마지막 새 학습 모델은 **Phase 42**임. 이번은 기존 validation에서 추가 학습을 시작할 조건이 성립하는지 확인한 후속 진단이며 새 모델·새 Phase 완료로 기록하지 않음. `docs/complexity_results/count_balance_validation_20261006.md`를 끝까지 읽음.
+
+- **범위:** 기존 validation 32 trajectory·480영상·5뷰의 clean/noise/dropout **1,440개 관측 조건**, 기존 9개 head를 고정함. Phase 42의 frozen 특징 cache를 재사용하며 backbone 재실행·새 수집·새 학습은 없음. Train/test 원시 관측이나 test GT를 평가에 사용하지 않음.
+- **Clean16 결과:** 기존 결합→Phase 42 결합의 MAE **0.497415→0.498948(+0.308%)**, 상위20% count regret **0.114020→0.116618(+2.28%)**임. Regret 증가 자체는 **2/3 seeds**, 기존 대비 **5% 초과 증가는 1/3 seeds**임. 약한 평균 악화는 남아 있음.
+- **사전 시작 조건:** 평균 regret과 같은 seed의 비교 2/3 이상에서 기존의 1.05배+1e−6를 넘어야 16:12:8 학습 비율을 2:1:1로 바꾸는 한 번의 학습을 시작하도록 고정함. 평균 +2.28%·5% 초과 1/3이므로 **trigger=false**, 추가 학습 없이 종료함. 기준을 사후 완화하지 않음.
+- **해석:** 이 validation은 Phase 42 checkpoint 선택에 이미 사용됐으므로 독립 시험이 아님. 기존 **Phase 42 test의 clean16 regret +7.97% 및 유지 기준 미충족은 그대로 유효**함. 이번 결과로 문제가 해결됐거나 학습 비율이 원인이 아니라는 결론을 내리지 않음.
+- **감사:** 독립 CPU **11,402개 검사 PASS**. Clean16 160영상×기존/Phase 42 결합 6개 head×3개 scale=**2,880 image-scale**의 MAE·regret·평균 편향과 시작 조건을 재산출함. 전체 1,440개 입력 참조가 등록된 validation 480개/cache에만 연결됨을 확인했으며 원시 test를 읽지 않음. GPU 재추론·OS 접근 감시는 아님.
+- **다음 Step — 미실행:** 2:1:1 재학습·새 수집·fusion은 수행하지 않음. 학습 비율을 자동 변경하지 않으며, 독립 확인을 이어간다면 **기존 checkpoint를 고정한 새 clean16 장면만의 최소 확인**을 검토함. 이 확인도 미실행이고 최종 모델 채택·fusion 보류는 유지함.
+- **근거:** `outputs/complexity_count_balance_20261006/`의 `locked_protocol.json`(SHA256 `e428b7efc8479c9295b6e5094712867ed63f01c5721b46a8a2b86b98da7de896`), `validation_baseline/{cached_spec,validation_manifest,evaluation,summary}.json`, `validation_baseline/predictions/completion.json`, `audit/validation_trigger_audit.json`, `report/validation_comparison.png`, `logs/`를 확인함. 코드·원시 자료는 로컬에 보존함.
+- **게시:** 실제 commit·remote 상태는 `docs/public_agent_context_count_balance_validation_20261006.json`을 확인함. 원래 Phase 42 보고서·결과·게시 이력은 변경하지 않음.
+
+#### 최신 학습 결과 — 2026-10-06 Phase 42 보완 학습 완료; 16개 정상 입력의 성능 유지 기준 미충족
 
 이번 재개는 **Phase 42**와 `docs/complexity_results/robust_count_training_20261006.md`를 우선함. Phase 41에서 확인한 적은 물체 수의 과대추정과 depth 잡음 취약성을 보완하는 학습·새 heldout 평가·독립 감사를 완료함. 두 약점은 이번 조건에서 개선됐으나, 정상 depth·16개 물체에서 기존 결합 모델 대비 상위 혼잡 영역 선택 손실 증가가 사전 허용 5%를 넘음. **최종 Complexity 모델·GT는 미채택이며 fusion은 계속 보류함.** 아래 Phase 41/40의 결과와 당시 미실행 계획은 이력으로 보존함.
 
@@ -6408,7 +6614,7 @@ Complexity를 이어갈 때는 위 세 문서 이후
 - **Depth 추가 이점:** 새 결합은 같은 데이터·학습량으로 학습한 새 RGB보다 **9조건 모두** MAE와 상위20% count regret이 작고 seeds **3/3**에서 두 지표가 함께 개선됨. 예를 들어 σ5mm·16개에서 새 RGB의 MAE/regret **0.526440/0.146679** 대비 새 결합은 **0.512211/0.133618**임. 따라서 이번 합성 잡음 조건에서는 추가 depth 경로의 이점이 남음. 실측 센서·외부 asset·모든 노이즈에 대한 일반화 검증은 아님.
 - **남은 조건과 판단:** Clean16의 기존 결합→새 결합 MAE는 **0.474159→0.493096(+3.99%)**, regret은 **0.115045→0.124218(+7.97%)**임. 두 지표 모두 기존 대비 5% 이내여야 한다는 사전 유지 기준은 **0/3 seeds**로 미충족이고 전체 gate는 fail임. 적은 물체 수·잡음의 개선을 부정하지 않되 정상 16개 장면의 선택 성능 저하를 남은 문제로 기록함. 새 RGB보다 낫다는 비교와 기존 결합 성능을 유지했다는 비교를 혼동하지 않음. 5%는 사전 실용 기준이며 통계적 유의성 기준이 아님.
 - **GT·추론·감사:** 원본 physical instance ID에서 48/96/160px 창의 가시 물체 수를 계산하는 정의(16 original pixels 이상, stride16)는 유지함. 단일 RGB-D 추론에 GT·물체 ID·활성 물체 수·평가 mask를 제공하지 않고 예측 저장 뒤 별도 평가함. 새 raw GT **69,120 window** 검산, 독립 CPU 학습출처 **22,594검사 PASS**, 수치 **58,450검사 PASS**임. 수치 감사는 1,440×9×3=**38,880 image-scale** MAE·regret·평균 편향을 재산출하고 모든 gate를 재현함. RGB 변형 간 **2,880개 예측 배열**도 bitwise 동일함. 학습출처 감사는 파일·source·history·checkpoint 확인이며 OS 수준 GT 접근 감시나 학습 재실행이 아님.
-- **다음 Step — 미실행:** Train/validation 안에서 **clean16 선택 성능을 유지하는 보완**을 검토하고, 현재 test로 반복 선택하지 않은 새 heldout에서 확인하는 단계임. 물체 수 분포·변형 입력·학습량이 함께 달라졌으므로 이번 결과만으로 각 보완 요소의 원인을 따로 확정하지 않음. 추가 보완 학습·새 heldout·fusion은 아직 실행하지 않음. 기존 SAM2 자동 영역 비교도 과거 미실행 계획으로 남김.
+- **Phase 42 완료 당시 다음 계획:** Train/validation에서 clean16 선택 성능을 유지하는 보완을 검토했으며 이후 시작 조건 진단만 위와 같이 완료함. 자동 학습 비율 변경은 중단했고 추가 보완 학습·새 heldout·fusion은 미실행임. 현재 다음 Step은 문서 앞 후속 진단을 따름. 기존 SAM2 자동 영역 비교도 과거 미실행 계획으로 남김.
 - **실제 경로:** 코드 `experiments/complexity_robust_count_20261006/`; capture `outputs/complexity_instance_capture_20261006_robust_count/`; 실험 root `outputs/complexity_robust_count_20261006/`의 `locked_protocol.json`, `data/{manifest,trainval_manifest,test_manifest,audit}.json`, `frozen_cache/manifest.json`, `run/{protocol,training_complete}.json`, `test_observations/{manifest,audit}.json`, `inference_spec.json`, `predictions/completion.json`, `evaluation.json`, `report/`, `audit/`, `logs/`를 확인함. CUDA 미노출로 feature 생성 전 중단된 cache 준비는 `frozen_cache_failed_no_cuda/`와 `logs/cache_failed_no_cuda.log`에 별도 보존함.
 - **공개:** 의미 있는 결과와 그림은 Development Log, 중요한 판단은 Complexity에 선별 반영함. 실제 commit·remote 확인은 `docs/public_agent_context_robust_count_20261006.json`을 따르며 문서 생성만으로 게시 완료를 추정하지 않음. 코드·weights·원시 배열은 로컬에 유지하고 Phase 38 미채택·GT 관계 회귀 공개 철회와 Phase 39–41 원본 결과는 보존함.
 
