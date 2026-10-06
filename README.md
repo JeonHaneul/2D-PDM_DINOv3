@@ -16,7 +16,7 @@
 | [Similarity Stream](similarity_stream.md) | DINOv3·SigLIP, semantic adapter, MatchingBlock, GT·학습·zero-shot 결과 |
 | [Occlusion Stream](occlusion_stream.md) | RGB-D·target geometry·FiLM, adaptive GT, full16·외부 target 평가 |
 | [Complexity Stream](complexity_stream.md) | 복잡도 가정, density pilot, 물체 표현 진단과 다음 검증 |
-| [Development Log](development_log.md) | Phase 1–38의 주요 가정·실험·사진·결과·판단 |
+| [Development Log](development_log.md) | Phase 1–42의 주요 가정·실험·사진·결과·판단 |
 | [연구 문맥·근거 색인](agent.md) | 다른 agent와 외부 독자를 위한 문맥·상세 보고서·작업 지침 |
 
 각 문서의 위·아래 이동 링크로 전체 개요와 다른 문서를 오갈 수 있음. 모든 문서는 저장소 최상위에 둠. Stream별 그림은 기존 `img/similarity/`, `img/occlusion/`, `img/complexity/` 경로를 유지하고, 공통 전체 구조도는 `img/overall_architecture.png`에 둠.
@@ -29,7 +29,7 @@
 |---|---|---|
 | Similarity | Target과 외형·의미가 관련된 가시 영역 찾기 | DINOv3 + SigLIP 구현, unseen-target zero-shot 동작 정성 확인; 여러 target의 정량 평가 남음 |
 | Occlusion | 해당 target이 가려질 수 있는 위치 추론 | Adaptive GT 생성·full16 가림확률 예측·외부 target의 zero-shot 정량 평가 완료; 여러 target·실제 관측 조건으로 평가 확장 |
-| Complexity | 단일 RGB-D에서 더미 내부의 물체·관계 표현 생성 | RGB-D 접경 예측을 평가했으며 현재 결합 모델은 미채택; GT 관계 벡터를 외부 입력으로 사용하는 경로는 제외 |
+| Complexity | 단일 RGB-D에서 지역별 가시 물체 수를 예측하여 혼잡 위치 표현 | Phase 42에서 과대추정·depth 오류 조건 개선; 정상 16개 장면의 선택 성능 유지 미충족으로 최종 채택·fusion 보류 |
 
 ### 전체 아키텍처
 
@@ -47,7 +47,7 @@
 
 **⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 stream은 같은 `30×40` 위치마다 서로 다른 64개 숫자를 제공함. 이를 같은 위치끼리 이어 붙이면 **`64+64+64=192채널`**이며 공간 격자는 유지됨. 그림에서 오른쪽으로 갈라지는 prediction head는 각 stream의 GT를 예측하는 경로이고, 아래 fusion은 그 head 이전의 feature를 받도록 계획함. 이후 learned fusion·decoder로 최종 target 위치 map을 만들고 탐색 정책에 연결할 예정임. 현재 density `F_C`의 최종 채택은 Complexity 정의·관계 표현 검증 후 판단함.
 
-Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측을 평가함. GT 관계 회귀는 사용자 요청에 따라 공개에서 철회함. RGB-D 접경 모델도 채택 기준을 통과하지 못하여 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임. 위 도식은 Phase 33의 구현을 보존한 것이며, 최신 Phase 41에서는 RGB + MultiMAE depth count 모델의 depth 노이즈 취약성을 확인하여, 현재 결합 그대로의 fusion과 최종 stream 채택을 보류함.
+Similarity·Occlusion과 Complexity density pilot은 각각의 GT로 학습·평가를 완료함. **통합 단계에는 three-stream fusion, 최종 위치 확률의 GT·loss·decoder, DRL 구현이 필요함.** Phase 38에서는 원본 해상도의 RGB-D 접경 예측을 평가함. GT 관계 회귀는 사용자 요청에 따라 공개에서 철회함. RGB-D 접경 모델도 채택 기준을 통과하지 못하여 그림의 density pilot을 대체하지 않음. 현재 stream별 출력은 아래에 정의한 유사도·가림확률·density를 나타내며, 최종 target 위치 확률은 fusion 단계에서 학습할 계획임. 위 도식은 Phase 33의 구현을 보존한 것이며, 최신 Phase 42에서는 RGB + MultiMAE depth count 모델의 적은 물체 수 과대추정·합성 depth 오류 조건을 보완함. 다만 정상 16개 장면의 혼잡 영역 선택 손실이 기존보다 7.97% 늘어 사전 유지 기준을 넘었으므로, 최종 stream 채택·fusion은 계속 보류함.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
@@ -213,7 +213,7 @@ P_2D   = Sigmoid(Decoder(F_fuse))           # planned
 | Occlusion model | Native 68-D + raw broadcast + global FiLM, full16 10% 학습; scene-heldout coverage 내부 MAE 0.013997 / Soft-IoU 0.868371, target 조건 활용 확인 | Coverage 밖 출력과 reference mask·camera 변화의 영향 |
 | External Occlusion | 미학습 `packaged_food_5`의 zero-shot 가림확률 예측 정량 확인: 30 scenes × 5 views, coverage 내부 MAE 0.0180 / Soft-IoU 0.812 / IoU 0.723 | 여러 external targets·실제 RGB-D 조건으로 평가 확대 |
 | Complexity Phase 33 pilot | RGB-D visible label-group count 학습·추론 완료; count MAE가 depth-only 대비 22.973% 감소 | 당시 정의·수치를 보존하며 새 instance count 성능과 구분함 |
-| Complexity 최신 연구 | Phase 41에서 물체 감소·단일 외부 물체·5% depth 누락의 개선 유지; Gaussian depth noise에서 선택 이점 거의 소실 | 관측 변화·제거 후 count 과대추정 보완이 필요함. 현재 결합 그대로의 fusion 보류·최종 Complexity 미채택 |
+| Complexity 최신 연구 | Phase 42에서 물체 감소 과대추정 보완, 새 RGB 대비 정상·잡음·누락 9조건 개선 | 정상 16개 장면의 선택 손실 +7.97%로 사전 유지 기준 미충족; 해당 성능 보완 전 fusion 보류·최종 미채택 |
 | Complexity 표현·관계 | Phase 37의 GT 선정 순수 patch 대응 정보와 Phase 38의 전체 영상 접경 예측을 각각 평가함 | 관계 복원을 지역 count 학습의 필수 선행 단계로 두지 않음. GT 관계 회귀의 성과·수치·그림은 공개 철회 상태 유지 |
 | Complexity 접경 학습 | Phase 38 전체 영상·원본 해상도 평가 완료; exact F1 RGB 0.313310, RGB-D 0.314580, 직접 depth 단차 0.351372 (기존 test 640 views·8 keys) | RGB-D는 3 seeds 중 1개만 RGB보다 개선되어 미채택; 같은 물체 내부 단차·물체–배경·평평한 물체 간 접경의 실패를 보존 |
 | Three-stream fusion | 세 stream의 중간 feature와 concat 입력 규격 `B×192×30×40` 정리 | Complexity 방법 검증·선택 이후 최종 GT·loss·decoder 구현, 통합 학습·ablation |

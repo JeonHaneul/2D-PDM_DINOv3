@@ -21,6 +21,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 | Complexity 후속 검증 | 어려운 대응·전체 접경·원본 instance 지역 count 비교 | 접경 결합 모델은 미채택; 새 배치의 장면별 GT와 지역 count 예측을 비교했고 depth 추가 효과는 미확인 | Phase 37–39 |
 | Complexity depth 표현 비교 | 작은 depth CNN 대신 frozen MultiMAE 특징 결합 | 새 test에서 count 오차·상위 영역 선택 개선; 연산시간 증가와 추가 일반화 검증을 고려하여 최종 채택 보류 | Phase 40 |
 | Complexity 통합 전 검증 | 고정된 후보의 물체 감소·외부 물체·depth 변화 비교 | 다섯 조건에서 개선 유지, Gaussian depth noise에서 순위 이점 거의 소실; 관측 변화와 개수 분포 보완 전 fusion 보류 | Phase 41 |
+| Complexity 물체 감소·깊이 오류 보완 | 새 16→12→8개 자료와 깊이 변형으로 같은 구조 재학습 | 과대추정 감소·새 RGB 대비 9조건 개선; 정상 16개 선택 손실 +7.97%로 보존 기준 미충족, fusion 보류 유지 | Phase 42 |
 
 ## 지표와 범위 읽는 법
 
@@ -1698,6 +1699,143 @@ Depth 노이즈의 원인을 MultiMAE 하나로 확정하지 않음. 관측 표�
 | 두 번째 중단 원본 | `outputs/complexity_instance_capture_20261001_preintegration_failed_20261001_1604/` |
 
 Phase 40의 개선은 당시 깨끗한 장면 비교 결과로 보존함. Phase 38 미채택 및 GT 관계 회귀 공개 철회도 유지함. 이번 결과는 GT를 추론에 입력한 관계 회귀와 구분되는, 단일 RGB-D의 가시 count 예측 결과임.
+
+---
+
+## 2026-10-06 — Phase 42 — 물체 수 감소·깊이 잡음 보완 학습
+
+> 2026-10-06 · 새 수집 1,920영상 · 새 시험 32개 trajectory·480영상의 1,440개 관측 조건 · fusion 미실행
+
+**물체가 적을 때의 과대추정과 깊이 잡음에서의 성능 저하를 보완함.** 새 결합 모델은 같은 자료로 다시 학습한 RGB 모델보다 물체 수 16/12/8개 × 깨끗한 깊이/5mm 잡음/5% 누락의 **9조건 모두에서 count 오차와 혼잡 영역 선택 손실이 낮음.** 각 조건의 세 seed 모두 개선됨. 기존 결합 모델과 비교해 12개·8개 상태의 과대추정도 크게 줄어 사전 보완 기준을 통과함.
+
+다만 **깨끗한 16개 장면의 선택 손실이 기존 결합 모델보다 7.97% 커져, 사전에 정한 5% 보존 기준을 넘음.** 전체 사전 기준은 미충족이며 fusion은 실행하지 않음. 두 약점의 개선을 부정하는 결과가 아니라, 적은 물체 수와 깊이 변화를 보완하면서 기존 밀집 장면의 선택 성능을 충분히 보존하지 못한 결과임. 아래 수치·판정은 독립 CPU 감사에서도 일치함.
+
+### 1. 확인한 문제와 이번 변경
+
+Phase 41의 기존 모델은 16개 물체가 있는 장면만으로 학습했음. 실제로 물체를 제거해 8개를 남기면 지역별 개수를 높게 예측했고, 깊이값에 Gaussian 잡음 σ=5mm를 넣으면 RGB 대비 추가 이점이 거의 사라졌음. 따라서 이번에는 모델 구조를 유지하면서 **16→12→8개 장면과 잡음·누락이 있는 깊이를 학습에 포함**함.
+
+비교군은 새 RGB, 새 RGB + MultiMAE depth, 기존 RGB + MultiMAE depth임. 각 seeds 0/1/2를 사용하여 **새 head 6개를 학습하고 기존 head 3개는 고정한 채**, 같은 새 시험 영상에서 총 9개를 평가함. 기존 모델과 새 모델의 차이, 같은 자료로 학습한 RGB와 결합 모델의 차이를 구분함.
+
+RGB 경로는 frozen DINOv3 ViT-B/16 특징과 원본 RGB 소형 CNN임. 결합 모델은 여기에 frozen MultiMAE가 **관측 깊이에서 추출한 특징**을 추가함. MultiMAE가 깊이 영상을 새로 추정하는 구조가 아님. 두 backbone은 고정하고 RGB 세부 경로·projection·count head를 처음부터 학습함. 출력은 기존과 같은 `3×30×40` count와 `64×30×40` 특징이며, 추론은 단일 RGB-D 한 번의 고정 연산임. SAM·반복 crop·새 backbone·fusion은 추가하지 않음.
+
+### 2. 새 장면·분할·GT
+
+원래 16개 asset을 사용하는 16 anchor × 4환경 × 2회로 **128개 초기 배치**를 수집함. 각 배치에서 물체를 16→12→8개로 줄이고 단계마다 5개 시점을 촬영하여 384개 물리 상태·1,920영상을 얻음. 하나의 배치와 그 제거 과정을 trajectory로 묶으며, 서로 다른 제거 단계와 시점을 독립 배치로 세지 않음.
+
+| 분할 | Trajectory | 16개 영상 | 12개 영상 | 8개 영상 | 합계 |
+|---|---:|---:|---:|---:|---:|
+| Train | 64 | 320 | 320 | 320 | 960 |
+| Validation | 32 | 160 | 160 | 160 | 480 |
+| Test | 32 | 160 | 160 | 160 | 480 |
+
+같은 trajectory의 세 제거 상태와 다섯 시점은 모두 같은 split에 둠. 모든 16개 anchor를 각 split에 유지하며, 기존 시험 자료를 학습으로 옮기지 않음. `packaged_food_5/World1`은 이번 수집·학습·validation·test 전체에서 제외함. 이번 test는 원래 물체들의 새 배치이며 새로운 외부 물체 일반화 결과가 아님.
+
+제거할 물체는 관측·GT·예측을 보기 전에 seed로 정함. 단계마다 category별 anchor가 아닌 물체 하나씩 제거하고 120 physics steps 동안 남은 물체를 안정화함. 생존 물체를 다시 초기 배치로 되돌리지 않으며, 물리 ID도 재번호 부여하지 않음. 초기 자세·속도 reset, 활성/제거 물체 상태, 다섯 시점의 render drift를 검사하고 beige drawer texture를 유지함.
+
+GT는 각 물리 상태에서 다시 저장한 IsaacSim 원본 instance ID로 계산함. 출력 중심 간격은 16px이고, 각 중심의 48/96/160px 창 안에 **원본 pixel 16개 이상 보이는 서로 다른 물체 수**가 정답임. 영상 안에 완전히 들어오고 unknown pixel이 없는 창을 사용함. 완전히 가려진 물체 수·scene 총 물체 수·물리 면적당 밀도와 구분함. Depth를 변형해도 물체 배치와 RGB는 그대로이므로 같은 장면 GT를 사용함. GT·물체 ID·활성 물체 수·평가 mask는 추론 입력에 제공하지 않음.
+
+### 3. 보완 학습과 시험 깊이
+
+각 학습 영상에 깨끗한 깊이, Gaussian 잡음, 8×8px block 누락의 세 특징을 미리 저장함. 잡음은 유효한 깊이값에만 더하고 원래 비유효값을 유지함. 학습용 잡음의 σ는 영상마다 `[0, 5mm]`에서 고정 seed로 한 번 선택함. 누락은 4,800개 block 중 240개를 균일하게 골라 영상 면적 5%의 유효 깊이를 0으로 바꿈. RGB·GT를 보고 변형 위치를 고르지 않음.
+
+각 epoch에는 원본 영상마다 **깨끗한 입력 50%·잡음 25%·누락 25% 확률로 하나만 선택**함. 동일 seed의 RGB와 결합 모델은 같은 영상 순서·변형 선택·optimizer 횟수로 학습함. RGB는 depth를 사용하지 않지만 영상 반복 노출 수는 동일함. Validation은 세 깊이 조건·세 물체 수 상태를 동일 가중한 loss로 평가하고 최저 loss checkpoint를 선택함.
+
+학습은 20 epochs·batch 8·AdamW lr `0.001`·weight decay `0.01`·gradient clip `5`, FP32·TF32 off이며 기존 SmoothL1 정의를 유지함. 새 모델은 모델당 **2,400 updates**, 기존 모델은 당시 **1,600 updates**임. 따라서 기존 대비 개선은 **새 배치·다양한 물체 수·깊이 변형·더 많은 update를 묶은 보완 결과**임. 잡음 학습 하나나 MultiMAE 사전학습 하나의 인과 효과를 분리한 실험으로 쓰지 않음. 새 RGB와 새 결합 사이의 비교는 자료와 update 수를 맞춤.
+
+시험은 새 480영상 각각에 깨끗한 깊이·σ=5mm 잡음·5% block 누락을 적용한 **1,440개 입력 조건**임. 각 물체 수×깊이 조건은 32개 trajectory·160영상임. 독립 물리 장면 1,440개라는 뜻이 아님. 잡음과 누락은 원본 깊이에서 각각 만들고 합성 강도를 실제 센서에서 측정한 잡음 모델로 해석하지 않음.
+
+### 4. 사전 기준과 전체 결과
+
+Primary는 유효 창 중 중심 pixel이 GT 물체인 `foreground_center`임. 개수 오차(MAE)는 예측과 장면 GT의 차이 절댓값 평균임. 선택 손실(top20 count regret)은 **GT count가 높은 상위 20% 위치의 실제 평균에서 모델이 고른 상위 20% 위치의 실제 평균을 뺀 값**이며 낮을수록 좋음. 예측이 같은 값인 경계 위치는 분수 가중함. GT가 상수이면 regret은 0, Spearman은 NA로 보존함.
+
+같은 trajectory 안의 다섯 camera, 세 창 크기, trajectory, 세 seed를 동일 가중함. 세 scale의 값이 모두 있을 때만 해당 trajectory의 scale 평균을 계산함. 전체 valid 영역·시점·크기·trajectory별 결과와 coverage도 저장함. Bias는 같은 가중으로 계산한 `예측−GT` 평균이며 양수면 과대추정임.
+
+수집·학습 전에 다음 세 조건을 고정함. 결과를 보고 허용폭이나 기준을 바꾸지 않음.
+
+| 확인할 내용 | 사전 기준 | 결과 |
+|---|---|---|
+| 12개·8개 과대추정 보완 | 기존 결합 대비 평균 MAE 감소·평균 bias 절댓값 절반 이하. 각 기준을 만족하는 seed가 각각 2/3 이상 | 두 상태 모두 각 기준 3/3, 통과함 |
+| Depth 추가 이점 | 9조건 각각에서 새 결합의 MAE·regret이 새 RGB보다 작고, 두 지표가 함께 개선된 seed 2/3 이상 | 9조건 모두 3/3, 통과함 |
+| 깨끗한 16개 성능 보존 | 새 결합 MAE·regret 각각 기존 결합의 1.05배 이하이며 두 지표를 함께 만족한 seed 2/3 이상 | Regret +7.97%, 동시 만족 0/3, 미통과함 |
+
+Bias 절반과 5% 보존폭은 이 보완 실험의 **사전 실용 기준**이며 통계적 유의성·비열등성 검정이 아님. Sparse 기준은 MAE 통과 seed와 bias 통과 seed를 각각 세며, 둘을 동시에 만족한 seed 수도 보고하지만 추가 문턱으로 쓰지 않음. 실제로 두 상태 모두 동시 3/3임. 세 부문 모두 통과해야 작은 fusion pilot의 근거로 삼는 규칙이므로 **전체 기준은 미충족**임.
+
+| 새 시험 조건 | 새 RGB MAE ↓ | 새 결합 MAE ↓ | 새 RGB 선택 손실 ↓ | 새 결합 선택 손실 ↓ | 동시 개선 seed |
+|---|---:|---:|---:|---:|---:|
+| 깨끗한 깊이·16개 | 0.526440 | 0.493096 | 0.146679 | 0.124218 | 3/3 |
+| 깨끗한 깊이·12개 | 0.435674 | 0.399124 | 0.099513 | 0.077945 | 3/3 |
+| 깨끗한 깊이·8개 | 0.333913 | 0.305348 | 0.062598 | 0.044197 | 3/3 |
+| 5mm 잡음·16개 | 0.526440 | 0.512211 | 0.146679 | 0.133618 | 3/3 |
+| 5mm 잡음·12개 | 0.435674 | 0.413407 | 0.099513 | 0.086194 | 3/3 |
+| 5mm 잡음·8개 | 0.333913 | 0.322416 | 0.062598 | 0.052259 | 3/3 |
+| 5% 누락·16개 | 0.526440 | 0.505675 | 0.146679 | 0.132186 | 3/3 |
+| 5% 누락·12개 | 0.435674 | 0.408543 | 0.099513 | 0.083552 | 3/3 |
+| 5% 누락·8개 | 0.333913 | 0.314231 | 0.062598 | 0.048972 | 3/3 |
+
+새 결합은 각 조건의 **5/5 camera**에서도 seed 평균 MAE·regret이 새 RGB보다 낮음. 다섯 시점은 같은 물리 상태를 보는 관측이므로 다섯 독립 실험으로 확대하지 않음. RGB는 depth를 사용하지 않으며 같은 물체 수의 깊이 변형에서 예측 배열이 원본과 동일함.
+
+### 5. 과대추정 개선과 남은 16개 성능 손실
+
+아래 기존·새 결합은 **모두 이번의 동일한 새 시험 영상**에서 비교한 값임. Phase 41의 다른 장면 수치를 그대로 가져온 비교가 아님.
+
+| 깨끗한 깊이 | 기존 결합 MAE | 새 결합 MAE | 기존 bias | 새 bias | 평균 장면 GT | 기존 평균 예측 | 새 평균 예측 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 16개 | 0.474159 | 0.493096 | +0.039391 | −0.050482 | 4.632929 | 4.672320 | 4.582447 |
+| 12개 | 0.717760 | 0.399124 | +0.634494 | −0.020510 | 3.789548 | 4.424042 | 3.769038 |
+| 8개 | 1.197569 | 0.305348 | +1.185593 | +0.018356 | 2.904144 | 4.089737 | 2.922499 |
+
+8개 상태에서는 평가 창당 실제 평균이 약 **2.90개**인데 기존 모델은 **4.09개**로 예측했음. 보완 뒤에는 **2.92개**로 내려왔고 MAE도 **74.50% 감소**함. 12개 상태의 MAE도 **44.39% 감소**함. 평균 bias가 0에 가깝다는 사실만으로 모든 위치가 정확하다고 쓰지 않음. 영상·scale별 bias 절댓값을 먼저 구한 보조 평균도 12개에서 **0.634834→0.198780**, 8개에서 **1.185593→0.150793**로 감소했으며 시점·크기별 값은 `bias_camera_scale.csv`에 보존함.
+
+5mm 잡음·16개 상태에서는 기존 결합의 MAE/선택 손실 **0.566560/0.151575**가 새 결합에서 **0.512211/0.133618**로 감소함. 같은 자료로 새로 학습한 RGB의 **0.526440/0.146679**보다도 낮음. 깊이에 지정한 오차가 있어도 추가 depth 경로의 이점이 남았다는 결과이며 잡음 영향이 완전히 사라졌다는 뜻은 아님.
+
+반면 깨끗한 16개 상태는 기존 결합의 MAE **0.474159→0.493096(+3.99%)**, 선택 손실 **0.115045→0.124218(+7.97%)**임. 평균 MAE는 5% 보존폭 안이지만 선택 손실은 밖이며, 두 지표를 함께 보존한 seed는 **0/3**임. 새 RGB보다 여전히 좋다는 비교와 기존 결합의 깨끗한 밀집 장면 성능을 보존했는지는 별개의 판단임.
+
+이 조건에서 기존 결합 대비 선택 손실은 **세 창 크기 모두**, camera별로는 **5개 중 4개**에서 증가함(top view는 감소함). MAE는 5개 시점 모두 증가함. 따라서 한 시점의 예외만으로 생긴 평균 악화로 설명하지 않음.
+
+### 6. 실제 장면과 최대 오류
+
+![Phase 42 fixed count and noise comparisons](img/complexity/phase42_robust_count_conditions_20261006.png)
+
+고정 사례는 trajectory ID 정렬상 첫 `round01/reduction/book_1__env0002`의 center view임. 위 세 행은 16→12→8개 상태, 아래 세 행은 같은 영상의 깊이에 σ=5mm 잡음을 넣은 상태임. 열은 **실제 RGB / 장면 GT / 기존 결합 / 새 RGB / 새 결합**이며 seed 0·96px 창을 표시함. 각 행의 모든 지도에 같은 색 범위를 사용함. RGB와 GT는 깊이 변형 전후 같으며 성능이 좋은 장면으로 사례를 교체하지 않음. 그림의 GT mask는 표시용이며 추론에 쓰지 않음.
+
+![Phase 42 largest candidate error](img/complexity/phase42_robust_count_worst_20261006.png)
+
+최대 오류 그림은 1,440개 시험 입력 중 **새 결합 seed 0의 세 scale 평균 foreground MAE가 가장 큰 영상**을 선택함. `noise5mm16_round01_clean16_book_3_scene00023_env0003_top`이며 선택 지표는 **1.088827**임. 표시한 96px 지도와 세 scale의 선택 기준을 구분함. 해당 그림에서도 count가 높은 부분을 낮고 매끄럽게 예측하는 오류가 남음. 평균 개선이 모든 영상의 정확한 개수를 보장하지 않으며, 이 한 사례로 특정 물체나 해상도를 원인으로 확정하지 않음.
+
+### 7. 검증과 해석 범위
+
+원본 GT 창 **69,120개**를 직접 검산했고 unknown pixel은 0임. 물리 활성 ID·제거 계획·trajectory split 검사를 통과함. 학습 provenance 감사 **22,594개 검사**에서 train/validation만 담은 cache의 5,760개 특징 파일, 두 모델의 epoch별 동일 순서, 최저 validation checkpoint 선택, 고정 helper hash를 확인함. 이 감사는 저장 source·파일·history 검토이며 학습 재실행이나 학습 프로세스의 모든 I/O를 실측한 검사는 아님.
+
+독립 추론에서 **1,440개 입력×9개 head**의 예측을 먼저 저장하고, 별도 평가기가 GT를 읽음. 알려진 Python I/O 경로에서 GT·capture metadata 접근 차단을 검사했으며 운영체제 수준의 모든 native I/O 격리로 확대하지 않음.
+
+독립 CPU 감사는 **38,880개 image-scale 조합**의 primary MAE·regret·signed bias와 집계·판정을 별도 알고리즘으로 재산출함. **58,450개 검사 PASS**, 여섯 새 모델과 세 기존 모델의 수치·전체 미통과 판단이 일치함. 최대 차이는 MAE **5.35e−7**, regret **4.66e−7** 미만이며 bias 차이는 0임. RGB의 깊이 변형 전후 예측 배열 **2,880개**도 bitwise 동일함. 저장 예측의 수치 감사이며 GPU 재추론·학습 재실행이나 보조 Spearman 전체의 독립 감사는 아님.
+
+모델 연산시간은 다시 측정하지 않음. 구조를 유지했으므로 반복 처리나 추가 backbone이 생긴 것은 아니지만, Phase 40의 결합 약 20.521ms·RGB 약 10.464ms를 새 실행에서 재측정한 값으로 쓰지 않음. 통합 지연·실제 센서·외부 물체·최종 탐색 효용은 이번 결과의 범위 밖임.
+
+### 8. 다음 Step과 실제 근거
+
+**물체 수 감소와 합성 depth 열화의 보완 효과를 유지하되, train/validation에서 깨끗한 16개 장면의 선택 성능도 보존하는 학습 구성을 검토하는 것이 다음 Step임.** 새 모델 구조나 반복 crop을 추가할 근거는 이번에 얻지 않았음. 현재 시험 결과로 설정을 바꾸면 이 자료는 진단용이 되므로, 이후 수정한 후보는 별도 새 heldout에서 확인해야 함. 허용폭을 사후 완화하거나 현재 후보를 자동으로 fusion에 넣지 않음. 추가 보완 학습·새 heldout·fusion은 **아직 미실행**임.
+
+아래 경로는 실제 개발 폴더 `2D-PDM_DINOv3` 기준임. GitHub용 clone과 구분하며 코드·checkpoint·원시 배열은 로컬 보존함.
+
+| 근거 | 실제 경로 |
+|---|---|
+| 고정 protocol | `outputs/complexity_robust_count_20261006/locked_protocol.json` |
+| 새 물리 수집·source snapshot·로그 | `outputs/complexity_instance_capture_20261006_robust_count/` |
+| 전체·학습/validation·test GT 목록 | `outputs/complexity_robust_count_20261006/data/{manifest,trainval_manifest,test_manifest}.json` |
+| Raw GT·split 검사 | 같은 `data/audit.json` |
+| Frozen 특징·변형 cache | `outputs/complexity_robust_count_20261006/frozen_cache/` |
+| 새 여섯 head·학습 이력·완료 목록 | `outputs/complexity_robust_count_20261006/run/`, `run/training_complete.json` |
+| 학습 provenance 감사 | `outputs/complexity_robust_count_20261006/audit/training_provenance.json` |
+| 시험 깊이 변형·목록·생성 검사 | `outputs/complexity_robust_count_20261006/test_observations/{manifest,audit}.json` |
+| GT와 분리된 추론 | `outputs/complexity_robust_count_20261006/inference_spec.json`, `predictions/completion.json` 및 모델별 예측 |
+| 전체 수치·사전 판정 | `outputs/complexity_robust_count_20261006/evaluation.json`, `report/summary.json` |
+| 독립 수치 감사 | `outputs/complexity_robust_count_20261006/audit/independent_results_v1.json`, 같은 폴더 `audit_results.py` |
+| 그림·시점/크기/bias 표 | `outputs/complexity_robust_count_20261006/report/`의 두 PNG, `camera_metrics.csv`, `per_scale_metrics.csv`, `bias_camera_scale.csv` |
+| 재사용한 기존 결합 checkpoint | `outputs/complexity_depth_pretrain_20261001/run/rgb_predepth_seed*/best.pt` |
+| 새 실행 코드·기록 | `experiments/complexity_robust_count_20261006/`, `outputs/complexity_robust_count_20261006/logs/` |
+
+Phase 38 미채택과 GT 관계 회귀 공개 철회, Phase 39–41의 원본 결과는 유지함. 이번에는 기존 가시 count 후보의 학습을 보완했으며 최종 Complexity 정의·모델·fusion을 채택한 것으로 해석하지 않음.
 
 <!-- navigation:start -->
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Development Log** · [연구 문맥](agent.md)
