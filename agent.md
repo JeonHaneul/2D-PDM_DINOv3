@@ -6,7 +6,7 @@
 
 > 문서 기준일: 2026-10-15 (Asia/Seoul) · 정식 연구 이력: Phase 1–42 · 최신 후속: 지역 GT 160장 재생성·수치 검산 완료; 마지막 학습은 Phase 42 count 모델; 새 GT 학습·fusion 미실행
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
-> 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
+> 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
 
 이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–42 Development Log, Complexity의 가정·실험·후속 계획 보고서 14개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
@@ -24,7 +24,7 @@
 
 현재 `<DATA_ROOT>`는 로컬 `261013_data`임. PNG는 `<DATA_ROOT>/complexity/<target>/<frame>.png`, NPZ는 `<DATA_ROOT>/_gt/feasibility_20261014/complexity_arrays/<target>/<frame>.npz`임. 같은 metadata의 `complexity_region_regeneration_20261015/{protocol,completion,audit}.json`, `complexity_layout.json`·`export_audit.json`이 실행·검산 근거임. 이전 PNG/NPZ 320개와 metadata 10개는 `history/pre_region_20261015/`에 보존함. 이전 후보 manifest의 원본 경로·hash는 이 이력의 ZIP 안 상대경로로 확인하며 후보 자체 파일은 유지함. 코드는 `<DEV_ROOT>/experiments/complexity_neighbor_gt_20261015/`에만 있으며 공개하지 않음.
 
-공개 설명·그림은 [Complexity Stream](complexity_stream.md)과 [Development Log](development_log.md)의 2026-10-15 후속 기록을 읽음. 기존 count 성능을 새 GT로 옮겨 해석하거나 새 Phase·학습 완료를 추정하지 않음.
+공개 [Complexity Stream](complexity_stream.md)은 현재 지역 GT의 정의·생성·검산·한계를 설명함. 이전 count 방식의 구조·모듈·GT·loss는 [Development Log의 보존 절](development_log.md#phase42-count-method-history), 기존 성능표와 비교 그림은 [Phase 42 독립 확인 이력](development_log.md#phase42-count-confirmation)을 읽음. 개편 전 전체 설명은 [고정 commit의 원문](https://github.com/JeonHaneul/2D-PDM_DINOv3/blob/ffcf1b82523301b260208628bc14260320f7e5b1/complexity_stream.md)에 보존함. 이 문서 정리는 새 실험이 아니며 기존 count 성능을 새 GT로 옮겨 해석하거나 새 모델 학습 완료를 추정하지 않음.
 
 처음에는 아래 현재 상태와 A를 읽고, “왜 이 방법을 쓰게 되었는가”는 B의 해당 Phase와 C의 상세 보고서를 읽는다. D는 근거 파일 위치를 찾기 위한 색인이다. 본문에 있는 과거 계획을 완료된 실험으로 읽지 않는다. 현재 상태를 바꾸지 않은 문서 정리·이미지 이동은 새 연구 Phase가 아니다.
 
@@ -50,7 +50,7 @@
 
 새 장면의 이전→현재 결합 MAE는 **0.471533→0.476851(+1.13%)**, 선택 손실은 **0.113283→0.114333(+0.93%)**임. 두 지표가 기존의 1.05배 이하라는 사전 유지 기준과 현재 RGB 대비 추가 이점을 각각 **3/3 seeds**에서 통과함. 현재 결합의 반올림 count 일치율은 **62.62%**, 연속 오차 1개 이내 비율은 **87.97%**이며 segmentation 정확도·탐색 성공률로 확대하지 않음. Raw GT 5,760 window 검산과 독립 수치 감사 14,279검사·4,320 image-scale 재계산도 통과함.
 
-당시 **Phase 42 RGB+MultiMAE 지역 count 구조를 통합 실험의 기준 모델로 정리하고 fusion 설계 논의로 진행함.** 새 지역 GT 재생성 이후에도 이 모델은 기존 count 비교 기준으로 보존함. Complexity 본문과 공통 구조도를 현재 DINO32+RGB32+MultiMAE32→학습 F_C64→세 count map 구조로 맞춤. 초기 density·표현·관계·접경 아이디어의 상세 나열은 과거 문서와 Development Log에서 확인함. 새 학습·2:1:1 학습·세 stream 통합 forward·fusion·decoder·DRL은 실행하지 않음. 최종 탐색 효용·최종 위치 GT가 검증됐다는 뜻도 아님.
+당시 **Phase 42 RGB+MultiMAE 지역 count 구조를 통합 실험의 기준 모델로 정리하고 fusion 설계 논의로 진행함.** 새 지역 GT 재생성 이후에도 이 모델은 기존 count 비교 기준으로 보존함. DINO32+RGB32+MultiMAE32→학습 F_C64→세 count map의 설명과 그림은 이제 Development Log의 이전 방식 이력에 둠. Complexity 본문은 현재 지역 GT를 설명하며 새 출력 head의 구현·학습이 완료됐다는 뜻이 아님. 초기 density·표현·관계·접경 아이디어도 과거 문서와 로그에서 확인함. 새 학습·2:1:1 학습·세 stream 통합 forward·fusion·decoder·DRL은 실행하지 않음. 최종 탐색 효용·최종 위치 GT가 검증됐다는 뜻도 아님.
 
 **기존 Phase 42 test의 clean16 선택 손실 +7.97%·유지 기준 미충족은 그대로 남음.** 후속 validation의 +2.28%는 checkpoint 선택에 사용한 자료의 결과이고 원래 test 실패를 반박하지 않음. 이번 새 확인에서도 right·top view의 선택 손실은 이전 결합보다 **+5.69%·+8.02%** 높고, 현재 결합의 평균 편향은 **−0.130359**임. 사전 gate는 다섯 시점 평균·seed 단위이며 모든 camera에서 성능 저하가 없다는 뜻이 아님. 저하 원인도 확정하지 않음.
 
@@ -102,14 +102,15 @@ GT 관계 회귀의 공개 철회와 Phase 38 모델 미채택은 유지함. 문
 
 ### 주요 공개 근거
 
-- 전체 tensor architecture (`img/overall_architecture.png`): stream별 현재 tensor와 미구현 fusion·decoder·DRL 연결을 구분한 설명도. 같은 이름의 SVG 원본도 보존함.
-- Similarity 상세 설명·Q&A (`similarity_stream.md`), Occlusion 상세 설명·Q&A (`occlusion_stream.md`), Complexity 상세 설명·Q&A (`complexity_stream.md`)
+- 전체 tensor architecture (`img/overall_architecture.png`): 구현된 경로와 현재 지역 GT를 위한 학습안·미구현 fusion을 구분한 설명도. 같은 이름의 SVG 원본도 보존함. Phase 42 count 당시 그림은 `img/overall_architecture_phase42_20261006.png/.svg`임.
+- Similarity 상세 설명·Q&A (`similarity_stream.md`), Occlusion 상세 설명·Q&A (`occlusion_stream.md`), 현재 지역 GT 설명·Q&A (`complexity_stream.md`); 이전 count 기술 설명은 `development_log.md#phase42-count-method-history`
 - Complexity V2 protocol 공개본 (`docs/complexity_results/protocol_public.json`), test 결과 (`docs/complexity_results/summary.json`), 정의 기술 통계 (`docs/complexity_results/gt_definition_audit_20260908.json`)
 - Full16 book_1 패널 (`img/occlusion/full16_book_1_five_cameras.png`), 외부 packaged_food_5 패널 (`img/occlusion/zero_shot_packaged_food_5_test30.png`)
 - 정적 제거 비교 (`img/complexity/clutter_comparison.png`), 표현 A 비교 (`img/complexity/representation_comparison.png`), 표현 A 큰 오차 예 (`img/complexity/failure_examples.png`)
 
 ### 문서 갱신 이력
 
+- 2026-10-15 문서 정리: Complexity 본문을 현재 지역 GT 중심으로 개편하고, 이전 count 모델의 구조·GT·loss·그림은 Development Log와 고정 commit 원문에 보존함. 새 GT 생성·실험·학습·fusion 실행은 없음.
 - 2026-10-15: 지역 GT 160장 재생성·독립 수치 검산과 RGB–GT 그림을 반영함. 새 Phase·모델 학습은 없으며 Phase 42 count 성능과 새 GT를 구분함. 코드·원시 배열·checkpoint는 LOCAL로 유지함.
 - `1c63f1b`: Phase 35 정적 제거 결과·사진 공개.
 - `1acc59e`: Phase 36 A 결과·사진 공개.
@@ -394,13 +395,13 @@ Scene RGB-D + fixed references   → Complexity → F_C ─┘   │
 - **Complexity:** 일정 크기의 영상 영역 안에서 보이는 물체가 많은 위치를 예측하는 혼잡 신호다.
   Phase 42 RGB+MultiMAE 지역 count를 통합 실험 기준으로 사용하며 숨은 총수·segmentation 오류·탐색 성공률을 직접 예측한다는 뜻은 아니다.
 
-#### 전체 tensor architecture 설명 그림
+#### 전체 tensor architecture 설명 그림 — Phase 42 count 보존본
 
-![Overall tensor architecture](img/overall_architecture.png)
+![Phase 42 count tensor architecture — historical](img/overall_architecture_phase42_20261006.png)
 
-2026-09-17 전체 입력·세 stream의 tensor·계획된 결합을 한 그림으로 정리했다. 공개 원본은
-`img/overall_architecture.png`와 `.svg`, 로컬 renderer는
-`docs/render_overall_architecture_20260917.py`다. 당시 stream별 실행을 설명하는 구조도이며 Complexity의 최신 count 경로는 문서 앞 결과를 우선한다.
+아래 A 본문에 맞춰 Phase 42 count 모델 당시 그림을 별도 경로에 보존했다. 공개 원본은
+`img/overall_architecture_phase42_20261006.png`와 `.svg`, 로컬 renderer는
+`docs/render_overall_architecture_20261006.py`다. 현재 지역 GT를 설명하는 공통 그림 `img/overall_architecture.png`와 구분하며, 새 GT 학습 모델이 완성됐다는 근거로 사용하지 않는다.
 
 **세 stream을 함께 호출하는 통합 forward와 fusion·decoder·DRL은 미구현**이다.
 문서 표시에는 PNG를 사용하고 SVG는 벡터 보존본으로 둔다. SVG 글자는 path로 저장될 수 있으므로

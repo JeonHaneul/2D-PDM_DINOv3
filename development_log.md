@@ -1910,6 +1910,8 @@ Validation의 trajectory ID 정렬상 첫 배치·center view에서 clean16/12/8
 
 ---
 
+<a id="phase42-count-confirmation"></a>
+
 ## 2026-10-06 — Phase 42 후속 독립 확인 — 물체 16개인 새 장면과 통합 실험 기준 모델
 
 > 2026-10-06 · 새 32배치·5뷰·160영상 · 기존 9개 head 고정 · 새 학습·fusion 없음
@@ -2044,6 +2046,88 @@ GT로 고른 상위 영역의 실제 평균 count는 **7.201개**, 현재 결합
 **마지막 학습 모델은 Phase 42의 48/96/160px count3 모델임.** 새 지역 GT는 단위·출력 수가 달라 기존 count 모델의 MAE·선택 손실을 새 GT 성능으로 사용할 수 없음. 이번에는 기존 160장 GT만 갱신했고 새 학습·fusion은 수행하지 않음. 후속 학습·평가는 새 GT의 의미와 출력 규격을 구분해 설계해야 하며, 기존 모델과 실패 결과는 보존함.
 
 LOCAL 근거: `<DEV_ROOT>/experiments/complexity_neighbor_gt_20261015/regenerate_region.py`, `<DATA_ROOT>/_gt/feasibility_20261014/complexity_region_regeneration_20261015/{protocol,completion,audit}.json`, 같은 metadata의 `complexity_layout.json`·`export_audit.json`임. 현재 PNG·NPZ는 `<DATA_ROOT>/complexity/<target>/`와 `<DATA_ROOT>/_gt/feasibility_20261014/complexity_arrays/<target>/`에 있음. 교체 전 값은 `history/pre_region_20261015/old_complexity.zip`에 보존하며 이전 후보 manifest의 원본 경로·hash를 확인할 때 이 ZIP을 사용함. 실행 코드·원시 배열·checkpoint는 공개하지 않음.
+
+---
+
+<a id="phase42-count-method-history"></a>
+
+## 2026-10-15 — 이전 count 모델 구현 상세 보존
+
+사용자 요청으로 [Complexity Stream](complexity_stream.md)은 현재 지역 GT의 정의·생성 과정·검산·한계를 설명하는 문서로 정리함. 이전 count 모델의 구조·GT·학습·그림은 이 로그의 역사 기록으로 보존함. **문서 정리이며 추가 GT 생성·새 학습·평가·fusion 실행은 없음.** 현재 지역 GT를 예측하는 학습 모델이 완성됐다는 뜻도 아님.
+
+아래는 마지막으로 학습한 **Phase 42 count 모델**의 기술 기록임. 모듈별 원문·계산 예·FAQ 전체는 [개편 전 Complexity 문서의 고정 보존본](https://github.com/JeonHaneul/2D-PDM_DINOv3/blob/ffcf1b82523301b260208628bc14260320f7e5b1/complexity_stream.md)에 남김. 기존 [clean16 결과 표·그림·camera별 한계](#phase42-count-confirmation)는 위 평가 절에 유지하며 같은 표와 이미지를 다시 복제하지 않음.
+
+### 보존한 입력·구조·출력
+
+입력은 한 camera에서 촬영한 단일 RGB-D임. 다섯 view를 동시에 넣거나 segmentation·target reference·workspace mask·빈 서랍 depth·활성 물체 수를 network 입력으로 제공하지 않음. 원본 베이지 서랍을 포함한 전체 영상을 처리하고 GT 유효 위치는 별도 loss·평가에만 사용함.
+
+```text
+RGB 3×480×640 → frozen DINOv3 layer11 768×30×40 → L2 → 학습 projection 32
+             → 학습 RGB 세부 CNN 32×30×40
+depth 1×480×640 → 정규화 → frozen MultiMAE 768×30×40 → L2 → 학습 projection 32
+  세 경로 concat 96×30×40
+    → 3×3 Conv 96→64→64→64, dilation 1·2·4 → F_C 64×30×40
+    → 1×1 Conv 64→3 + softplus → 48/96/160px 창의 count 3×30×40
+```
+
+Batch 축을 생략한 규격임. `F_C`는 위치별 64개 숫자로 구성된 학습 특징이며 각 channel에 물체 수·접촉 등의 의미를 미리 지정하지 않음. 세 count는 서로 다른 창 크기의 연속 회귀값이며 한 head에서 동시에 생성함. 영역 crop 재시도나 창 크기마다 별도 CNN을 실행하는 경로는 없음. `F_C`의 반환 구현과 세 stream fusion의 실행은 별개임.
+
+당시 공통 구조도는 [Phase 42 PNG](img/overall_architecture_phase42_20261006.png)와 [SVG](img/overall_architecture_phase42_20261006.svg)에 보존함. 현재 지역 GT 설명에 사용하는 공통 구조도와 구분함.
+
+### 모듈별 연산과 해석 범위
+
+| 모듈 | 당시 구현과 목적 |
+|---|---|
+| DINO RGB | RGB를 0–1 및 ImageNet mean/std로 정규화하고 frozen ViT-B/16의 0-based block 11을 사용함. 1,200개 위치에 각 768개 특징을 제공하며 특정 channel을 물체 하나로 세지 않음 |
+| RGB 세부 CNN | RGB를 −1–1로 변환한 뒤 PixelUnshuffle(4): `3×480×640→48×120×160`; `1×1 Conv 48→32`; 두 `3×3 stride2 Conv`로 `32×30×40`을 만듦. 각 Conv 뒤 GN(8)·GELU 적용 |
+| MultiMAE depth | 관측 depth를 정규화해 공식 checkpoint의 depth input adapter와 공유 encoder에 입력함. RGB로 depth를 추정하지 않으며 RGB·semantic adapter와 복원 decoder는 사용하지 않음 |
+| 두 projection | DINO·MultiMAE 각각 위치별 channel L2 정규화 후 `1×1 Conv 768→32→GN(8)→GELU`. 두 특징의 같은 channel이 같은 의미라는 가정은 없음 |
+| 결합 CNN | 세 32채널을 더하지 않고 concat함. `3×3 Conv 96→64, 64→64, 64→64`의 dilation·padding을 1/2/4로 맞추며 각 단계에 GN(8)·GELU 적용 |
+| Count head | `1×1 Conv 64→3`과 `softplus(z)=log(1+exp(z))`. 출력은 확률이 아니며 16으로 나누거나 sigmoid로 제한하지 않음. 창 크기에 따른 단조 증가도 강제하지 않음 |
+
+PixelUnshuffle는 평균이 아니라 위치를 channel로 재배열하는 연산임. 이후 학습 Conv가 세부 패턴을 조합함. DINO·MultiMAE의 attention이 영상 전체 문맥을 포함하므로 한 feature의 정보를 원본 16×16pixel이나 결합 CNN의 3×3pixel로 한정하지 않음. DINO 출력의 LayerNorm과 projection 전 channel L2 정규화도 서로 다른 연산임.
+
+Depth 전처리는 유한한 양수 관측값을 정렬한 뒤 통계 계산에서 양 끝 10%를 제외하여 평균과 sample variance를 구함. 모든 유효 pixel에는 `(depth−mean)/sqrt(variance+1e−6)`를 적용하고 무효 depth는 mean으로 채워 정규화 후 0으로 둠. 영상에서 양 끝 10%를 삭제하는 연산은 아님. 별도 valid channel이 없어 무효 0과 평균 깊이의 0을 입력값만으로 구별하지 못하며, 절대 미터 값을 그대로 보존하는 경로도 아님.
+
+정규화 depth를 resize·crop 없이 16×16 patch로 처리하고 위치 표현을 30×40에 맞춤. 마지막 global token을 제외한 공간 token만 사용하며 추론에서 무작위 masking은 수행하지 않음. 모든 입력 depth가 무효여도 encoder 출력까지 0이라고 가정하지 않음.
+
+학습 parameter는 DINO projection 24,672·RGB CNN 20,256·MultiMAE projection 24,672·결합 CNN 129,600·count head 195, 합계 **199,395**개임. Frozen DINOv3·MultiMAE parameter는 제외한 값이며 학습 모듈은 FP32로 실행함. Count loss는 이 모듈들을 갱신하고 frozen encoder weight는 바꾸지 않음.
+
+이 설계의 RGB 두 경로 각각의 독립 효과나 MultiMAE 구조·전처리·사전학습의 개별 인과 효과를 분리해 입증한 것은 아님. 동일 가중치·전처리·정밀도의 통합 실행이라면 다른 stream의 공통 DINO layer11을 재사용할 수 있지만, 당시 평가기가 이미 하나의 shared forward로 실행됐다는 뜻은 아님.
+
+### 이전 count GT와 loss
+
+원본 `480×640` 물리 instance ID에서 stride 16px로 48·96·160px 정사각형 창을 놓고 **창 안에 16pixel 이상 보이는 ID를 한 번씩** 셈. 같은 물체의 떨어진 조각은 합산하고 서랍·바닥은 제외함. 완전히 가려진 물체는 세지 않음. 색상 PNG의 색 수나 16×16 patch의 대표 ID로 변환해 세는 방식이 아님.
+
+예를 들어 같은 ID의 조각 10px+8px는 한 개, 다른 ID 20px는 한 개, 또 다른 ID 12px는 제외하므로 GT는 2임. 창 안의 면적을 기준으로 하며 물체 중심이 창 안에 있어야 하는 조건은 없음. GT는 depth를 사용하지 않으므로 관측 depth에 잡음·누락을 더해도 같은 영상의 count GT는 유지함.
+
+Grid `(행12, 열20)`의 원본 중심은 `(y=200,x=328)`임. 48px 창은 `y[176,224),x[304,352)`, 96px는 `y[152,248),x[280,376)`, 160px는 `y[120,280),x[248,408)`이며 끝 좌표는 제외함. 창 전체가 영상 안에 있고 unknown pixel이 없을 때만 유효함. 잘린 창을 물체 0개로 학습하지 않음.
+
+Loss는 beta 1의 SmoothL1임. 오차 `e`에 대해 `|e|<1`이면 `0.5e²`, 그 외에는 `|e|−0.5`임. 각 영상·창 크기에서 유효한 0개 창과 1개 이상 창의 loss를 따로 평균한 뒤 같은 비중으로 결합함. 한 종류만 있으면 그 종류만 사용하고, 창 크기와 영상에도 동일 비중을 줌. 상위 영역 선택을 직접 최적화하는 loss는 아니었음.
+
+평가는 유효하고 창 중심 pixel이 물체인 위치를 primary로 삼았고, 전체 유효 위치 결과도 별도로 보존함. MAE는 `abs(예측−GT)`, 편향은 `예측−GT`의 평균임. 상위20% 선택 손실은 GT로 고른 상위 영역의 실제 평균 count에서 모델이 고른 상위 영역의 실제 평균 count를 뺀 값이며 동점 경계를 동일하게 나누어 반영함. Camera·창 크기·trajectory·seed를 동일 가중으로 집계함. 다섯 view를 독립 배치 다섯 개로 간주하지 않음.
+
+### 학습 계약과 보존한 결과
+
+| 항목 | Phase 42 실행 계약 |
+|---|---|
+| 자료 | 원래 16 asset·128 trajectory의 16→12→8개 상태와 5뷰, 총 1,920장. Train 960 / validation 480 / test 480; 같은 trajectory의 상태·view는 같은 split |
+| 제외·보존 | Packaged_food_5/World1 제외, 원본 베이지 서랍 유지 |
+| 학습 모델 | RGB와 RGB+MultiMAE 각각 seeds 0/1/2, 6개 head. 공통 초기 weight·영상 순서·깊이 변형 선택 일정 일치 |
+| 관측 선택 | 16/12/8 비율 1:1:1. Epoch당 clean 50% / Gaussian depth 잡음 25% / 8×8 block 누락 25% |
+| 고정 변형 | Train 영상별 σ를 0–5mm에서 뽑아 잡음 cache 한 개 생성; validation σ=5mm. 누락은 8×8 block 5%의 유효 depth를 0으로 설정한 한 변형 |
+| 학습량·optimizer | 20 epochs, batch 8, 총 2,400 updates; AdamW lr 0.001, weight decay 0.01, gradient clip 5 |
+| 선택 | Validation clean·잡음·누락 loss를 동일 가중한 값이 가장 작은 epoch의 checkpoint |
+
+Encoder의 frozen cache를 재사용했지만 원본 RGB CNN·projection·결합 CNN·head는 학습함. Backbone까지 공동 미세조정한 end-to-end 학습은 아님. 이전 결합의 1,600 updates 대비 학습량도 늘었으므로 Phase 42 개선을 noise 학습 하나의 효과로 단정하지 않음.
+
+기존 test에서 12·8개 상태 MAE는 `0.717760→0.399124`, `1.197569→0.305348`로 줄었고 새 RGB 대비 9조건의 두 지표 개선을 확인함. 그러나 clean16 선택 손실은 `0.115045→0.124218`, **+7.97%로 사전 유지 기준을 실패함.** 후속 validation은 +2.28%, 5% 초과 seed 1/3으로 조건부 2:1:1 재학습을 시작하지 않음. 이후 고정 모델의 새 clean16 확인에서 MAE +1.13%·선택 손실 +0.93%로 평균 유지 기준을 통과했지만 right/top +5.69%/+8.02%와 원래 실패는 보존함.
+
+새 clean16의 모든 수치·판정·원본 count 비교 그림은 [기존 평가 기록](#phase42-count-confirmation)에 있음. 그림 파일 `img/complexity/phase42_clean16_confirmation_20261006.png`는 그대로 유지함. 해당 시험 160장과 현재 지역 GT를 만든 train 160장은 다른 자료임. 이전 모델의 count MAE·선택 손실은 현재 지역 점수의 예측 성능이 아님.
+
+Phase 40의 단일 모델 benchmark에서 RGB+MultiMAE 시간은 RGB의 약 1.96배, peak allocated memory는 약 2.10배였음. 당시 환경·모델의 값이며 현재 지역 GT 모델이나 three-stream 통합 속도로 옮겨 쓰지 않음. 원래 asset·합성 RGB-D·고정 camera 이외의 적용 범위와 최종 탐색 효용은 미검증임.
+
+LOCAL 구현 근거는 `experiments/complexity_depth_pretrain_20261001/{model,multimae_depth}.py`, `experiments/complexity_local_count_20260929/ground_truth.py`, `experiments/complexity_robust_count_20261006/{cache,train,predict}.py`임. 이전 모델·평가 자료를 보존하고 GT 관계 회귀의 공개 철회도 유지함.
 
 ---
 
