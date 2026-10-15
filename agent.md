@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-10-06 (Asia/Seoul) · 정식 연구 이력: Phase 1–42 · 새 clean16 독립 확인 통과; Phase 42 지역 count를 통합 실험 기준으로 정리; fusion 설계 논의 단계
+> 문서 기준일: 2026-10-15 (Asia/Seoul) · 정식 연구 이력: Phase 1–42 · 최신 후속: 지역 GT 160장 재생성·수치 검산 완료; 마지막 학습은 Phase 42 count 모델; 새 GT 학습·fusion 미실행
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, 최신 상세 모델 설명은 세 stream 문서에 정리함. 연구 상태·수치는 이 문서의 로컬 근거 대조 정정도 함께 반영함.
 
@@ -13,6 +13,18 @@
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
 ## 읽는 순서와 현재 상태
+
+### 2026-10-15 최신 후속 — 지역 GT 160장 재생성
+
+사용자 요청으로 기존 train의 **16 targets × 2배치 × 5뷰 =160장** Complexity PNG·NPZ를 같은 경로에서 지역 GT로 교체함. 반경 48px에서 물체별 가까운 최대 16픽셀의 선형 거리 기여를 합산하고 가장 큰 기여도 하나를 제외함. 배경에서는 물체까지의 거리 16px 안에서 smoothstep으로 감소시킴. 물체 사이뿐 아니라 더미 바깥의 16px 이내 띠도 허용하며, 모든 배경이 0이라는 앞선 후보의 조건과 구분함.
+
+현재 GT는 **원시 full 480×640 / pooled 30×40 한 종류**임. PNG는 공통 선형 0–6 표시이고 확률이 아님. 생성 39.42초, 최대 원시 점수 5.2981944이며 표시 상한에서 잘린 픽셀과 16px 이상 먼 배경의 양수 픽셀은 모두 0개임. 독립 감사는 480좌표의 직접 거리식 검산 최대 오차 1.51e−7, pooled 192,000값 재계산 최대 오차 7.35e−7로 통과함. 전 픽셀 거리 재계산·의미 타당성·탐색 성능 검증과 구분함.
+
+**마지막 모델은 Phase 42 count3 학습 상태로 유지함.** 새 GT를 학습한 모델은 없으며, 아래 기존 MAE·선택 손실은 새 지역 GT 성능이 아님. 공통 fusion 표본 155장·재투영 보류 5장은 유지함. 새 원본 RGB-D 240,000세트는 수집됐지만 전체 GT 생성·새 학습·fusion은 수행하지 않음. 아래 10-06 모델 설명과 A 이후의 상세 본문은 당시 snapshot이며 현재 GT 저장 상태는 이 항목을 우선함.
+
+현재 `<DATA_ROOT>`는 로컬 `261013_data`임. PNG는 `<DATA_ROOT>/complexity/<target>/<frame>.png`, NPZ는 `<DATA_ROOT>/_gt/feasibility_20261014/complexity_arrays/<target>/<frame>.npz`임. 같은 metadata의 `complexity_region_regeneration_20261015/{protocol,completion,audit}.json`, `complexity_layout.json`·`export_audit.json`이 실행·검산 근거임. 이전 PNG/NPZ 320개와 metadata 10개는 `history/pre_region_20261015/`에 보존함. 이전 후보 manifest의 원본 경로·hash는 이 이력의 ZIP 안 상대경로로 확인하며 후보 자체 파일은 유지함. 코드는 `<DEV_ROOT>/experiments/complexity_neighbor_gt_20261015/`에만 있으며 공개하지 않음.
+
+공개 설명·그림은 [Complexity Stream](complexity_stream.md)과 [Development Log](development_log.md)의 2026-10-15 후속 기록을 읽음. 기존 count 성능을 새 GT로 옮겨 해석하거나 새 Phase·학습 완료를 추정하지 않음.
 
 처음에는 아래 현재 상태와 A를 읽고, “왜 이 방법을 쓰게 되었는가”는 B의 해당 Phase와 C의 상세 보고서를 읽는다. D는 근거 파일 위치를 찾기 위한 색인이다. 본문에 있는 과거 계획을 완료된 실험으로 읽지 않는다. 현재 상태를 바꾸지 않은 문서 정리·이미지 이동은 새 연구 Phase가 아니다.
 
@@ -32,13 +44,13 @@
 | Complexity Phase 42 보완 학습 | 새 128개 배치·1,920장으로 학습/검증/시험 분리; 12/8개 과대추정 감소, 새 RGB 대비 9조건 모두 개선 | 정상 16개 선택 손실 +7.97%로 당시 5% 유지 기준 미충족; 이력은 아래 새 독립 확인 뒤에도 보존 |
 | Phase 42 후속 validation 진단 | 기존 validation 480영상·1,440관측 조건의 고정 9개 head; 정상 16개 선택 손실 +2.28%, 5% 초과 1/3 seed | 추가 학습 진입 기준 미충족으로 2:1:1 학습 미실행; 독립 test가 아니며 기존 test 실패 유지 |
 | 새 clean16 독립 확인 | 새 32배치·160장, 기존 대비 MAE +1.13%·선택 손실 +0.93%, 두 gate 3/3 seeds 통과 | Phase 42 count를 통합 실험 기준으로 정리; right/top 시점 저하·기존 test 실패 보존 |
-| B/C 및 최종 결합 | 과거 B/C 계획은 미실행으로 보존; 현재 count의 F_C64와 세 stream 입력 규격 확인 | 현재 다음 Step은 통합 GT·loss·S+O 대 S+O+C 비교 설계. B/C 자동 실행·fusion·DRL 완료 아님 |
+| 지역 GT 후속·최종 결합 | 새 지역 GT 160장 재생성·수치 검산; 기존 count의 F_C64 규격은 보존 | 새 GT 학습·출력 정합과 독립 평가, 통합 GT 전체 생성·loss·S+O 대 S+O+C 비교는 미실행. 이전 B/C 계획도 자동 실행하지 않음 |
 
-최신 완료는 **Phase 42 후속 새 clean16 독립 확인**임. 마지막 새 학습 모델은 Phase 42로 유지함. 원래 16개 물체가 있는 새 32배치를 다섯 camera로 촬영한 160장에 이전 결합·현재 RGB·현재 결합의 고정 9개 head를 적용함. packaged_food_5/World1을 제외하고 원본 베이지 서랍을 유지함. 기존 train/validation/test와 seed·RGB/depth·물체 pose가 겹치지 않음을 확인함. 추론은 단일 RGB-D이며 모든 예측을 저장한 뒤 별도 GT 평가를 수행함.
+기존 count 모델의 마지막 독립 검증은 **Phase 42 후속 새 clean16 독립 확인**임. 마지막 새 학습 모델은 Phase 42로 유지함. 원래 16개 물체가 있는 새 32배치를 다섯 camera로 촬영한 160장에 이전 결합·현재 RGB·현재 결합의 고정 9개 head를 적용함. packaged_food_5/World1을 제외하고 원본 베이지 서랍을 유지함. 기존 train/validation/test와 seed·RGB/depth·물체 pose가 겹치지 않음을 확인함. 추론은 단일 RGB-D이며 모든 예측을 저장한 뒤 별도 GT 평가를 수행함.
 
 새 장면의 이전→현재 결합 MAE는 **0.471533→0.476851(+1.13%)**, 선택 손실은 **0.113283→0.114333(+0.93%)**임. 두 지표가 기존의 1.05배 이하라는 사전 유지 기준과 현재 RGB 대비 추가 이점을 각각 **3/3 seeds**에서 통과함. 현재 결합의 반올림 count 일치율은 **62.62%**, 연속 오차 1개 이내 비율은 **87.97%**이며 segmentation 정확도·탐색 성공률로 확대하지 않음. Raw GT 5,760 window 검산과 독립 수치 감사 14,279검사·4,320 image-scale 재계산도 통과함.
 
-이에 **Phase 42 RGB+MultiMAE 지역 count 구조를 통합 실험의 기준 모델로 정리하고 fusion 설계 논의로 진행함.** Complexity 본문과 공통 구조도를 현재 DINO32+RGB32+MultiMAE32→학습 F_C64→세 count map 구조로 맞춤. 초기 density·표현·관계·접경 아이디어의 상세 나열은 과거 문서와 Development Log에서 확인함. 새 학습·2:1:1 학습·세 stream 통합 forward·fusion·decoder·DRL은 실행하지 않음. 최종 탐색 효용·최종 위치 GT가 검증됐다는 뜻도 아님.
+당시 **Phase 42 RGB+MultiMAE 지역 count 구조를 통합 실험의 기준 모델로 정리하고 fusion 설계 논의로 진행함.** 새 지역 GT 재생성 이후에도 이 모델은 기존 count 비교 기준으로 보존함. Complexity 본문과 공통 구조도를 현재 DINO32+RGB32+MultiMAE32→학습 F_C64→세 count map 구조로 맞춤. 초기 density·표현·관계·접경 아이디어의 상세 나열은 과거 문서와 Development Log에서 확인함. 새 학습·2:1:1 학습·세 stream 통합 forward·fusion·decoder·DRL은 실행하지 않음. 최종 탐색 효용·최종 위치 GT가 검증됐다는 뜻도 아님.
 
 **기존 Phase 42 test의 clean16 선택 손실 +7.97%·유지 기준 미충족은 그대로 남음.** 후속 validation의 +2.28%는 checkpoint 선택에 사용한 자료의 결과이고 원래 test 실패를 반박하지 않음. 이번 새 확인에서도 right·top view의 선택 손실은 이전 결합보다 **+5.69%·+8.02%** 높고, 현재 결합의 평균 편향은 **−0.130359**임. 사전 gate는 다섯 시점 평균·seed 단위이며 모든 camera에서 성능 저하가 없다는 뜻이 아님. 저하 원인도 확정하지 않음.
 
@@ -80,7 +92,7 @@ GT 관계 회귀의 공개 철회와 Phase 38 모델 미채택은 유지함. 문
 | `<DEV_ROOT>` | 실제 개발 폴더 `2D-PDM_DINOv3`; 연구 PC에서는 Git 저장소가 아님 |
 | `<REPO_ROOT>` | 공개용 별도 clone `2D-PDM_DINOv3_git`; 이 GitHub repo |
 | `<WORKSPACE_ROOT>` | 두 폴더와 데이터·asset 등이 있는 공통 작업 경로 |
-| `<DATA_ROOT>` | 로컬 원본 `260714_data` |
+| `<DATA_ROOT>` | 현재 로컬 원본 `261013_data`; 10-06 이전 본문에서의 `260714_data`는 당시 데이터 이력 |
 | `<ASSET_ROOT>`, `<MODEL_ROOT>`, `<CAPTURE_ROOT>` | 로컬 USD assets, 사전학습 weights, scene 생성·capture 자료 |
 | `<CONDA_ROOT>`, `<LOCAL_PDF_ROOT>`, `<USER_HOME>`, `<SESSION_ARCHIVE>` | 환경·참고 PDF·사용자 경로·세션 자료 위치를 일반화한 기호 |
 
@@ -98,6 +110,7 @@ GT 관계 회귀의 공개 철회와 Phase 38 모델 미채택은 유지함. 문
 
 ### 문서 갱신 이력
 
+- 2026-10-15: 지역 GT 160장 재생성·독립 수치 검산과 RGB–GT 그림을 반영함. 새 Phase·모델 학습은 없으며 Phase 42 count 성능과 새 GT를 구분함. 코드·원시 배열·checkpoint는 LOCAL로 유지함.
 - `1c63f1b`: Phase 35 정적 제거 결과·사진 공개.
 - `1acc59e`: Phase 36 A 결과·사진 공개.
 - `f34cb7c`: README 세 stream 구성 통일과 current full16 결과 그림 추가.
@@ -174,7 +187,7 @@ GitHub root의 `agent.md`로 통합했다. 공개본은 외부 GPT의 연구 질
 
 ### 1. 처음 읽는 agent를 위한 핵심 요약
 
-#### 최신 재개 상태 — 2026-10-06 Phase 42 후속 새 clean16 독립 확인
+#### 이전 모델 검증 — 2026-10-06 Phase 42 후속 새 clean16 독립 확인
 
 마지막 학습 모델은 **Phase 42**임. 새 clean16 독립 확인이 사전 두 기준을 통과하여 **Phase 42 RGB+MultiMAE 지역 count를 통합 실험의 기준모델로 정리하고 fusion 설계 논의로 진행할 수 있음**. `docs/complexity_results/clean16_confirmation_20261006.md`를 끝까지 읽음. 새 학습·fusion 실행이나 최종 탐색 효용 검증을 완료한 뜻은 아님.
 

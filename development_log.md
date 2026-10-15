@@ -23,6 +23,7 @@ Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를
 | Complexity 통합 전 검증 | 고정된 후보의 물체 감소·외부 물체·depth 변화 비교 | 다섯 조건에서 개선 유지, Gaussian depth noise에서 순위 이점 거의 소실; 관측 변화와 개수 분포 보완 전 fusion 보류 | Phase 41 |
 | Complexity 물체 감소·깊이 오류 보완 | 새 16→12→8개 자료와 깊이 변형으로 같은 구조 재학습 | 과대추정 감소·새 RGB 대비 9조건 개선; 정상 16개 선택 손실 +7.97%로 보존 기준 미충족, fusion 보류 유지 | Phase 42 |
 | Complexity 학습 비중 변경 전 진단 | 기존 validation에서 정상 16개 조건의 저하 규모 확인 | 선택 손실 +2.28%·5% 초과1/3seed로 추가 학습 조건 미충족; 재학습·새 수집 없이 종료, 기존 test 실패 유지 | Phase 42 후속 |
+| Complexity 지역 GT 재생성 | 기존 count의 같은 값 안에서 거리 차이와 경계 단절을 보완할 학습 목표 검토 | train 160장 GT 교체·수치 검산 완료; 마지막 모델은 Phase 42이며 새 GT 학습·fusion은 미실행 | 2026-10-15 후속 |
 
 ## 지표와 범위 읽는 법
 
@@ -2012,6 +2013,37 @@ GT로 고른 상위 영역의 실제 평균 count는 **7.201개**, 현재 결합
 | 실제 공개 상태 | `docs/public_agent_context_clean16_confirmation_20261006.json`의 commit·remote 확인 |
 
 실제 개발 폴더와 GitHub clone은 별개임. 코드·checkpoint·원시 배열은 로컬에 유지하고 공개 문서·그림만 갱신함. 문서 정리를 새 모델 학습이나 최종 탐색 성능 검증으로 기록하지 않음.
+
+---
+
+## 2026-10-15 — Complexity 지역 GT 재생성 후속 기록
+
+> 기존 train 16 targets × 2배치 × 5뷰 =160장 · GT 생성·수치 검산 · 새 학습·fusion 없음
+
+**같은 창 안의 물체 수가 같아도 물체 사이 간격은 다를 수 있어 GT 계산을 재검토함.** 먼저 물체 픽셀에서만 다른 물체의 거리 기여를 합산했으나, 물체 윤곽에서 배경 0으로 갑자기 바뀌는 경계가 남았음. 이후 여러 물체가 가까이 있는 영역을 표현하도록 계산식을 바꾸고, 사용자가 확인한 지역식을 기존 160장에 적용함. PNG 밝기 조정과 원시 GT 정의 변경을 구분함.
+
+각 위치에서 물체별 가까운 최대 16픽셀의 거리를 구해 `a_i=Σ max(0,1-d/48)/16`으로 계산함. 부족한 픽셀의 기여는 0임. 물체별 기여 합에서 가장 큰 기여 하나를 뺀 `sum(a_i)-max(a_i)`에 배경 감소 계수 `g`를 곱함. 한 물체만 있으면 0이며, 여러 물체가 가까이 있으면 값이 커지는 정의임. 전경에서는 `g=1`, 배경에서는 가장 가까운 물체까지의 거리 `d_bg`에 대해 `t=clip(1-d_bg/16,0,1)`, `g=t²(3-2t)`임. 더미 바깥도 물체에서 16px 미만이면 값이 생길 수 있고, 16px 이상 떨어지면 0임.
+
+![실제 RGB와 지역 Complexity GT](img/complexity/regional_gt_rgb_pairs_20261015.png)
+
+위 지도는 **모델 예측이 아니라 시뮬레이션의 가시 instance ID에서 계산한 GT**임. 모든 지도에 동일한 선형 `clip(score/6,0,1)` 표시를 사용하며, 점수는 확률이나 정수 물체 수가 아님. NPZ에는 표시 전 원시 점수를 보존함.
+
+| 생성·검산 항목 | 결과 |
+|---|---|
+| 교체 범위 | 기존 PNG 160장·NPZ 160개를 같은 경로에서 갱신함. 원본 RGB-D 240,000장 전체의 GT 생성은 아님 |
+| 현재 수치 구조 | 반경 48px 한 종류의 `full [480,640]`, 16×16 평균 `pooled [30,40]`, `valid_full`·`valid` 저장 |
+| 생성 시간 | 생성 39.42초, 전체 처리 39.80초 |
+| 표시·배경 제약 | 최대 원시 점수 5.2981944, 표시 상한 6에서 잘린 픽셀 0개, 물체에서 16px 이상 떨어진 배경의 양수 픽셀 0개 |
+| 독립 수치 검산 | 160장 × 3좌표 =480점의 직접 거리식 검산 최대 오차 1.51e−7. 저장된 full에서 pooled 192,000값을 재계산한 최대 오차 7.35e−7 |
+| 일관성·보존 | 전체 PNG·valid와 기존 4장 지역 후보의 모든 NPZ 배열·PNG 일치. 교체하지 않은 886개 파일의 유지, 이전 PNG/NPZ 320개 ZIP·metadata 10개, 6개 manifest 연결 확인 |
+
+독립 감사 PASS는 수치 일관성에 한정함. 직접 거리 검산은 영상당 3좌표이며 전 픽셀 거리의 독립 재계산이 아님. 입력은 가시 2D instance ID이고 depth·실제 3D 접촉·숨은 물체 형상은 쓰지 않음. 작은 가시 물체는 가장 큰 기여를 제외하는 과정에서 강조가 약해질 수 있으며, 반경·배경 범위의 최적성이나 탐색 효용도 검증하지 않음. Phase 35의 물체별 30mm 근접도와 제거 효과 사이 상관 약 0.078이라는 실패 이력도 유지함.
+
+이 자료의 S/O/C는 각각 160장이고 fusion amodal·visible 공통 목록은 155장임. 한 view의 non-target 재투영 경계 차이 때문에 같은 배치의 5뷰를 보류한 상태는 그대로임. Complexity 교체로 이 5장을 자동 채택하지 않음.
+
+**마지막 학습 모델은 Phase 42의 48/96/160px count3 모델임.** 새 지역 GT는 단위·출력 수가 달라 기존 count 모델의 MAE·선택 손실을 새 GT 성능으로 사용할 수 없음. 이번에는 기존 160장 GT만 갱신했고 새 학습·fusion은 수행하지 않음. 후속 학습·평가는 새 GT의 의미와 출력 규격을 구분해 설계해야 하며, 기존 모델과 실패 결과는 보존함.
+
+LOCAL 근거: `<DEV_ROOT>/experiments/complexity_neighbor_gt_20261015/regenerate_region.py`, `<DATA_ROOT>/_gt/feasibility_20261014/complexity_region_regeneration_20261015/{protocol,completion,audit}.json`, 같은 metadata의 `complexity_layout.json`·`export_audit.json`임. 현재 PNG·NPZ는 `<DATA_ROOT>/complexity/<target>/`와 `<DATA_ROOT>/_gt/feasibility_20261014/complexity_arrays/<target>/`에 있음. 교체 전 값은 `history/pre_region_20261015/old_complexity.zip`에 보존하며 이전 후보 manifest의 원본 경로·hash를 확인할 때 이 ZIP을 사용함. 실행 코드·원시 배열·checkpoint는 공개하지 않음.
 
 ---
 
