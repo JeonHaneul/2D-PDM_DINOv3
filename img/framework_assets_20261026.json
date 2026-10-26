@@ -1,0 +1,1868 @@
+{
+  "schema": "public_framework_assets_20261026_v1",
+  "path_base": "repository root",
+  "date": "2026-10-26",
+  "selection": "First matching common-test row for each fixed target/camera; no quality-based selection",
+  "inputs": {
+    "scene_rgb": "Observed single RGB image, native PNG byte copy",
+    "scene_depth": "Metric depth visualization only: fixed 2.5–3.5 m, near white/far black; nonfinite or nonpositive pixels black; this display inversion is not model preprocessing",
+    "target_reference": "Standalone center reference; segmentation-bbox crop with 18% padding, aspect-preserving 320-square thumbnail; not model preprocessing"
+  },
+  "display": {
+    "similarity": [
+      0,
+      1
+    ],
+    "occlusion": [
+      0,
+      1
+    ],
+    "complexity": [
+      0,
+      6
+    ],
+    "complexity_units": "Regional multi-object support score; neither probability nor integer object count; 6 is only the display ceiling",
+    "predictions": "Float32 30x40 predictions -> cv2.INTER_LINEAR 640x480 -> optional O workspace -> floor(clip(value/ceiling,0,1)*255+0.5)",
+    "native_gt": "Existing 640x480 grayscale PNGs copied byte-for-byte; S/C numeric training GT remains pooled float NPZ",
+    "occlusion_postprocess": "Main prediction multiplies the existing binary fixed-camera workspace after float expansion; raw prediction is also included; no target GT/GT coverage mask applied",
+    "per_image_normalization": false
+  },
+  "limitations": [
+    "Independent S/O/C streams; fusion is untrained. Fusion PNGs are amodal target GT only.",
+    "These five predetermined examples are illustrations, not a new performance evaluation.",
+    "Raw predictions, checkpoints, GT and recorded evaluation metrics are unchanged.",
+    "O evaluation used raw 30x40 outputs and GT coverage; the published workspace postprocessing does not revise those metrics.",
+    "Visible-pixel Similarity and Complexity GT are distinct from the amodal fusion target mask."
+  ],
+  "provenance": {
+    "completion": {
+      "path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/completion.json",
+      "sha256": "8e9c2d0d199ff6b1119ed78d26830f3b57dd4f54dedc13db946a13f5b59c25bc"
+    },
+    "common_index_hashes": {
+      "completion.json": "c3787f168e73de163ef9968a81ad7c28ffe3b464b72f63f9325acc0e9b0a9e8d",
+      "split_manifest.json": "6ec5edd508f0b59c622c082b7669b92c57e24a4e10608ab872824e070ccfc075",
+      "common_test.csv": "ababa93942e06c484f881c31c6a11c56c1c754f469343ab8d9a012508c1522ce"
+    },
+    "exporter": {
+      "path": "<DEV_ROOT>/experiments/paper_figures_20261026/export_public_assets.py",
+      "sha256": "cd70598a85fc0986417f1ec56d680dcb71edfed1c34459c910e1b3d7b3d0c9d9"
+    },
+    "comparison_source": {
+      "path": "<DEV_ROOT>/experiments/paper_figures_20261026/compare.py",
+      "sha256": "a86e8de967db699b4828c068b93b2207285da3b7e443ad3a87624493bd8e5ae7"
+    },
+    "prediction_arrays": "Existing completion SHA recorded; complete prediction arrays not rehashed during export"
+  },
+  "models": {
+    "similarity": {
+      "epochs_completed": 20,
+      "best_epoch": 20,
+      "checkpoint": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/best.pt",
+      "checkpoint_sha256": "62685f03548f310af19079006015c638815b6ff9ce906295ef134c0bdbd5dea2",
+      "raw_prediction_shape": [
+        24000,
+        1,
+        30,
+        40
+      ],
+      "prediction": {
+        "prediction_completion": {
+          "path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/prediction_complete.json",
+          "sha256": "c46a404df5278440908f58d6d04dec28c8dfdb2aae6a6f0229c8c8b5baf547a3"
+        },
+        "predictions_path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/test_predictions.npy",
+        "recorded_full_prediction_sha256": "022d91681c942c21e7eeffab8b4b6ddceb1e4dc548187a0d810adfeccccbc00e",
+        "full_prediction_hash_recomputed": false,
+        "best_checkpoint_sha256": "62685f03548f310af19079006015c638815b6ff9ce906295ef134c0bdbd5dea2"
+      },
+      "fusion": false
+    },
+    "occlusion": {
+      "epochs_completed": 12,
+      "best_epoch": 12,
+      "checkpoint": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/best.pt",
+      "checkpoint_sha256": "441e40b4b7fc9e3d40e4d3ec1f3fd54278b4252f2e3fc5ee4444bfcf2e03dd5a",
+      "raw_prediction_shape": [
+        24000,
+        1,
+        30,
+        40
+      ],
+      "prediction": {
+        "prediction_completion": {
+          "path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/prediction_complete.json",
+          "sha256": "fe0bdaf3cd15c4f52b9a369659e37a30bca7563313400249628f19a40b1cf722"
+        },
+        "predictions_path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+        "recorded_full_prediction_sha256": "765a29e0a808c99d5a42bea74ab334918e74b13088a377bcbad6a26de1dd8aeb",
+        "full_prediction_hash_recomputed": false,
+        "best_checkpoint_sha256": "441e40b4b7fc9e3d40e4d3ec1f3fd54278b4252f2e3fc5ee4444bfcf2e03dd5a"
+      },
+      "fusion": false
+    },
+    "complexity": {
+      "epochs_completed": 20,
+      "best_epoch": 19,
+      "checkpoint": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/best.pt",
+      "checkpoint_sha256": "fb32dad4bfe2948477257a06105c56f2b1f0963467329aab2d09b70e3e643385",
+      "raw_prediction_shape": [
+        24000,
+        1,
+        30,
+        40
+      ],
+      "prediction": {
+        "prediction_completion": {
+          "path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/prediction_complete.json",
+          "sha256": "85b50a029a07e19fb858832b2f80e5d5615588ab5514771d9f36a9e26aead250"
+        },
+        "predictions_path": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/test_predictions.npy",
+        "recorded_full_prediction_sha256": "ab1186914f9a10aba8907a6f60ff4e7f0edacd88990d44f4a892111acbbc00fa",
+        "full_prediction_hash_recomputed": false,
+        "best_checkpoint_sha256": "fb32dad4bfe2948477257a06105c56f2b1f0963467329aab2d09b70e3e643385"
+      },
+      "fusion": false
+    }
+  },
+  "samples": [
+    {
+      "sample_id": "book_1_scene00001_env0000_center",
+      "target": "book_1",
+      "camera": "center",
+      "scene": 1,
+      "env": 0,
+      "split": "test",
+      "test_index": 0,
+      "inputs": {
+        "rgb": {
+          "path": "img/scene_20261026_book_1_scene00001_env0000_center_rgb.png",
+          "role": "observed_scene_rgb",
+          "sha256": "bb71338559d5cf69adb5e4f5938c563cb3d864c25a796fece72cc7079a7d1c22",
+          "bytes": 294578,
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "dtype": "uint8",
+          "exact_source_copy": true,
+          "source": {
+            "path": "<DATA_ROOT>/scene/book_1/rgb/scene00001_env0000_center.png",
+            "sha256": "bb71338559d5cf69adb5e4f5938c563cb3d864c25a796fece72cc7079a7d1c22"
+          }
+        },
+        "depth": {
+          "path": "img/scene_20261026_book_1_scene00001_env0000_center_depth.png",
+          "role": "metric_depth_visualization",
+          "sha256": "8e40fe3b20697488aacc590567a0ab855ee5daf83f36a8c6495865257d345e18",
+          "bytes": 24744,
+          "shape": [
+            480,
+            640
+          ],
+          "dtype": "uint8",
+          "units": "meters",
+          "invalid_pixels": 0,
+          "valid_depth_min_m": 2.6999998092651367,
+          "valid_depth_max_m": 3.000000238418579,
+          "brightness": "near white, far black; fixed shared range, not per-image normalization",
+          "display_range": [
+            2.5,
+            3.5
+          ],
+          "source": {
+            "path": "<DATA_ROOT>/scene/book_1/depth/scene00001_env0000_center.npy",
+            "sha256": "31ce280b46f8d93adf3e0871e75c39279ebe1b44e4291bc36987c4cb0c6ffdbd"
+          }
+        },
+        "target_reference": {
+          "path": "img/target_20261026_book_1_reference.png",
+          "role": "center_target_reference_thumbnail",
+          "sha256": "8d7c019d7a7586ca1d676fa5d9fd1ff71d9e4054df57caaf6ad023cd6d094b35",
+          "bytes": 71932,
+          "shape": [
+            320,
+            320,
+            3
+          ],
+          "dtype": "uint8",
+          "crop_bbox": [
+            133,
+            336,
+            185,
+            331
+          ],
+          "source": {
+            "rgb": {
+              "path": "<DATA_ROOT>/target/book_1/rgb/007626_center.png",
+              "sha256": "c84f559a347c9de7271adf0c4e6997ea46f81a33da93bad0ac22e66a8f78e73c"
+            },
+            "seg": {
+              "path": "<DATA_ROOT>/target/book_1/seg/007626_center.png",
+              "sha256": "ea3b302efead1056e451d741a975abc535825bef58b0f5ccb719a60a9df46e75"
+            },
+            "mapping": {
+              "path": "<DATA_ROOT>/target/book_1/mapping.json",
+              "sha256": "ef3de400f1b6c2c7005c111a33963046709f690d2b2b0160e2e30cdbfd018e57"
+            }
+          }
+        }
+      },
+      "streams": {
+        "similarity": {
+          "gt": {
+            "path": "img/similarity/similarity_20261026_book_1_scene00001_env0000_center_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "4eac0e1f473a6db0fc2dd4c3e9a44b65c4531d8ad4a8e28def8e53cdc838e2e2",
+            "bytes": 3859,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/similarity/book_1/scene00001_env0000_center.png",
+              "sha256": "4eac0e1f473a6db0fc2dd4c3e9a44b65c4531d8ad4a8e28def8e53cdc838e2e2"
+            }
+          },
+          "prediction": {
+            "path": "img/similarity/similarity_20261026_book_1_scene00001_env0000_center_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "8663471c96912e4d10996b7fc68c6a540e94b9aa93dd7b8a30f950a06f700501",
+            "bytes": 14485,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/test_predictions.npy",
+              "test_index": 0,
+              "raw_grid_sha256": "d53ce46a7298e745fa2c5eb098e561e5743b58c0f817acfc0ec3f932b0878115"
+            }
+          }
+        },
+        "occlusion": {
+          "gt": {
+            "path": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "226b0e48d2d9e83f1a7882823725358936b53c16cd78e0ac037e1dfee7db8a02",
+            "bytes": 18592,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/occlusion/book_1/scene00001_env0000_center.png",
+              "sha256": "226b0e48d2d9e83f1a7882823725358936b53c16cd78e0ac037e1dfee7db8a02"
+            }
+          },
+          "prediction": {
+            "path": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_prediction.png",
+            "role": "workspace_postprocessed_prediction",
+            "sha256": "adf7f28b9169d1fddf116e0724cd50427d34272a2d005699cbb91b80ddd48cc3",
+            "bytes": 9911,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 0,
+              "raw_grid_sha256": "08ce84d41f76b3831a40ce7e5a2bd495e82429a954dcdb787493634240657820"
+            }
+          },
+          "prediction_raw": {
+            "path": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_prediction_raw.png",
+            "role": "bilinear_prediction_before_workspace",
+            "sha256": "c235103c8066c509922a51d95441edeb2ae7ab67950260f3474248f18bd9086d",
+            "bytes": 29619,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 0,
+              "raw_grid_sha256": "08ce84d41f76b3831a40ce7e5a2bd495e82429a954dcdb787493634240657820"
+            }
+          },
+          "workspace": "img/occlusion/workspace_20261026_center.png",
+          "zero_outside_workspace": true
+        },
+        "complexity": {
+          "gt": {
+            "path": "img/complexity/complexity_20261026_book_1_scene00001_env0000_center_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "ca7a99378ab761419f78c690b576be4a7327ec6682339ad8cd8ba1e056664a65",
+            "bytes": 19491,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/complexity/book_1/scene00001_env0000_center.png",
+              "sha256": "ca7a99378ab761419f78c690b576be4a7327ec6682339ad8cd8ba1e056664a65"
+            }
+          },
+          "prediction": {
+            "path": "img/complexity/complexity_20261026_book_1_scene00001_env0000_center_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "ad4c788f6d44aa45c7a2102b68090886dd7193e7ca96f671000cec61f37e0d40",
+            "bytes": 18881,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/test_predictions.npy",
+              "test_index": 0,
+              "raw_grid_sha256": "4a6d349b80d5902e4803ef922caa8ae9d8d6f4f6e3d9d56191dad6cfc5340ad8"
+            }
+          }
+        }
+      },
+      "fusion_gt": {
+        "path": "img/fusion_20261026_book_1_scene00001_env0000_center_gt.png",
+        "role": "amodal_target_binary_gt_not_prediction",
+        "sha256": "68e1c70b1bed1d649db5eb5048b742e2e051335364570843ebd589500de8184e",
+        "bytes": 1732,
+        "shape": [
+          480,
+          640
+        ],
+        "dtype": "uint8",
+        "exact_source_copy": true,
+        "display_range": [
+          0,
+          1
+        ],
+        "source": {
+          "path": "<DATA_ROOT>/fusion/book_1/scene00001_env0000_center.png",
+          "sha256": "68e1c70b1bed1d649db5eb5048b742e2e051335364570843ebd589500de8184e"
+        }
+      }
+    },
+    {
+      "sample_id": "fruit_1_scene00003_env0000_left",
+      "target": "fruit_1",
+      "camera": "left",
+      "scene": 3,
+      "env": 0,
+      "split": "test",
+      "test_index": 6001,
+      "inputs": {
+        "rgb": {
+          "path": "img/scene_20261026_fruit_1_scene00003_env0000_left_rgb.png",
+          "role": "observed_scene_rgb",
+          "sha256": "df38841cd14a659145ae782d9106823571977b2ecc028dd17431adaf7f18ade3",
+          "bytes": 254002,
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "dtype": "uint8",
+          "exact_source_copy": true,
+          "source": {
+            "path": "<DATA_ROOT>/scene/fruit_1/rgb/scene00003_env0000_left.png",
+            "sha256": "df38841cd14a659145ae782d9106823571977b2ecc028dd17431adaf7f18ade3"
+          }
+        },
+        "depth": {
+          "path": "img/scene_20261026_fruit_1_scene00003_env0000_left_depth.png",
+          "role": "metric_depth_visualization",
+          "sha256": "e5e676e02227429bef56d9876c3a3a1aba1b0aa66fe157b4f504a3b5bd16f1e3",
+          "bytes": 8324,
+          "shape": [
+            480,
+            640
+          ],
+          "dtype": "uint8",
+          "units": "meters",
+          "invalid_pixels": 0,
+          "valid_depth_min_m": 2.7642898559570312,
+          "valid_depth_max_m": 3.399350643157959,
+          "brightness": "near white, far black; fixed shared range, not per-image normalization",
+          "display_range": [
+            2.5,
+            3.5
+          ],
+          "source": {
+            "path": "<DATA_ROOT>/scene/fruit_1/depth/scene00003_env0000_left.npy",
+            "sha256": "0e624579e2fa7239716c82256af1aaad18762d3e3761bd7fe9b90c53525e8726"
+          }
+        },
+        "target_reference": {
+          "path": "img/target_20261026_fruit_1_reference.png",
+          "role": "center_target_reference_thumbnail",
+          "sha256": "8fc31e1e568099bed15be9ed8c073c9836834516ed6e46b99c418e929924beaa",
+          "bytes": 70363,
+          "shape": [
+            320,
+            320,
+            3
+          ],
+          "dtype": "uint8",
+          "crop_bbox": [
+            292,
+            352,
+            198,
+            260
+          ],
+          "source": {
+            "rgb": {
+              "path": "<DATA_ROOT>/target/fruit_1/rgb/000000_center.png",
+              "sha256": "28a5f2bd279f839a92e7ac3fb071357d1b8ac1ab2d1620d7c2bd097e240d5926"
+            },
+            "seg": {
+              "path": "<DATA_ROOT>/target/fruit_1/seg/000000_center.png",
+              "sha256": "c1f2210e0c5a2c312194942e8cf3087086f832da64e08b05f15ef2c6f5a853ad"
+            },
+            "mapping": {
+              "path": "<DATA_ROOT>/target/fruit_1/mapping.json",
+              "sha256": "52479c99c6793067fde1c444fe47020e169c248d753709c4d476b0cdcad58d70"
+            }
+          }
+        }
+      },
+      "streams": {
+        "similarity": {
+          "gt": {
+            "path": "img/similarity/similarity_20261026_fruit_1_scene00003_env0000_left_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "cfe6b218d589a45b98a369bb22ea118a7f17cb7d459b44184a7f88852945f4a4",
+            "bytes": 3858,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/similarity/fruit_1/scene00003_env0000_left.png",
+              "sha256": "cfe6b218d589a45b98a369bb22ea118a7f17cb7d459b44184a7f88852945f4a4"
+            }
+          },
+          "prediction": {
+            "path": "img/similarity/similarity_20261026_fruit_1_scene00003_env0000_left_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "015e10f76df7f223ef57d6e16c9d6b9ff7e3cc85be76b175c5d7a36584c2121b",
+            "bytes": 13748,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/test_predictions.npy",
+              "test_index": 6001,
+              "raw_grid_sha256": "95cf7efb5d32ee090969c3011cd05125ae337c118f10be8edb95ea7e8f5f8cb5"
+            }
+          }
+        },
+        "occlusion": {
+          "gt": {
+            "path": "img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "7f3787d88ad76c8b4133ca07f8c676fc9a863f9493aef712366df41684ff3ec5",
+            "bytes": 9537,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/occlusion/fruit_1/scene00003_env0000_left.png",
+              "sha256": "7f3787d88ad76c8b4133ca07f8c676fc9a863f9493aef712366df41684ff3ec5"
+            }
+          },
+          "prediction": {
+            "path": "img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_prediction.png",
+            "role": "workspace_postprocessed_prediction",
+            "sha256": "54f4f84cb9b6a539a5c432180bff671b0c5b1a44908b8a9555edf61fcdae5fdc",
+            "bytes": 6029,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 6001,
+              "raw_grid_sha256": "9b971d80f64ac80764ed51efa6f6fa0d47bb018062d975d2ae1a87af40417c95"
+            }
+          },
+          "prediction_raw": {
+            "path": "img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_prediction_raw.png",
+            "role": "bilinear_prediction_before_workspace",
+            "sha256": "64e9ca46b30e38ab436890935cb53bf190321267253ebd706a928ba5ad0636fc",
+            "bytes": 15337,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 6001,
+              "raw_grid_sha256": "9b971d80f64ac80764ed51efa6f6fa0d47bb018062d975d2ae1a87af40417c95"
+            }
+          },
+          "workspace": "img/occlusion/workspace_20261026_left.png",
+          "zero_outside_workspace": true
+        },
+        "complexity": {
+          "gt": {
+            "path": "img/complexity/complexity_20261026_fruit_1_scene00003_env0000_left_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "ecb143cc14ab90e4269a1292526466f3989e4a8d1f1697da89c4e1c15fc403dd",
+            "bytes": 21535,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/complexity/fruit_1/scene00003_env0000_left.png",
+              "sha256": "ecb143cc14ab90e4269a1292526466f3989e4a8d1f1697da89c4e1c15fc403dd"
+            }
+          },
+          "prediction": {
+            "path": "img/complexity/complexity_20261026_fruit_1_scene00003_env0000_left_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "c54350988ed1539a174553a5d31f8aa2f741b1bf1250a35468a974016cfae460",
+            "bytes": 20573,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/test_predictions.npy",
+              "test_index": 6001,
+              "raw_grid_sha256": "c3c9a1ac58a3e12f0f09e1589707fc8a0d5e1d21086a3148dcb4005f1f41cc8b"
+            }
+          }
+        }
+      },
+      "fusion_gt": {
+        "path": "img/fusion_20261026_fruit_1_scene00003_env0000_left_gt.png",
+        "role": "amodal_target_binary_gt_not_prediction",
+        "sha256": "53174f4a99dd9fe675b3b1778439586068f801aa465ce4e70f71144dbdc97e57",
+        "bytes": 1366,
+        "shape": [
+          480,
+          640
+        ],
+        "dtype": "uint8",
+        "exact_source_copy": true,
+        "display_range": [
+          0,
+          1
+        ],
+        "source": {
+          "path": "<DATA_ROOT>/fusion/fruit_1/scene00003_env0000_left.png",
+          "sha256": "53174f4a99dd9fe675b3b1778439586068f801aa465ce4e70f71144dbdc97e57"
+        }
+      }
+    },
+    {
+      "sample_id": "packaged_food_1_scene00017_env0000_right",
+      "target": "packaged_food_1",
+      "camera": "right",
+      "scene": 17,
+      "env": 0,
+      "split": "test",
+      "test_index": 12002,
+      "inputs": {
+        "rgb": {
+          "path": "img/scene_20261026_packaged_food_1_scene00017_env0000_right_rgb.png",
+          "role": "observed_scene_rgb",
+          "sha256": "f655e7be64f4d8e556b6d93ee9dafbda3ed447e9e14cabda6727907657ff9253",
+          "bytes": 263005,
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "dtype": "uint8",
+          "exact_source_copy": true,
+          "source": {
+            "path": "<DATA_ROOT>/scene/packaged_food_1/rgb/scene00017_env0000_right.png",
+            "sha256": "f655e7be64f4d8e556b6d93ee9dafbda3ed447e9e14cabda6727907657ff9253"
+          }
+        },
+        "depth": {
+          "path": "img/scene_20261026_packaged_food_1_scene00017_env0000_right_depth.png",
+          "role": "metric_depth_visualization",
+          "sha256": "56070270c1d3b05a79e7fc9f31dec207ac630f7172093e679a42370200f2e7d5",
+          "bytes": 8194,
+          "shape": [
+            480,
+            640
+          ],
+          "dtype": "uint8",
+          "units": "meters",
+          "invalid_pixels": 0,
+          "valid_depth_min_m": 2.7642898559570312,
+          "valid_depth_max_m": 3.399350643157959,
+          "brightness": "near white, far black; fixed shared range, not per-image normalization",
+          "display_range": [
+            2.5,
+            3.5
+          ],
+          "source": {
+            "path": "<DATA_ROOT>/scene/packaged_food_1/depth/scene00017_env0000_right.npy",
+            "sha256": "2b64b15e72b374e8680dfc98a07a903ad38d975c055f39b089bd5de34cccbd97"
+          }
+        },
+        "target_reference": {
+          "path": "img/target_20261026_packaged_food_1_reference.png",
+          "role": "center_target_reference_thumbnail",
+          "sha256": "66110e436b533bda3ac2ed913a91370f3b3d1ad36e30cf5826c7e423c5089143",
+          "bytes": 46746,
+          "shape": [
+            320,
+            320,
+            3
+          ],
+          "dtype": "uint8",
+          "crop_bbox": [
+            204,
+            275,
+            297,
+            342
+          ],
+          "source": {
+            "rgb": {
+              "path": "<DATA_ROOT>/target/packaged_food_1/rgb/000000_center.png",
+              "sha256": "1ef15610d3653934b9943c7d45ca799abee8b98683c06051623b34155db1383a"
+            },
+            "seg": {
+              "path": "<DATA_ROOT>/target/packaged_food_1/seg/000000_center.png",
+              "sha256": "d8e1e64a5e538bacb81e47d1eccfc304e9e2e905c13a3ab741fad147dc57e8f3"
+            },
+            "mapping": {
+              "path": "<DATA_ROOT>/target/packaged_food_1/mapping.json",
+              "sha256": "0da75a47f7feaec8ba9d282e7193fced0c49f0cea954c388ccfbb6a462df9e5b"
+            }
+          }
+        }
+      },
+      "streams": {
+        "similarity": {
+          "gt": {
+            "path": "img/similarity/similarity_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "c94feb3f24c1a034cd396e33808ce795a35f064da751cf495ce6cf85cd7447fa",
+            "bytes": 3808,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/similarity/packaged_food_1/scene00017_env0000_right.png",
+              "sha256": "c94feb3f24c1a034cd396e33808ce795a35f064da751cf495ce6cf85cd7447fa"
+            }
+          },
+          "prediction": {
+            "path": "img/similarity/similarity_20261026_packaged_food_1_scene00017_env0000_right_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "b0475c1df679bca013e27a44cc9834d7f966be2781eda64a8da9d2d40662ca96",
+            "bytes": 12880,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/test_predictions.npy",
+              "test_index": 12002,
+              "raw_grid_sha256": "8b9ac0d7b40f782c224c056f421a44bd86be16e8ced0b9af35d14c71f3328756"
+            }
+          }
+        },
+        "occlusion": {
+          "gt": {
+            "path": "img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "34eee5b7b499819250b17f76076d8a675ada7f0e2c491f492e9e956fb845eabe",
+            "bytes": 17577,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/occlusion/packaged_food_1/scene00017_env0000_right.png",
+              "sha256": "34eee5b7b499819250b17f76076d8a675ada7f0e2c491f492e9e956fb845eabe"
+            }
+          },
+          "prediction": {
+            "path": "img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_prediction.png",
+            "role": "workspace_postprocessed_prediction",
+            "sha256": "bab0385531c2177a6d9626ab8b4a006fd5a786062b92459535adb0df73375d4e",
+            "bytes": 11071,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 12002,
+              "raw_grid_sha256": "c13c05174a69c5c1469102587f76d4cbe205a2d8628d70315676facd87c9dca0"
+            }
+          },
+          "prediction_raw": {
+            "path": "img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_prediction_raw.png",
+            "role": "bilinear_prediction_before_workspace",
+            "sha256": "1b6532070d1c15d36b95edd95ee442bc4859a71823f30f921bfa0ec991314d70",
+            "bytes": 22112,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 12002,
+              "raw_grid_sha256": "c13c05174a69c5c1469102587f76d4cbe205a2d8628d70315676facd87c9dca0"
+            }
+          },
+          "workspace": "img/occlusion/workspace_20261026_right.png",
+          "zero_outside_workspace": true
+        },
+        "complexity": {
+          "gt": {
+            "path": "img/complexity/complexity_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "0891c84fd98ea6d08b6e2be21783c665a526b6ed1ccaf751f55198d2cfb74512",
+            "bytes": 19083,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/complexity/packaged_food_1/scene00017_env0000_right.png",
+              "sha256": "0891c84fd98ea6d08b6e2be21783c665a526b6ed1ccaf751f55198d2cfb74512"
+            }
+          },
+          "prediction": {
+            "path": "img/complexity/complexity_20261026_packaged_food_1_scene00017_env0000_right_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "b115cbf2e160b0d6ce0c2a58bb8fca166ca02b74752ea917e09d2446e8f7decb",
+            "bytes": 20436,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/test_predictions.npy",
+              "test_index": 12002,
+              "raw_grid_sha256": "5a64b3b3de513e8f3ee8598358605e46e74349ec5612985b4c3930e60d8c7078"
+            }
+          }
+        }
+      },
+      "fusion_gt": {
+        "path": "img/fusion_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+        "role": "amodal_target_binary_gt_not_prediction",
+        "sha256": "b150ecc4e2c790e9d03d898b1c6ce3714b8c2bed750b9724f9d0dea100b8ffa4",
+        "bytes": 1344,
+        "shape": [
+          480,
+          640
+        ],
+        "dtype": "uint8",
+        "exact_source_copy": true,
+        "display_range": [
+          0,
+          1
+        ],
+        "source": {
+          "path": "<DATA_ROOT>/fusion/packaged_food_1/scene00017_env0000_right.png",
+          "sha256": "b150ecc4e2c790e9d03d898b1c6ce3714b8c2bed750b9724f9d0dea100b8ffa4"
+        }
+      }
+    },
+    {
+      "sample_id": "toy_1_scene00001_env0000_top",
+      "target": "toy_1",
+      "camera": "top",
+      "scene": 1,
+      "env": 0,
+      "split": "test",
+      "test_index": 18003,
+      "inputs": {
+        "rgb": {
+          "path": "img/scene_20261026_toy_1_scene00001_env0000_top_rgb.png",
+          "role": "observed_scene_rgb",
+          "sha256": "e9430db9d06db9608ff55f8c09daf526ac6a9ab74777d18316d3ed0f0a409daa",
+          "bytes": 267866,
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "dtype": "uint8",
+          "exact_source_copy": true,
+          "source": {
+            "path": "<DATA_ROOT>/scene/toy_1/rgb/scene00001_env0000_top.png",
+            "sha256": "e9430db9d06db9608ff55f8c09daf526ac6a9ab74777d18316d3ed0f0a409daa"
+          }
+        },
+        "depth": {
+          "path": "img/scene_20261026_toy_1_scene00001_env0000_top_depth.png",
+          "role": "metric_depth_visualization",
+          "sha256": "83497af04e638c9acdcb4d562ffa63d5eda40fd69b2a0344d00085cd4759a77b",
+          "bytes": 8947,
+          "shape": [
+            480,
+            640
+          ],
+          "dtype": "uint8",
+          "units": "meters",
+          "invalid_pixels": 0,
+          "valid_depth_min_m": 2.7642898559570312,
+          "valid_depth_max_m": 3.3367154598236084,
+          "brightness": "near white, far black; fixed shared range, not per-image normalization",
+          "display_range": [
+            2.5,
+            3.5
+          ],
+          "source": {
+            "path": "<DATA_ROOT>/scene/toy_1/depth/scene00001_env0000_top.npy",
+            "sha256": "a610ac42f0273908e3f96f8dc2a13861174373ea60513cac2eff8e28f45740eb"
+          }
+        },
+        "target_reference": {
+          "path": "img/target_20261026_toy_1_reference.png",
+          "role": "center_target_reference_thumbnail",
+          "sha256": "2828d76f64af006860292fbdebadac6f438f2c8a7715ae9c88a39131aa9503cc",
+          "bytes": 38467,
+          "shape": [
+            320,
+            320,
+            3
+          ],
+          "dtype": "uint8",
+          "crop_bbox": [
+            308,
+            346,
+            191,
+            274
+          ],
+          "source": {
+            "rgb": {
+              "path": "<DATA_ROOT>/target/toy_1/rgb/000000_center.png",
+              "sha256": "7b3724cb9c4285e5f94d2046ca94ff1f4c44c0d3294f9d0b294956fcf75b8207"
+            },
+            "seg": {
+              "path": "<DATA_ROOT>/target/toy_1/seg/000000_center.png",
+              "sha256": "17222b4868e4cfbb6573ed0abcea478b08a762034fc97a373c27a09d2e5691f4"
+            },
+            "mapping": {
+              "path": "<DATA_ROOT>/target/toy_1/mapping.json",
+              "sha256": "d35f400b848263f7bd82b5931bbfab8bd1e00f129d8c19aa261e552f5e0f3e53"
+            }
+          }
+        }
+      },
+      "streams": {
+        "similarity": {
+          "gt": {
+            "path": "img/similarity/similarity_20261026_toy_1_scene00001_env0000_top_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "b415065cada19ec1e556e084738cf53181cb621f645be473b69c6bbcd8131d93",
+            "bytes": 4074,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/similarity/toy_1/scene00001_env0000_top.png",
+              "sha256": "b415065cada19ec1e556e084738cf53181cb621f645be473b69c6bbcd8131d93"
+            }
+          },
+          "prediction": {
+            "path": "img/similarity/similarity_20261026_toy_1_scene00001_env0000_top_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "3dc1a5dfe2d0bbed594aa8d0cb7c8ddc4ab6ecb5862952757899426818f5b27d",
+            "bytes": 16558,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/test_predictions.npy",
+              "test_index": 18003,
+              "raw_grid_sha256": "63f273b5b0420b049a134ac9c11463b9c42b72c7c27a80a56bc3e8ea5894bb14"
+            }
+          }
+        },
+        "occlusion": {
+          "gt": {
+            "path": "img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "ca63f320270ca75f0210de84016ea702c73124f509683c4ba3a9c96601c79347",
+            "bytes": 17438,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/occlusion/toy_1/scene00001_env0000_top.png",
+              "sha256": "ca63f320270ca75f0210de84016ea702c73124f509683c4ba3a9c96601c79347"
+            }
+          },
+          "prediction": {
+            "path": "img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_prediction.png",
+            "role": "workspace_postprocessed_prediction",
+            "sha256": "bedfa788656dd0e31f25a2023a43878913e8e24b88c0c41ad67ffa1583a05679",
+            "bytes": 10366,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 18003,
+              "raw_grid_sha256": "d8a48e8c01b7d58bce5b866a1d35ec99f59b5196d2a3dc19ee537e226ab630c4"
+            }
+          },
+          "prediction_raw": {
+            "path": "img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_prediction_raw.png",
+            "role": "bilinear_prediction_before_workspace",
+            "sha256": "b4644749c39b0da551cf834e0b1cbec8e07ef3289a42128cd68ce2677093342c",
+            "bytes": 25662,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 18003,
+              "raw_grid_sha256": "d8a48e8c01b7d58bce5b866a1d35ec99f59b5196d2a3dc19ee537e226ab630c4"
+            }
+          },
+          "workspace": "img/occlusion/workspace_20261026_top.png",
+          "zero_outside_workspace": true
+        },
+        "complexity": {
+          "gt": {
+            "path": "img/complexity/complexity_20261026_toy_1_scene00001_env0000_top_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "32317b1a31cfab9a011fea97f84ea9cc6dc38f9a2093447ec7877d813a68c48f",
+            "bytes": 20461,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/complexity/toy_1/scene00001_env0000_top.png",
+              "sha256": "32317b1a31cfab9a011fea97f84ea9cc6dc38f9a2093447ec7877d813a68c48f"
+            }
+          },
+          "prediction": {
+            "path": "img/complexity/complexity_20261026_toy_1_scene00001_env0000_top_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "c9e2479257cb396a2f65d96eaa101a54c4a6204b06cecba7b8e30aa5d423c36b",
+            "bytes": 21081,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/test_predictions.npy",
+              "test_index": 18003,
+              "raw_grid_sha256": "29ae459ceee176e3eb418008c80de1c232e959f9a77153fe58caca9b17b630c1"
+            }
+          }
+        }
+      },
+      "fusion_gt": {
+        "path": "img/fusion_20261026_toy_1_scene00001_env0000_top_gt.png",
+        "role": "amodal_target_binary_gt_not_prediction",
+        "sha256": "ce9f6f70a2514a4e8c26146ebe09ad88bcdbd2297055aac2e7ef488585ea86dc",
+        "bytes": 1394,
+        "shape": [
+          480,
+          640
+        ],
+        "dtype": "uint8",
+        "exact_source_copy": true,
+        "display_range": [
+          0,
+          1
+        ],
+        "source": {
+          "path": "<DATA_ROOT>/fusion/toy_1/scene00001_env0000_top.png",
+          "sha256": "ce9f6f70a2514a4e8c26146ebe09ad88bcdbd2297055aac2e7ef488585ea86dc"
+        }
+      }
+    },
+    {
+      "sample_id": "toy_4_scene00007_env0000_bottom",
+      "target": "toy_4",
+      "camera": "bottom",
+      "scene": 7,
+      "env": 0,
+      "split": "test",
+      "test_index": 22504,
+      "inputs": {
+        "rgb": {
+          "path": "img/scene_20261026_toy_4_scene00007_env0000_bottom_rgb.png",
+          "role": "observed_scene_rgb",
+          "sha256": "c0b235a6728c7d918325108e765c802e046f80503a52196b0d570c61d1d6180d",
+          "bytes": 262071,
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "dtype": "uint8",
+          "exact_source_copy": true,
+          "source": {
+            "path": "<DATA_ROOT>/scene/toy_4/rgb/scene00007_env0000_bottom.png",
+            "sha256": "c0b235a6728c7d918325108e765c802e046f80503a52196b0d570c61d1d6180d"
+          }
+        },
+        "depth": {
+          "path": "img/scene_20261026_toy_4_scene00007_env0000_bottom_depth.png",
+          "role": "metric_depth_visualization",
+          "sha256": "2fc0ad1fd25cca549dacf61161c6dd735f8bd44f141c638c4231b68f6151bab5",
+          "bytes": 8855,
+          "shape": [
+            480,
+            640
+          ],
+          "dtype": "uint8",
+          "units": "meters",
+          "invalid_pixels": 0,
+          "valid_depth_min_m": 2.7642898559570312,
+          "valid_depth_max_m": 3.3367154598236084,
+          "brightness": "near white, far black; fixed shared range, not per-image normalization",
+          "display_range": [
+            2.5,
+            3.5
+          ],
+          "source": {
+            "path": "<DATA_ROOT>/scene/toy_4/depth/scene00007_env0000_bottom.npy",
+            "sha256": "d44bb20340fdd00ae4257ee0b67a510725bb76417486ef872ca9a719db557c65"
+          }
+        },
+        "target_reference": {
+          "path": "img/target_20261026_toy_4_reference.png",
+          "role": "center_target_reference_thumbnail",
+          "sha256": "5ff373580967c4b3d519452f7de917b3e07a691511623ea2a6ec5804fe11133b",
+          "bytes": 57997,
+          "shape": [
+            320,
+            320,
+            3
+          ],
+          "dtype": "uint8",
+          "crop_bbox": [
+            307,
+            347,
+            211,
+            252
+          ],
+          "source": {
+            "rgb": {
+              "path": "<DATA_ROOT>/target/toy_4/rgb/000000_center.png",
+              "sha256": "a33dacfda9bea554435cd29176558fc55a0f47a8e5c375d71599390120142581"
+            },
+            "seg": {
+              "path": "<DATA_ROOT>/target/toy_4/seg/000000_center.png",
+              "sha256": "7896d0d6b873004804b7b8cae849475b8ea0bd757f9380e7adddf97782e1e2ae"
+            },
+            "mapping": {
+              "path": "<DATA_ROOT>/target/toy_4/mapping.json",
+              "sha256": "0306aca8179a67e89090b6c774be755e6f76b821a1751c527b23e150c70ad8ff"
+            }
+          }
+        }
+      },
+      "streams": {
+        "similarity": {
+          "gt": {
+            "path": "img/similarity/similarity_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "526634c4c9118e10904065afe9a723943a0594b8941a282997f2a49a6c426578",
+            "bytes": 3776,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/similarity/toy_4/scene00007_env0000_bottom.png",
+              "sha256": "526634c4c9118e10904065afe9a723943a0594b8941a282997f2a49a6c426578"
+            }
+          },
+          "prediction": {
+            "path": "img/similarity/similarity_20261026_toy_4_scene00007_env0000_bottom_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "6d31839901c3fbc6d6530f98c967bf3477315144a0cc6317c3cbab97acf5b1f4",
+            "bytes": 13792,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/similarity/test_predictions.npy",
+              "test_index": 22504,
+              "raw_grid_sha256": "bccbb4620b72f49a5661fc5895f8d411924670b1e26ba900f1c57577b5b583da"
+            }
+          }
+        },
+        "occlusion": {
+          "gt": {
+            "path": "img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "64cd590ed8dd9a145fb2cf2def592fcc70c8e8688f35b32c9bfdf1ed3402d97a",
+            "bytes": 22212,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/occlusion/toy_4/scene00007_env0000_bottom.png",
+              "sha256": "64cd590ed8dd9a145fb2cf2def592fcc70c8e8688f35b32c9bfdf1ed3402d97a"
+            }
+          },
+          "prediction": {
+            "path": "img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_prediction.png",
+            "role": "workspace_postprocessed_prediction",
+            "sha256": "84566b39464f8e2d9e2847b25d304c8e6de797f3aa2e1b0e2f130380fc23aab6",
+            "bytes": 14024,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 22504,
+              "raw_grid_sha256": "ed9a50717c41fb961b4ad45a6bdab3742a6d1e0117301b6048ac3e6d2450dc0c"
+            }
+          },
+          "prediction_raw": {
+            "path": "img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_prediction_raw.png",
+            "role": "bilinear_prediction_before_workspace",
+            "sha256": "aacd0466f40a919091743014b4e4c5013d1f5829e366f2d0ff624f949f84540a",
+            "bytes": 30210,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              1
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/occlusion/test_predictions.npy",
+              "test_index": 22504,
+              "raw_grid_sha256": "ed9a50717c41fb961b4ad45a6bdab3742a6d1e0117301b6048ac3e6d2450dc0c"
+            }
+          },
+          "workspace": "img/occlusion/workspace_20261026_bottom.png",
+          "zero_outside_workspace": true
+        },
+        "complexity": {
+          "gt": {
+            "path": "img/complexity/complexity_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+            "role": "native_stream_gt",
+            "sha256": "0c607e89506511bbec6a6f6897c8e4fff7104aab50b5ac1dc2f6b3e7096a131b",
+            "bytes": 19869,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "exact_source_copy": true,
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "path": "<DATA_ROOT>/complexity/toy_4/scene00007_env0000_bottom.png",
+              "sha256": "0c607e89506511bbec6a6f6897c8e4fff7104aab50b5ac1dc2f6b3e7096a131b"
+            }
+          },
+          "prediction": {
+            "path": "img/complexity/complexity_20261026_toy_4_scene00007_env0000_bottom_prediction.png",
+            "role": "bilinear_prediction",
+            "sha256": "6b83798fdfd3b041e996741e3653eecd86d60fca5c3406b6658e686c50e99668",
+            "bytes": 20050,
+            "shape": [
+              480,
+              640
+            ],
+            "dtype": "uint8",
+            "display_range": [
+              0,
+              6
+            ],
+            "source": {
+              "array": "<DEV_ROOT>/outputs/stream_training_20261022/step3/runs/complexity/test_predictions.npy",
+              "test_index": 22504,
+              "raw_grid_sha256": "b4022ac3c4e4014d562b58bbf2c88f6e69d63dc64c1064bd183543b048ea201f"
+            }
+          }
+        }
+      },
+      "fusion_gt": {
+        "path": "img/fusion_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+        "role": "amodal_target_binary_gt_not_prediction",
+        "sha256": "10b025bd167657dbf7d8f4ccd9dbd0de5e2b23e9b81bbb65424234a94a3bac6c",
+        "bytes": 1335,
+        "shape": [
+          480,
+          640
+        ],
+        "dtype": "uint8",
+        "exact_source_copy": true,
+        "display_range": [
+          0,
+          1
+        ],
+        "source": {
+          "path": "<DATA_ROOT>/fusion/toy_4/scene00007_env0000_bottom.png",
+          "sha256": "10b025bd167657dbf7d8f4ccd9dbd0de5e2b23e9b81bbb65424234a94a3bac6c"
+        }
+      }
+    }
+  ],
+  "summaries": {
+    "similarity": {
+      "path": "img/similarity/full_data_20261026_gt_prediction.png",
+      "role": "five_fixed_sample_rgb_gt_prediction_summary",
+      "sha256": "34a7eeaec9933287b04a2bea7e49fff980723d65e23291f1f5ebcabf3fcba582",
+      "bytes": 523723,
+      "shape": [
+        1620,
+        1200,
+        4
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ]
+    },
+    "occlusion": {
+      "path": "img/occlusion/full_data_20261026_gt_prediction.png",
+      "role": "five_fixed_sample_rgb_gt_prediction_summary",
+      "sha256": "b05a6d76df5e05c23919162d54e0c496f6ba28d6d7f77b57c6d34653546be8b3",
+      "bytes": 540571,
+      "shape": [
+        1620,
+        1200,
+        4
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ]
+    },
+    "complexity": {
+      "path": "img/complexity/full_data_20261026_gt_prediction.png",
+      "role": "five_fixed_sample_rgb_gt_prediction_summary",
+      "sha256": "11e28e46b8bed3b234c997658a089be54648f1f863659b8bd57298e63d89c483",
+      "bytes": 586750,
+      "shape": [
+        1620,
+        1200,
+        4
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        6
+      ]
+    }
+  },
+  "workspaces": {
+    "center": {
+      "path": "img/occlusion/workspace_20261026_center.png",
+      "role": "fixed_camera_binary_workspace",
+      "sha256": "ec958f588be8e19d5ce2799d3617474a214459fc4bbf7cdef00c0243369b0e6c",
+      "bytes": 836,
+      "shape": [
+        480,
+        640
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ],
+      "source": {
+        "path": "<DEV_ROOT>/experiments/occlusion_gt_pilot/workspace_masks_v4/workspace_center.npy",
+        "sha256": "37ac4ef34962674ac7e58d9cd8128ed5eb8980864efac916b68bc681807af2b5"
+      }
+    },
+    "left": {
+      "path": "img/occlusion/workspace_20261026_left.png",
+      "role": "fixed_camera_binary_workspace",
+      "sha256": "9f1b1db8f114bf9ee6a09d8a9d19c4fc0ad7ebd84a3d76b40f7c957063adaa84",
+      "bytes": 905,
+      "shape": [
+        480,
+        640
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ],
+      "source": {
+        "path": "<DEV_ROOT>/experiments/occlusion_gt_pilot/workspace_masks_v4/workspace_left.npy",
+        "sha256": "4fd40d974642b769bce53418fcb2c73fed27e7096aedddd51c61cad3baa356e6"
+      }
+    },
+    "right": {
+      "path": "img/occlusion/workspace_20261026_right.png",
+      "role": "fixed_camera_binary_workspace",
+      "sha256": "0798df07ce011a5b44d611000f76cade0d435d58bc0ae8cb4b0cb4321893fe75",
+      "bytes": 892,
+      "shape": [
+        480,
+        640
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ],
+      "source": {
+        "path": "<DEV_ROOT>/experiments/occlusion_gt_pilot/workspace_masks_v4/workspace_right.npy",
+        "sha256": "b83d7ba2177f87300cb620dbd8718753483c9a8095e550ce0ffa9d4b566c0acf"
+      }
+    },
+    "top": {
+      "path": "img/occlusion/workspace_20261026_top.png",
+      "role": "fixed_camera_binary_workspace",
+      "sha256": "7aaab5c45ee0c59617f87f08b37c554b30f9dcf194ef84e81019e34e45ecc146",
+      "bytes": 901,
+      "shape": [
+        480,
+        640
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ],
+      "source": {
+        "path": "<DEV_ROOT>/experiments/occlusion_gt_pilot/workspace_masks_v4/workspace_top.npy",
+        "sha256": "7a60109b570ecf19d83a978b60dbd6e76cdf7f320013920c1938c2338089ba88"
+      }
+    },
+    "bottom": {
+      "path": "img/occlusion/workspace_20261026_bottom.png",
+      "role": "fixed_camera_binary_workspace",
+      "sha256": "0b6c8414cb84a5f06c05b7aa84d3a51cfe6881dd0e0dce2f0fd5e525354204f6",
+      "bytes": 868,
+      "shape": [
+        480,
+        640
+      ],
+      "dtype": "uint8",
+      "display_range": [
+        0,
+        1
+      ],
+      "source": {
+        "path": "<DEV_ROOT>/experiments/occlusion_gt_pilot/workspace_masks_v4/workspace_bottom.npy",
+        "sha256": "959772dc580aa1a94448c7128096cabc9401bf927a05b139ba710b0217e49c24"
+      }
+    }
+  },
+  "inventory": {
+    "png_files": 63,
+    "png_bytes": 3900703,
+    "files": [
+      {
+        "path": "img/similarity/similarity_20261026_book_1_scene00001_env0000_center_gt.png",
+        "sha256": "4eac0e1f473a6db0fc2dd4c3e9a44b65c4531d8ad4a8e28def8e53cdc838e2e2",
+        "bytes": 3859
+      },
+      {
+        "path": "img/similarity/similarity_20261026_book_1_scene00001_env0000_center_prediction.png",
+        "sha256": "8663471c96912e4d10996b7fc68c6a540e94b9aa93dd7b8a30f950a06f700501",
+        "bytes": 14485
+      },
+      {
+        "path": "img/occlusion/workspace_20261026_center.png",
+        "sha256": "ec958f588be8e19d5ce2799d3617474a214459fc4bbf7cdef00c0243369b0e6c",
+        "bytes": 836
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_prediction_raw.png",
+        "sha256": "c235103c8066c509922a51d95441edeb2ae7ab67950260f3474248f18bd9086d",
+        "bytes": 29619
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_gt.png",
+        "sha256": "226b0e48d2d9e83f1a7882823725358936b53c16cd78e0ac037e1dfee7db8a02",
+        "bytes": 18592
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_prediction.png",
+        "sha256": "adf7f28b9169d1fddf116e0724cd50427d34272a2d005699cbb91b80ddd48cc3",
+        "bytes": 9911
+      },
+      {
+        "path": "img/complexity/complexity_20261026_book_1_scene00001_env0000_center_gt.png",
+        "sha256": "ca7a99378ab761419f78c690b576be4a7327ec6682339ad8cd8ba1e056664a65",
+        "bytes": 19491
+      },
+      {
+        "path": "img/complexity/complexity_20261026_book_1_scene00001_env0000_center_prediction.png",
+        "sha256": "ad4c788f6d44aa45c7a2102b68090886dd7193e7ca96f671000cec61f37e0d40",
+        "bytes": 18881
+      },
+      {
+        "path": "img/scene_20261026_book_1_scene00001_env0000_center_rgb.png",
+        "sha256": "bb71338559d5cf69adb5e4f5938c563cb3d864c25a796fece72cc7079a7d1c22",
+        "bytes": 294578
+      },
+      {
+        "path": "img/scene_20261026_book_1_scene00001_env0000_center_depth.png",
+        "sha256": "8e40fe3b20697488aacc590567a0ab855ee5daf83f36a8c6495865257d345e18",
+        "bytes": 24744
+      },
+      {
+        "path": "img/target_20261026_book_1_reference.png",
+        "sha256": "8d7c019d7a7586ca1d676fa5d9fd1ff71d9e4054df57caaf6ad023cd6d094b35",
+        "bytes": 71932
+      },
+      {
+        "path": "img/fusion_20261026_book_1_scene00001_env0000_center_gt.png",
+        "sha256": "68e1c70b1bed1d649db5eb5048b742e2e051335364570843ebd589500de8184e",
+        "bytes": 1732
+      },
+      {
+        "path": "img/similarity/similarity_20261026_fruit_1_scene00003_env0000_left_gt.png",
+        "sha256": "cfe6b218d589a45b98a369bb22ea118a7f17cb7d459b44184a7f88852945f4a4",
+        "bytes": 3858
+      },
+      {
+        "path": "img/similarity/similarity_20261026_fruit_1_scene00003_env0000_left_prediction.png",
+        "sha256": "015e10f76df7f223ef57d6e16c9d6b9ff7e3cc85be76b175c5d7a36584c2121b",
+        "bytes": 13748
+      },
+      {
+        "path": "img/occlusion/workspace_20261026_left.png",
+        "sha256": "9f1b1db8f114bf9ee6a09d8a9d19c4fc0ad7ebd84a3d76b40f7c957063adaa84",
+        "bytes": 905
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_prediction_raw.png",
+        "sha256": "64e9ca46b30e38ab436890935cb53bf190321267253ebd706a928ba5ad0636fc",
+        "bytes": 15337
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_gt.png",
+        "sha256": "7f3787d88ad76c8b4133ca07f8c676fc9a863f9493aef712366df41684ff3ec5",
+        "bytes": 9537
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_prediction.png",
+        "sha256": "54f4f84cb9b6a539a5c432180bff671b0c5b1a44908b8a9555edf61fcdae5fdc",
+        "bytes": 6029
+      },
+      {
+        "path": "img/complexity/complexity_20261026_fruit_1_scene00003_env0000_left_gt.png",
+        "sha256": "ecb143cc14ab90e4269a1292526466f3989e4a8d1f1697da89c4e1c15fc403dd",
+        "bytes": 21535
+      },
+      {
+        "path": "img/complexity/complexity_20261026_fruit_1_scene00003_env0000_left_prediction.png",
+        "sha256": "c54350988ed1539a174553a5d31f8aa2f741b1bf1250a35468a974016cfae460",
+        "bytes": 20573
+      },
+      {
+        "path": "img/scene_20261026_fruit_1_scene00003_env0000_left_rgb.png",
+        "sha256": "df38841cd14a659145ae782d9106823571977b2ecc028dd17431adaf7f18ade3",
+        "bytes": 254002
+      },
+      {
+        "path": "img/scene_20261026_fruit_1_scene00003_env0000_left_depth.png",
+        "sha256": "e5e676e02227429bef56d9876c3a3a1aba1b0aa66fe157b4f504a3b5bd16f1e3",
+        "bytes": 8324
+      },
+      {
+        "path": "img/target_20261026_fruit_1_reference.png",
+        "sha256": "8fc31e1e568099bed15be9ed8c073c9836834516ed6e46b99c418e929924beaa",
+        "bytes": 70363
+      },
+      {
+        "path": "img/fusion_20261026_fruit_1_scene00003_env0000_left_gt.png",
+        "sha256": "53174f4a99dd9fe675b3b1778439586068f801aa465ce4e70f71144dbdc97e57",
+        "bytes": 1366
+      },
+      {
+        "path": "img/similarity/similarity_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+        "sha256": "c94feb3f24c1a034cd396e33808ce795a35f064da751cf495ce6cf85cd7447fa",
+        "bytes": 3808
+      },
+      {
+        "path": "img/similarity/similarity_20261026_packaged_food_1_scene00017_env0000_right_prediction.png",
+        "sha256": "b0475c1df679bca013e27a44cc9834d7f966be2781eda64a8da9d2d40662ca96",
+        "bytes": 12880
+      },
+      {
+        "path": "img/occlusion/workspace_20261026_right.png",
+        "sha256": "0798df07ce011a5b44d611000f76cade0d435d58bc0ae8cb4b0cb4321893fe75",
+        "bytes": 892
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_prediction_raw.png",
+        "sha256": "1b6532070d1c15d36b95edd95ee442bc4859a71823f30f921bfa0ec991314d70",
+        "bytes": 22112
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+        "sha256": "34eee5b7b499819250b17f76076d8a675ada7f0e2c491f492e9e956fb845eabe",
+        "bytes": 17577
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_prediction.png",
+        "sha256": "bab0385531c2177a6d9626ab8b4a006fd5a786062b92459535adb0df73375d4e",
+        "bytes": 11071
+      },
+      {
+        "path": "img/complexity/complexity_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+        "sha256": "0891c84fd98ea6d08b6e2be21783c665a526b6ed1ccaf751f55198d2cfb74512",
+        "bytes": 19083
+      },
+      {
+        "path": "img/complexity/complexity_20261026_packaged_food_1_scene00017_env0000_right_prediction.png",
+        "sha256": "b115cbf2e160b0d6ce0c2a58bb8fca166ca02b74752ea917e09d2446e8f7decb",
+        "bytes": 20436
+      },
+      {
+        "path": "img/scene_20261026_packaged_food_1_scene00017_env0000_right_rgb.png",
+        "sha256": "f655e7be64f4d8e556b6d93ee9dafbda3ed447e9e14cabda6727907657ff9253",
+        "bytes": 263005
+      },
+      {
+        "path": "img/scene_20261026_packaged_food_1_scene00017_env0000_right_depth.png",
+        "sha256": "56070270c1d3b05a79e7fc9f31dec207ac630f7172093e679a42370200f2e7d5",
+        "bytes": 8194
+      },
+      {
+        "path": "img/target_20261026_packaged_food_1_reference.png",
+        "sha256": "66110e436b533bda3ac2ed913a91370f3b3d1ad36e30cf5826c7e423c5089143",
+        "bytes": 46746
+      },
+      {
+        "path": "img/fusion_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+        "sha256": "b150ecc4e2c790e9d03d898b1c6ce3714b8c2bed750b9724f9d0dea100b8ffa4",
+        "bytes": 1344
+      },
+      {
+        "path": "img/similarity/similarity_20261026_toy_1_scene00001_env0000_top_gt.png",
+        "sha256": "b415065cada19ec1e556e084738cf53181cb621f645be473b69c6bbcd8131d93",
+        "bytes": 4074
+      },
+      {
+        "path": "img/similarity/similarity_20261026_toy_1_scene00001_env0000_top_prediction.png",
+        "sha256": "3dc1a5dfe2d0bbed594aa8d0cb7c8ddc4ab6ecb5862952757899426818f5b27d",
+        "bytes": 16558
+      },
+      {
+        "path": "img/occlusion/workspace_20261026_top.png",
+        "sha256": "7aaab5c45ee0c59617f87f08b37c554b30f9dcf194ef84e81019e34e45ecc146",
+        "bytes": 901
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_prediction_raw.png",
+        "sha256": "b4644749c39b0da551cf834e0b1cbec8e07ef3289a42128cd68ce2677093342c",
+        "bytes": 25662
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_gt.png",
+        "sha256": "ca63f320270ca75f0210de84016ea702c73124f509683c4ba3a9c96601c79347",
+        "bytes": 17438
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_prediction.png",
+        "sha256": "bedfa788656dd0e31f25a2023a43878913e8e24b88c0c41ad67ffa1583a05679",
+        "bytes": 10366
+      },
+      {
+        "path": "img/complexity/complexity_20261026_toy_1_scene00001_env0000_top_gt.png",
+        "sha256": "32317b1a31cfab9a011fea97f84ea9cc6dc38f9a2093447ec7877d813a68c48f",
+        "bytes": 20461
+      },
+      {
+        "path": "img/complexity/complexity_20261026_toy_1_scene00001_env0000_top_prediction.png",
+        "sha256": "c9e2479257cb396a2f65d96eaa101a54c4a6204b06cecba7b8e30aa5d423c36b",
+        "bytes": 21081
+      },
+      {
+        "path": "img/scene_20261026_toy_1_scene00001_env0000_top_rgb.png",
+        "sha256": "e9430db9d06db9608ff55f8c09daf526ac6a9ab74777d18316d3ed0f0a409daa",
+        "bytes": 267866
+      },
+      {
+        "path": "img/scene_20261026_toy_1_scene00001_env0000_top_depth.png",
+        "sha256": "83497af04e638c9acdcb4d562ffa63d5eda40fd69b2a0344d00085cd4759a77b",
+        "bytes": 8947
+      },
+      {
+        "path": "img/target_20261026_toy_1_reference.png",
+        "sha256": "2828d76f64af006860292fbdebadac6f438f2c8a7715ae9c88a39131aa9503cc",
+        "bytes": 38467
+      },
+      {
+        "path": "img/fusion_20261026_toy_1_scene00001_env0000_top_gt.png",
+        "sha256": "ce9f6f70a2514a4e8c26146ebe09ad88bcdbd2297055aac2e7ef488585ea86dc",
+        "bytes": 1394
+      },
+      {
+        "path": "img/similarity/similarity_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+        "sha256": "526634c4c9118e10904065afe9a723943a0594b8941a282997f2a49a6c426578",
+        "bytes": 3776
+      },
+      {
+        "path": "img/similarity/similarity_20261026_toy_4_scene00007_env0000_bottom_prediction.png",
+        "sha256": "6d31839901c3fbc6d6530f98c967bf3477315144a0cc6317c3cbab97acf5b1f4",
+        "bytes": 13792
+      },
+      {
+        "path": "img/occlusion/workspace_20261026_bottom.png",
+        "sha256": "0b6c8414cb84a5f06c05b7aa84d3a51cfe6881dd0e0dce2f0fd5e525354204f6",
+        "bytes": 868
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_prediction_raw.png",
+        "sha256": "aacd0466f40a919091743014b4e4c5013d1f5829e366f2d0ff624f949f84540a",
+        "bytes": 30210
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+        "sha256": "64cd590ed8dd9a145fb2cf2def592fcc70c8e8688f35b32c9bfdf1ed3402d97a",
+        "bytes": 22212
+      },
+      {
+        "path": "img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_prediction.png",
+        "sha256": "84566b39464f8e2d9e2847b25d304c8e6de797f3aa2e1b0e2f130380fc23aab6",
+        "bytes": 14024
+      },
+      {
+        "path": "img/complexity/complexity_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+        "sha256": "0c607e89506511bbec6a6f6897c8e4fff7104aab50b5ac1dc2f6b3e7096a131b",
+        "bytes": 19869
+      },
+      {
+        "path": "img/complexity/complexity_20261026_toy_4_scene00007_env0000_bottom_prediction.png",
+        "sha256": "6b83798fdfd3b041e996741e3653eecd86d60fca5c3406b6658e686c50e99668",
+        "bytes": 20050
+      },
+      {
+        "path": "img/scene_20261026_toy_4_scene00007_env0000_bottom_rgb.png",
+        "sha256": "c0b235a6728c7d918325108e765c802e046f80503a52196b0d570c61d1d6180d",
+        "bytes": 262071
+      },
+      {
+        "path": "img/scene_20261026_toy_4_scene00007_env0000_bottom_depth.png",
+        "sha256": "2fc0ad1fd25cca549dacf61161c6dd735f8bd44f141c638c4231b68f6151bab5",
+        "bytes": 8855
+      },
+      {
+        "path": "img/target_20261026_toy_4_reference.png",
+        "sha256": "5ff373580967c4b3d519452f7de917b3e07a691511623ea2a6ec5804fe11133b",
+        "bytes": 57997
+      },
+      {
+        "path": "img/fusion_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+        "sha256": "10b025bd167657dbf7d8f4ccd9dbd0de5e2b23e9b81bbb65424234a94a3bac6c",
+        "bytes": 1335
+      },
+      {
+        "path": "img/similarity/full_data_20261026_gt_prediction.png",
+        "sha256": "34a7eeaec9933287b04a2bea7e49fff980723d65e23291f1f5ebcabf3fcba582",
+        "bytes": 523723
+      },
+      {
+        "path": "img/occlusion/full_data_20261026_gt_prediction.png",
+        "sha256": "b05a6d76df5e05c23919162d54e0c496f6ba28d6d7f77b57c6d34653546be8b3",
+        "bytes": 540571
+      },
+      {
+        "path": "img/complexity/full_data_20261026_gt_prediction.png",
+        "sha256": "11e28e46b8bed3b234c997658a089be54648f1f863659b8bd57298e63d89c483",
+        "bytes": 586750
+      }
+    ]
+  }
+}

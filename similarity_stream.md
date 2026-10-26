@@ -1,10 +1,92 @@
 # Similarity Stream
 
 <!-- navigation:start -->
-[전체 개요](README.md) · **Similarity** · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md)
+[전체 개요](README.md) · **Similarity** · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->
 
-> **현재 상태:** DINOv3–SigLIP no-shortcut 구조 구현. 학습에 없던 Banana와 `packaged_food_5`에서 관련 물체 영역을 활성화하는 zero-shot 동작을 정성적으로 확인함. 공식 final checkpoint 지정과 여러 미학습 target의 정량 성능 평가는 후속 작업임.
+> **현재 상태 — 2026-10-26 정리:** DINOv3–SigLIP no-shortcut 구조를 전체 train 192,000장으로 새 학습하고 test 24,000장을 평가함. Best는 epoch 20이며 test MSE `0.00005110748803`, MAE `0.0013559037`임. Banana·`packaged_food_5`의 예전 zero-shot 그림은 이전 모델의 이력이며 이번 새 checkpoint의 외부 검증이 아님.
+
+## 최신 전체 학습·평가 — 2026-10-24 완료
+
+2026-10-24 04:18 KST에 세 stream의 개별 학습과 각 test 24,000장 평가가 모두 완료됨. 이 문서의 현재 모델은 `261013_data`에서 새로 학습한 Step 3 모델임. 과거 실험의 checkpoint·외부 물체 결과는 이력으로 구분함. 전체 연결과 그림 작성 규칙은 [Framework guide](framework_guide.md), 재개 상태와 공개 범위는 [연구 문맥](agent.md)을 따름. **세 stream의 학습 완료와 fusion 학습 완료는 다르며, fusion은 아직 미구현·미학습임.**
+
+### 현재 데이터와 공통 학습 절차
+
+- 원래 book·fruit·packaged_food·toy 각 4개, 총 16개 target을 유지함. `packaged_food_5`·`World1`은 이번 수집·학습·test에 포함하지 않음.
+- Scene은 16 targets × 50 scene IDs × 60 environments × 5 cameras = 240,000장임. 공통 CSV의 train 192,000 / validation 24,000 / test 24,000장을 전부 사용함.
+- `(target, scene)` 단위로 40/5/5 scene IDs를 나누고 같은 scene의 모든 환경·5뷰를 같은 split에 둠. 각 추론 입력은 한 시점의 관측이며 5뷰를 동시에 넣지 않음. 같은 배치의 camera view를 독립 실험 반복으로 해석하지 않음.
+- 사전학습 backbone은 frozen `eval/no_grad`, 뒤쪽 학습 층은 seed 0에서 새 초기화함. 기존 stream checkpoint를 이어 학습한 결과가 아님. Clean 관측, batch 16, float32, AdamW, gradient clipping 5를 사용함.
+- 매 epoch 전체 train·validation을 처리하고 validation loss의 실제 최솟값을 best로 저장함. 최소 3 epochs 이후 3회 연속 미개선이면 종료하도록 고정했으며, 이번 세 모델은 각각 최대 epoch까지 실행함.
+- Test GT는 학습·checkpoint 선택에 사용하지 않음. 선택된 best로 **RGB-D/reference만 읽어 모든 test 예측을 먼저 저장**한 뒤 별도 evaluator가 GT를 읽어 점수를 계산함. Target/reference 조건의 차이는 각 stream 설명을 따름.
+
+### 실제 모델과 학습 대상
+
+```text
+Scene RGB → frozen DINOv3 ViT-B/16 → layer 2/5/8/11: 각각 768×30×40
+Target RGB + reference mask → bbox crop224 → 같은 frozen DINO → mask 가중 평균 → appearance768×4
+Target center crop384 → frozen SigLIP image encoder ─┐
+물체 설명/category prompt → frozen SigLIP text encoder ─┴→ L2·평균·L2 → semantic1152
+semantic1152 → 학습 Linear1152→768 ×4 → appearance에 더함 → layer별 query768
+각 layer: [scene768 | query broadcast768 | shifted cosine1] → Matching CNN1537→64
+4×64 concat → 1×1 Conv256→64 + GroupNorm + ReLU → F_S
+F_S → 1×1 Conv64→1 + sigmoid → P_S: 1×30×40
+```
+
+DINO·SigLIP weight를 고정하고 semantic projection, 네 MatchingBlock, feature fusion, map head를 새 학습함. DINO는 RGB만 받고 SigLIP은 target 이미지·text만 받음. Scene depth·scene GT segmentation은 Similarity 입력이 아님. Target mask는 별도 reference의 crop·pooling용 입력임. Output에 raw cosine을 직접 더하는 shortcut은 없음.
+
+각 stream의 `64×30×40` 중간 feature를 이어 붙인 `192×30×40`을 CNN fusion에 입력하는 것은 **다음 단계의 계획**임. 세 개의 회색조 map을 이미 concat하여 학습한 결과가 아님. 공통 DINO 표시는 같은 사전학습 weight·feature 규격을 뜻하며, 현재 세 stream을 함께 실행하는 shared cache나 통합 forward가 구현되었다는 뜻은 아님.
+
+### 전체 test 결과와 해석
+
+| 항목 | 결과 |
+|---|---:|
+| 학습 완료 / 선택 epoch | 20 / 20 |
+| Validation MSE: 고정 reference 5뷰 평균 | 0.00005086926997 |
+| Test MSE | 0.00005110748803 |
+| Test 전체-grid MAE | 0.0013559037 |
+| Test GT-positive MAE (`pooled GT>0`) | 0.0076458596 |
+| Test 배경 MAE (`pooled GT=0`) | 0.00003963449448 |
+
+Test는 center target reference 한 장으로 예측함. MSE·MAE는 이미지별 `30×40` 오차를 먼저 구한 뒤 24,000장을 같은 비중으로 평균함. Positive는 exact target뿐 아니라 관계 점수가 양수인 모든 물체·혼합 patch를 포함함. 큰 배경 영역 때문에 전체 MAE가 작아질 수 있어 positive와 background를 함께 제시함. Sigmoid의 0–1은 관계 score의 출력 범위이며 실제 target 존재의 보정된 확률이 아님. 이 평가는 기존 16종의 새 scene 평가이고 새 물체·실센서·최종 탐색 성능 검증이 아님.
+
+### 동일한 test 5장: 원본 GT와 실제 예측
+
+![similarity full-data GT and saved predictions on five fixed test scenes](img/similarity/full_data_20261026_gt_prediction.png)
+
+세 stream 모두 동일한 아래 5장을 사용함. 지정한 target/camera 조합의 공통 test CSV 첫 행을 선택했으며 예측이 잘 맞는 순서로 고른 사례가 아님. 그림은 전체 24,000장 평가의 예시이고 별도 성능 지표를 만들지 않음.
+
+**GT는 native 640×480 PNG, 예측은 저장된 float32 `30×40` 출력을 640×480으로 bilinear 확대한 표시임.** 큰 그림이 원본 픽셀 해상도로 직접 추론했다는 뜻은 아님. 밝기는 모든 장면에서 `0–1 score`로 고정하고 영상별 min–max 정규화를 하지 않음. 예측에 target GT·scene segmentation·workspace mask를 곱하지 않음.
+
+| Target / frame | GT 원본 PNG | 예측 표시 PNG |
+|---|---|---|
+| `book_1/scene00001_env0000_center` | [GT](img/similarity/similarity_20261026_book_1_scene00001_env0000_center_gt.png) | [Prediction](img/similarity/similarity_20261026_book_1_scene00001_env0000_center_prediction.png) |
+| `fruit_1/scene00003_env0000_left` | [GT](img/similarity/similarity_20261026_fruit_1_scene00003_env0000_left_gt.png) | [Prediction](img/similarity/similarity_20261026_fruit_1_scene00003_env0000_left_prediction.png) |
+| `packaged_food_1/scene00017_env0000_right` | [GT](img/similarity/similarity_20261026_packaged_food_1_scene00017_env0000_right_gt.png) | [Prediction](img/similarity/similarity_20261026_packaged_food_1_scene00017_env0000_right_prediction.png) |
+| `toy_1/scene00001_env0000_top` | [GT](img/similarity/similarity_20261026_toy_1_scene00001_env0000_top_gt.png) | [Prediction](img/similarity/similarity_20261026_toy_1_scene00001_env0000_top_prediction.png) |
+| `toy_4/scene00007_env0000_bottom` | [GT](img/similarity/similarity_20261026_toy_4_scene00007_env0000_bottom_gt.png) | [Prediction](img/similarity/similarity_20261026_toy_4_scene00007_env0000_bottom_prediction.png) |
+
+Target thumbnail은 별도 center reference의 표시용 crop임. 실제 모델 전처리는 아래 설명을 따르며, thumbnail의 크기를 모델 입력 크기로 해석하지 않음.
+
+### 현재 산출물과 재현 경로
+
+공개된 [전체 학습·평가 JSON](docs/stream_training_20261022_summary.json)에서 반올림 전 수치·target별·camera별 집계와 checkpoint hash를 확인할 수 있음.
+
+`<DEV_ROOT>`는 실제 개발 폴더 `2D-PDM_DINOv3`를 뜻함. 아래는 개발 폴더 기준 LOCAL 경로이며 공개 Git clone의 옛 실행 코드와 구분함.
+
+| 자료 | 실제 경로 |
+|---|---|
+| 고정 학습 설정·source hash | `outputs/stream_training_20261022/step3/protocol.json` |
+| 학습·추론 adapter | `experiments/stream_training_20261022/training_similarity.py` |
+| 공통 runner·test 관측 loader·평가 | `experiments/stream_training_20261022/{train,training_observations,training_metrics}.py` |
+| 현재 선택 모델·명세 | `outputs/stream_training_20261022/step3/runs/similarity/{best.pt,model_spec.json}` |
+| 학습·완료 기록 | 같은 run의 `history.json`, `completion.json` |
+| GT 없이 저장한 test 예측 | 같은 run의 `test_predictions.npy`, `prediction_complete.json` |
+| 전체·target별·camera별 평가 | 같은 run의 `evaluation/{evaluation.json,per_image.csv}` |
+| 공통 분할 | dataset `261013_data/_gt/full_stream_gt_20261016/common_{train,val,test}.csv` |
+
+현재 best checkpoint SHA256은 `62685f03548f310af19079006015c638815b6ff9ce906295ef134c0bdbd5dea2`임. 공개 문서는 구조·설정·결과·선택 예시를 제공하며 전체 데이터·weight를 공개 clone에 복사한 것은 아님. 지금 공개 문서·그림의 갱신은 저장된 결과를 정리하는 작업이며 새 학습이나 새 실험이 아님.
+
+
 
 ## 1. 목적과 입출력
 
@@ -14,7 +96,7 @@ Similarity stream은 **target 자체와 의미적으로 관련된 가시 영역*
 
 **Scene RGB**는 검색할 서랍 전체 영상이고, **target reference**는 찾을 물체를 별도로 촬영한 영상임. 두 입력을 각각 인코딩한 뒤 feature 공간에서 비교함.
 
-Banana query를 예로 들면, 노란 toy와의 외형 유사도와 apple/orange의 같은-category 관계를 함께 다룸. **DINOv3는 위치별 외형·문맥 표현을, SigLIP은 target의 전역 의미 조건을 제공함.** 초기 appearance matching에서 부족했던 category 관계를 보완하기 위해 두 표현을 결합했으며, 결합 모델에서 unseen Banana에 대한 fruit 영역 활성화를 확인함.
+Banana query를 예로 들면, 노란 toy와의 외형 유사도와 apple/orange의 같은-category 관계를 함께 다룸. **DINOv3는 위치별 외형·문맥 표현을, SigLIP은 target의 전역 의미 조건을 제공함.** 초기 appearance matching에서 부족했던 category 관계를 보완하기 위해 두 표현을 결합했으며, 이전 결합 모델에서 unseen Banana에 대한 fruit 영역 활성화를 확인한 이력이 있음. 아래 Banana 설명은 구조를 풀어 쓴 예이며 현재 Step 3의 외부 물체 평가가 아님.
 
 ```text
 찾을 물체: Banana reference image         검색할 관측: Drawer RGB
@@ -86,9 +168,9 @@ C의 **3×3 Conv2d는 각 위치에서 1,537개 channel 모두의 주변 3×3칸
 
 파랑은 weight를 고정한 encoder, 주황은 학습되는 모듈, 초록은 pooling·덧셈·cosine·concat처럼 계산 방식이 정해진 연산임. 색은 학습 여부와 연산 종류를 구분하며 특정 feature의 의미를 지정하지 않음. 그림의 격자와 두께는 개념도이고, 실제 tensor 크기는 숫자로 표시함. 동일 이름의 SVG도 `img/similarity/`에 함께 보존함.
 
-학습에서 DINO target appearance는 다섯 reference camera 중 선택한 view를 사용하고, SigLIP semantic은 center reference와 text로 미리 계산한 값을 사용함. 따라서 두 encoder의 target 입력이 항상 같은 view라는 뜻은 아님. 현재 추론에서는 선택한 reference camera를 두 경로에 사용함.
+학습에서 DINO target appearance는 다섯 reference camera 중 선택한 view를 사용하고, SigLIP semantic은 center reference와 text로 미리 계산한 값을 사용함. 따라서 두 encoder의 target 입력이 항상 같은 view라는 뜻은 아님. 현재 Step 3 test는 두 경로 모두 center reference를 사용함. 과거 범용 CLI의 reference-camera 선택과 구분함.
 
-Banana의 이름으로 전용 모델을 고르는 구조가 아님. **모든 target이 같은 모델을 사용하며, 입력한 reference에 따라 검색 조건이 달라짐.** 이 방식으로 학습에 없던 Banana와 `packaged_food_5`의 관련 물체 영역이 활성화되는 zero-shot 동작을 정성 확인함.
+Banana의 이름으로 전용 모델을 고르는 구조가 아님. **모든 target이 같은 모델을 사용하며, 입력한 reference에 따라 검색 조건이 달라짐.** 이 방식의 이전 모델에서 Banana와 `packaged_food_5`의 zero-shot 동작을 정성 확인한 이력이 있음. 현재 Step 3 checkpoint에는 같은 외부 평가를 다시 실행하지 않음.
 
 ## 3. 내부 모듈과 선택 이유
 
@@ -511,7 +593,7 @@ Layer 11 → 해당 layer의 query·cosine·concat → MatchingBlock → 64개
 
 **`F_S`는 위치마다 64개 숫자가 남은 표현이고, `P_S`는 위치마다 하나의 관계 score로 읽은 결과임.** 이 계산을 모든 위치에서 하면 `F_S`는 `64×30×40`, `P_S`는 `1×30×40`이 됨. 표시할 때는 map을 `480×640`으로 부드럽게 확대할 수 있음.
 
-이로써 Banana 사진에서 만든 검색 조건이 서랍의 각 위치와 결합되어 하나의 similarity map이 됨. 새 target을 넣어도 **같은 encoder와 학습된 가중치를 사용하며**, reference에서 계산하는 appearance·semantic·query와 그에 따른 map이 바뀜. 현재 Banana와 `packaged_food_5`에서 이 zero-shot 동작을 정성 확인했고, 기존 평가 결과와 후속 평가 범위는 4·5절에 정리함.
+이로써 Banana 사진에서 만든 검색 조건이 서랍의 각 위치와 결합되어 하나의 similarity map이 됨. 새 target을 넣어도 **같은 encoder와 학습된 가중치를 사용하며**, reference에서 계산하는 appearance·semantic·query와 그에 따른 map이 바뀜. 이전 모델의 Banana·`packaged_food_5` 정성 결과는 4·5절 이력에 정리하며, 현재 Step 3 결과는 문서 앞의 test 표를 따름.
 
 <details>
 <summary>구현 세부: Fusion, score와 출력 크기</summary>
@@ -590,11 +672,11 @@ flowchart LR
 
 ### Relation score GT와 loss
 
-`gt_similarity.py`는 scene segmentation의 asset mapping과 category를 사용하여 다음 GT를 구성함. 이 category 관계는 연구에서 정한 supervision이며, SigLIP이 자동으로 정한 similarity 정답이 아님.
+현재 `experiments/full_stream_gt_20261016/sc.py`는 scene의 원본 physical instance ID와 pose metadata의 target/category 항목을 사용하여 다음 GT를 구성함. Pose의 위치·자세를 Similarity network에 넣는다는 뜻은 아님. 기존 `gt_similarity.py`의 색상 mapping 경로는 이전 구현임. 이 category 관계는 연구에서 정한 supervision이며, SigLIP이 자동으로 정한 similarity 정답이 아님.
 
 | Target–scene 관계 | Pixel GT score |
 |---|---:|
-| 동일 target asset label | `1.0` |
+| 해당 scene의 target physical instance ID | `1.0` |
 | 같은 category | `0.8` |
 | 관련 category: book↔toy, fruit↔packaged_food | `0.5` |
 | 그 외 알려진 category 물체 | `0.2` |
@@ -607,9 +689,9 @@ flowchart LR
 | Fruit | 0.2 | 0.2 | 0.8 | 0.5 |
 | Packaged food | 0.2 | 0.2 | 0.5 | 0.8 |
 
-표는 색 mapping이 유일할 때의 규칙임. `색 → asset 이름 → category 관계 → score` 순서로 GT를 정하고, 동일 target asset에는 category 점수보다 우선하여 `1.0`을 부여함. Target의 실제 존재 확률을 관측한 정답은 아님.
+현재 GT는 `원본 instance ID → 물체 metadata → target/category 관계 → score` 순서로 정함. 해당 target instance에는 category 점수보다 우선하여 `1.0`을 부여하며 배경은 0으로 둠. 서로 다른 scene에서 같은 시각화 색이 나와도 원본 ID를 사용하는 이 경로와는 별개임. Target의 실제 존재 확률을 관측한 정답은 아님.
 
-**GT 로드:** `paths_config.GT_DIR`의 precomputed grayscale GT를 우선 읽고 `/255`로 변환함. 파일이 없을 때 segmentation과 mapping으로 생성함.
+**현재 GT 로드:** 공통 CSV의 `similarity_npz`에서 float32 `pooled [30,40]`를 직접 읽음. 원시 pixel score를 16×16 평균한 값이며 추가 pooling이나 `/255`를 하지 않음. PNG는 `261013_data/similarity/<target>/<frame>.png`, 수치 NPZ는 `261013_data/_gt/full_stream_gt_20261016/arrays/similarity/<target>/<frame>.npz`임. 옛 `GT_DIR` PNG 우선·색상 segmentation fallback은 현재 학습에 사용하지 않음.
 
 Banana를 target으로 삼는다고 가정한 **규칙 설명용 GT**는 다음과 같음. 이는 external Banana로 실제 학습하거나 새 GT를 생성했다는 뜻은 아님.
 
@@ -621,7 +703,7 @@ Target과 관계       exact          fruit     related          other       unk
 
 **입력과 감독의 구분:** Target mask는 reference query를 구성하는 **추론 입력**임. Scene segmentation은 **GT 생성 전용**이며 추론 때 scene의 정답 위치를 head에 제공하지 않음.
 
-**GT 색 mapping:** 생성 함수가 BGR을 dictionary key로 사용하며, 같은 색의 asset이 있으면 뒤 score가 앞 값을 덮는 코드 경로를 확인함. 기존 GT의 충돌 범위와 map 변화량은 소급 정량 audit으로 확인할 항목임.
+**이전 색 mapping 이력:** 옛 색상 dictionary 경로에는 같은 색의 asset이 앞 값을 덮을 수 있는 문제가 있었음. 현재 전체 GT는 원본 physical instance ID로 생성했으므로 이 옛 경로를 재실행하거나 색 수를 물체 수로 해석하지 않음. 이 변경을 과거 GT의 소급 성능 개선으로 주장하지 않음.
 
 $$
 Y_{\mathrm{patch}}=\mathrm{AvgPool}_{16\times16}(Y_{\mathrm{full}}),
@@ -651,18 +733,29 @@ Scene segmentation + relation rule ── GT Y ─────┤ 차이의 제�
                                   projection / head weight 갱신
 ```
 
-**평가 범위:** MSE는 `0.8/0.5/0.2`와 경계의 중간값을 얼마나 정확히 회귀하는지 측정함. 배경을 포함한 전체 patch의 평균이며, 0/1 category classification과 평가 대상이 다름. 배경 비중이 크면 foreground 오류가 전체 평균에 작게 반영될 수 있으므로, 탐지 성공률·exact-target ranking·foreground별 오류는 추가 지표로 나누어 측정할 항목임.
+**평가 범위:** MSE는 `0.8/0.5/0.2`와 경계의 중간값을 얼마나 정확히 회귀하는지 측정함. 배경을 포함한 전체 patch의 평균이며, 0/1 category classification과 평가 대상이 다름. 배경 비중이 크면 물체 영역 오류가 전체 평균에 작게 반영될 수 있으므로 현재 결과는 GT-positive·배경 MAE를 함께 제시함. 탐지 성공률·exact-target ranking은 별도로 측정하지 않음.
 
 ### 데이터와 현재 training protocol
 
-기존 book·fruit·packaged_food·toy 각 4개, **16개 target 모두를 training pool에 유지**함. 새로운 target의 zero-shot 평가는 별도 external asset으로 수행함. Source의 “15 targets / packaged_food_1 제외” 주석은 오래된 설명이며 실제 `TARGETS`와 현재 데이터는 16개임.
+현재 entry는 `experiments/stream_training_20261022/train.py`와 `training_similarity.py`임. 위 공통 CSV를 재분할하거나 environment 간격을 띄우지 않고 train 192,000 / validation 24,000 / test 24,000장을 사용함. Seed 0, batch16/FP32, AdamW `lr=1e-3`, `weight_decay=0.01`, epoch별 CosineAnnealingLR `T_max=20`임. Head와 semantic projection을 함께 새 초기화·학습함.
 
-| 항목 | 현재 설정 |
+Train은 sample마다 target DINO reference 5뷰 중 하나를 무작위로 선택함. SigLIP은 center reference+text로 고정함. Validation은 각 scene에서 target DINO reference 5뷰 각각의 MSE를 구해 평균함. **5개 예측을 평균한 뒤 MSE를 계산하는 것과 다름.** Validation 24,000장×5 reference 비교를 독립 scene 120,000개로 해석하지 않음. Test는 center reference 1회임.
+
+Checkpoint는 전체 validation MSE가 이전 최솟값보다 작을 때마다 저장함. 이전 trainer의 5% 개선 문턱은 사용하지 않음. 공통 protocol에 코드 hash·분할을 기록하고 checkpoint에 optimizer·scheduler·RNG·epoch/offset을 저장하여 재개함. 아래 옛 데이터와 로그는 현재 설정의 근거로 혼합하지 않음.
+
+<details>
+<summary>이전 소규모 trainer의 데이터·학습 절차 보존</summary>
+
+### 이전 데이터·training protocol 기록
+
+기존 book·fruit·packaged_food·toy 각 4개, **16개 target 모두를 training pool에 유지**함. 새로운 target의 zero-shot 평가는 별도 external asset으로 수행함. Source의 “15 targets / packaged_food_1 제외” 주석은 오래된 설명이며 실제 `TARGETS`와 당시 데이터는 16개임.
+
+| 항목 | 당시 설정 |
 |---|---|
 | Scene split | Target별 10 scene ID를 8 train / 2 validation으로 분리. 같은 scene ID의 environment와 camera는 같은 split |
 | Scene camera | center, top, left, right, bottom |
 | Environment sampling | `ENV_STRIDE=10`: `0,10,…,290`, scene ID당 30개 |
-| 현재 데이터의 sample 수 | Train `16×8×30×5=19,200`; validation scene sample `16×2×30×5=4,800` |
+| 당시 데이터의 sample 수 | Train `16×8×30×5=19,200`; validation scene sample `16×2×30×5=4,800` |
 | Target camera 사용 | Train은 sample마다 5개 중 무작위 하나, validation은 5개를 모두 순회하여 총 24,000 scene–reference 비교 |
 | Semantic 조건 | Target당 center image 한 장 + 물체 설명/category text. Target appearance camera를 바꿔도 semantic은 고정 |
 | Optimizer | AdamW, learning rate `1e-3`, default weight decay `0.01` |
@@ -670,7 +763,7 @@ Scene segmentation + relation rule ── GT Y ─────┤ 차이의 제�
 | Checkpoint 갱신 / early stopping | 이전 best MSE보다 **5% 초과 개선** 시 best 저장; 개선 없이 `5` epochs면 종료 |
 | Split seed | 기본 `None`; 실행 시작 시 seed 하나를 정해 모든 target에 사용 |
 
-현재 코드에서는 seed와 실제 split 목록을 stdout에 출력함. 과거 no-shortcut snapshot에서 target마다 seed가 새로 생성되던 split 문제도 수정됨. **현재 분할 절차의 수정까지 완료했으며**, `train_log.txt`·checkpoint에 seed와 split을 자동 보존하는 기능은 후속 항목임. 과거 run의 정확한 재현에는 당시 split 기록을 추가 확인해야 하므로, 현재 절차와 당시 학습 기록을 구분함.
+당시 코드에서는 seed와 실제 split 목록을 stdout에 출력함. 과거 no-shortcut snapshot에서 target마다 seed가 새로 생성되던 split 문제도 수정됨. **당시 분할 절차의 수정까지 완료했으며**, `train_log.txt`·checkpoint에 seed와 split을 자동 보존하는 기능은 후속 항목임. 과거 run의 정확한 재현에는 당시 split 기록을 추가 확인해야 하므로, 현재 절차와 당시 학습 기록을 구분함.
 
 **Scene-level split:** 동일 배치의 top/left 등 camera view는 상관된 관측임. Image별 무작위 분할에서 발생할 수 있는 배치 누출을 줄이기 위해 scene ID를 먼저 분리하고, 해당 environment와 다섯 view를 함께 배정함.
 
@@ -687,7 +780,10 @@ Scene segmentation + relation rule ── GT Y ─────┤ 차이의 제�
 
 GT category score는 loss·평가용이며 inference query나 scene feature에 입력하지 않음. 반면 target text의 물체 설명·category는 명시적인 조건이므로 현재 학습 모델을 image-only model로 분류하지 않음.
 
-### 지표와 checkpoint의 해석
+
+</details>
+
+### 이전 지표와 checkpoint의 해석 — 현재 Step 3와 구분
 
 | 지표 | 실제 계산 | 해석 |
 |---|---|---|
@@ -700,11 +796,11 @@ Positive 기준은 `GT>0.1`, `prediction>0.1`임. `0.2`인 다른 category 물�
 
 보존된 no-shortcut 후보 `multi_target_20260728_114403_siglip/similarity_head_best.pt`는 현재 head/projection 구조와 호환됨. 해당 `train_log.txt`의 **마지막 best 저장 epoch 21**에는 validation MSE `0.00027`, tolerance IoU-like `0.8588`이 기록돼 있음. **같은 asset library의 scene validation 성능을 확인한 수치**이며, external target 성능은 별도로 집계할 항목임. MSE는 log의 반올림 값이고, best는 5% 개선 기준을 만족한 저장 시점을 뜻함. 전체 epoch의 반올림 전 MSE 최솟값과는 구분함.
 
-Checkpoint에는 `model_state`와 `semantic_proj_state`를 저장하고 frozen backbone은 별도로 로드함. **위 후보의 현재 구조 호환성까지 확인했으며, 공식 final checkpoint를 지정하는 manifest는 후속 정리 항목임.** 출력 cosine shortcut을 포함한 일부 후속 run은 구조가 다르므로, 사용할 checkpoint는 날짜와 함께 모델 구조·backbone·전처리·split·prompt provenance를 기준으로 구분함. 과거 정성 패널과 정확한 checkpoint·실행 설정의 연결도 재현 기록에 보강할 항목임.
+Checkpoint에는 `model_state`와 `semantic_proj_state`를 저장하고 frozen backbone은 별도로 로드함. **이 후보는 이전 연구·Step 2 연결 확인에 사용한 checkpoint임. 현재 Step 3 선택 모델은 위 `runs/similarity/best.pt`와 completion hash로 지정되며 이 후보를 이어 학습하지 않았음.** 출력 cosine shortcut을 포함한 일부 후속 run은 구조가 다르므로, 사용할 checkpoint는 날짜와 함께 모델 구조·backbone·전처리·split·prompt provenance를 기준으로 구분함. 과거 정성 패널과 정확한 checkpoint·실행 설정의 연결도 재현 기록에 보강할 항목임.
 
-### 정성 결과와 현재까지의 증거
+### 이전 모델의 외부 target 정성 결과
 
-**학습에 없던 target을 추가 학습 없이 query로 사용하여, 관련 물체 영역을 활성화하는 zero-shot 동작을 확인함.** 아래 Banana와 `packaged_food_5`의 실제 예측 결과가 그 정성 근거임. 최종 checkpoint 지정과 동일 조건의 정량 benchmark 구성은 재현성과 성능 집계를 위한 후속 작업임.
+**이전 모델에서 학습에 없던 target을 추가 학습 없이 query로 사용한 zero-shot 동작을 확인함. 현재 Step 3 checkpoint를 평가한 결과는 아님.** 아래 Banana와 `packaged_food_5`의 실제 예측 결과가 그 정성 근거임. 당시 정성 그림의 정확한 실행 출처와 여러 외부 target의 정량 benchmark는 별도 재현 과제임.
 
 **Unseen Banana:** 아래 세 그림의 target은 모두 banana임. 파일명에 있는 Book/Avocado/Orange는 scene pool을 나타내며 target 이름이 아님. Fruit 영역에 반응하는 사례와 함께 다른 물체 영역의 활성화도 관찰됨.
 
@@ -717,9 +813,9 @@ Checkpoint에는 `model_state`와 `semantic_proj_state`를 저장하고 frozen b
 ![Historical unseen packaged_food_5 image-only result](img/similarity/packaged_food_5_zeroshot_nolabel_2.png)
 ![Historical unseen packaged_food_5 image-and-text result](img/similarity/packaged_food_5_zeroshot_v2.png)
 
-**현재 확인한 결과는 학습에서 보지 않은 target instance에 대한 zero-shot 동작임.** Banana와 `packaged_food_5`는 미학습 instance이고, fruit와 packaged-food category는 학습에 포함됨. 후속 정량 평가는 여러 external target에서 평균 성능과 실패 조건을 측정하는 단계임. DINO-only/SigLIP-only, image-only/image+text, prompt swap 비교는 각 구성요소의 기여를 확인하는 별도 분석임.
+**이 절에서 보존한 과거 결과는 학습에서 보지 않은 target instance의 zero-shot 동작임.** Banana와 `packaged_food_5`는 미학습 instance이고, fruit와 packaged-food category는 학습에 포함됨. 후속 정량 평가는 여러 external target에서 평균 성능과 실패 조건을 측정하는 단계임. DINO-only/SigLIP-only, image-only/image+text, prompt swap 비교는 각 구성요소의 기여를 확인하는 별도 분석임.
 
-## 5. 핵심 설계 과정과 검증 결과
+## 5. 이전 설계 과정과 검증 결과 — 당시 모델의 이력
 
 | 단계 | 가정과 시도 | 확인한 결과와 다음 변경 |
 |---|---|---|
@@ -783,7 +879,7 @@ SigLIP semantic s: [s1, s2, ... , s1152]                          ├──→ q
 
 **결합 비중:** `q^ℓ`는 DINO appearance와 projected semantic을 함께 담은 표현임. 고정 혼합 비율이나 별도 alignment loss 대신 task loss로 projection을 학습하므로, projection의 크기도 semantic이 query에 기여하는 비중에 영향을 줌. Image/text 조건의 변경과 오류에 따른 출력 차이는 prompt swap·image-only 대조로 분석할 항목임.
 
-**확인 결과와 추가 분석:** 이 hybrid-query 모델에서 Banana와 `packaged_food_5`의 관련 영역 활성화를 확인함. Projection이 어떤 정보를 전달하는지와 그 추가 기여량은 projection·입력 조건을 통제한 ablation으로 분석할 항목임. 현재 정성 zero-shot 결과와 개별 모듈의 기여 분석을 나누어 정리함.
+**이전 확인 결과와 추가 분석:** 당시 hybrid-query 모델에서 Banana와 `packaged_food_5`의 관련 영역 활성화를 확인함. Step 3의 외부 평가로 확장하지 않음. Projection이 어떤 정보를 전달하는지와 그 추가 기여량은 projection·입력 조건을 통제한 ablation으로 분석할 항목임. 과거 정성 zero-shot 결과와 개별 모듈의 기여 분석을 나누어 정리함.
 
 ### Q2. Cosine map이 이미 있는데 scene·target feature를 다시 concat하는 이유는?
 
@@ -852,7 +948,7 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 | Layer-wise map | Layer 2/5/8/11의 대응 반응을 같은 입력에서 비교 | 외형·category 관계에 대한 각 layer의 실제 반응을 비교 |
 | Controlled ablation | DINO-only/SigLIP-only/image-only/image+text를 동일 조건에서 비교 | 최종 task 성능에 주는 추가 기여를 검사. 학습량·평가 입력 조건을 맞춰야 함 |
 
-**확인 결과와 추가 분석:** 현재 모델은 unseen Banana와 `packaged_food_5`에서 관련 영역을 활성화함. 위 방법들은 이 결과를 만드는 표현과 조건을 분리해 분석하는 후속 평가임. 초기 DINO matching의 category 반응과 DINO feature 자체에서 읽을 수 있는 의미 정보는 평가 대상이 다르므로, 후자는 probe·retrieval로 분석할 항목임.
+**이전 확인 결과와 추가 분석:** 이전 모델의 unseen Banana·`packaged_food_5` 관련 영역 활성화 결과를 보존함. 현재 Step 3 모델의 새 외부 평가는 없음. 위 방법들은 이 결과를 만드는 표현과 조건을 분리해 분석하는 후속 평가임. 초기 DINO matching의 category 반응과 DINO feature 자체에서 읽을 수 있는 의미 정보는 평가 대상이 다르므로, 후자는 probe·retrieval로 분석할 항목임.
 
 ### Q4. Patch-wise cosine과 MatchingBlock은 같은 matching을 두 번 하는 것 아닌가?
 
@@ -887,11 +983,11 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 
 **출력 경로:** 네 MatchingBlock의 64-D 출력을 `1×1` fusion과 head로 합쳐 최종 logit을 생성함. Raw cosine을 출력에 직접 더하는 shortcut은 제거됨.
 
-**확인 결과와 추가 분석:** MatchingBlock을 포함한 현재 모델에서 scene validation 성능과 unseen-target의 정성 동작을 확인함. Cosine-only 대비 추가 개선량과 이웃 문맥의 효과는 같은 held-out 조건의 ablation·오류 분석으로 확인할 항목임.
+**확인 결과와 추가 분석:** 현재 Step 3는 전체 test의 관계 score 회귀를 평가함. Unseen-target 정성 동작은 이전 MatchingBlock 모델의 결과임. Cosine-only 대비 추가 개선량과 이웃 문맥의 효과는 같은 held-out 조건의 ablation·오류 분석으로 확인할 항목임.
 
 ### Q5. 새 target에 image-only 추론이 가능한가? Zero-shot은 무엇까지 의미하는가?
 
-**Image-only semantic 추론을 지원하며 `packaged_food_5`의 실제 결과도 보존되어 있음.** `inference_zeroshot.py`의 `--label`을 생략하면 SigLIP image만 사용함. 현재 입력은 crop·appearance pooling용 reference mask와 mapping을 포함하며, raw target RGB에서 이를 자동 생성하는 경로는 후속 구현 항목임.
+**이전 `inference_zeroshot.py`는 image-only semantic 추론을 지원하며 당시 `packaged_food_5` 결과를 보존함. 현재 Step 3의 `predict()`는 기록된 image+text 조건을 사용하며 text 제거 실험을 수행하지 않음.** `inference_zeroshot.py`의 `--label`을 생략하면 SigLIP image만 사용함. 현재 입력은 crop·appearance pooling용 reference mask와 mapping을 포함하며, raw target RGB에서 이를 자동 생성하는 경로는 후속 구현 항목임.
 
 새 target에서는 **reference 입력과 그 입력에서 계산한 query가 바뀌고, 학습한 모델 weight는 그대로 유지**됨. Banana RGB/mask를 같은 DINOv3와 SigLIP으로 처리한 뒤, 기존 projection·MatchingBlock·head를 사용함. `--label`은 text 조건을 추가하는 옵션이며 target별 모델을 선택하는 옵션이 아님.
 
@@ -906,15 +1002,15 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 
 **Zero-shot 증거 범위:**
 
-**Banana와 `packaged_food_5`에 대한 zero-shot 동작은 실제 추론 결과로 정성 확인함.** Encoder의 입력 지원과 학습된 head의 실제 예측 결과를 다음처럼 구분함.
+**이전 모델의 Banana·`packaged_food_5` zero-shot 동작은 당시 실제 추론 결과로 정성 확인함. 현재 Step 3의 결과와 구분함.** Encoder의 입력 지원과 학습된 head의 실제 예측 결과를 다음처럼 구분함.
 
-| 수준 | 의미 | 현재 주장할 수 있는 범위 |
+| 수준 | 의미 | 당시 확인한 범위 |
 |---|---|---|
 | 새 입력을 encoder에 넣을 수 있음 | Banana가 16개 training target 목록에 없어도 vector를 계산할 수 있음 | 입력 규격상 가능 |
 | 미학습 target으로 실제 추론함 | 추가 학습 없이 Banana/packaged_food_5 query로 관련 물체 영역 활성화 | 평가한 사례에서 zero-shot 동작 정성 확인 |
 | 여러 미학습 target의 성능을 수치화함 | 외부 target·scene별 성능을 집계하여 평균 성능과 실패 조건 측정 | 후속 object-held-out 정량 평가 |
 
-**현재 zero-shot은 seen-category 안의 unseen-instance 조건에서 확인한 결과임.** Image-only와 image+text 각각의 추론 사례까지 보존되어 있으며, 두 조건의 성능 차이는 같은 scene·target을 사용하는 paired ablation으로 측정할 항목임. Image+text 학습 후 text를 제거하면 입력 분포도 달라지므로, 이 비교에서는 학습 조건과 추론 조건을 함께 기록함. 앞서 제시한 두 packaged-food 결과는 서로 다른 scene의 사례임. Category 전체를 학습에서 제외하는 평가는 일반화 범위를 더 넓히는 별도 실험임.
+**보존된 과거 zero-shot은 seen-category 안의 unseen-instance 조건임.** Image-only와 image+text 각각의 추론 사례까지 보존되어 있으며, 두 조건의 성능 차이는 같은 scene·target을 사용하는 paired ablation으로 측정할 항목임. Image+text 학습 후 text를 제거하면 입력 분포도 달라지므로, 이 비교에서는 학습 조건과 추론 조건을 함께 기록함. 앞서 제시한 두 packaged-food 결과는 서로 다른 scene의 사례임. Category 전체를 학습에서 제외하는 평가는 일반화 범위를 더 넓히는 별도 실험임.
 
 여기서 unseen은 **우리 Similarity 모델의 학습 목록에 없던 external target**을 뜻함. DINOv3·SigLIP의 사전학습에서도 처음 보는 개념이라는 뜻은 아님. 새 reference의 표현을 계산해 기존 adapter·head에 넣는 것이 zero-shot 추론 경로이며, 직접적인 feature 정렬 loss를 추가해야만 이 경로가 성립하는 것은 아님. 이미 확인한 동작의 적용 범위는 여러 external target 평가로, 구성요소별 기여는 입력·모듈을 통제한 비교로 분석함.
 
@@ -930,10 +1026,10 @@ RGB의 red·green·blue는 사전 정의된 channel인 반면 encoder의 좌표�
 | Patch 절반이 exact target, 절반이 배경 | 0.5 | 16×16 GT average pooling의 결과 |
 | 모델이 불확실하거나 틀려서 0.5를 출력 | 예측 0.5 | 모델 출력은 정답의 원인을 보증하지 않음 |
 
-**확인 결과와 후속 효용:** Similarity는 target 및 관련 가시 영역을 표현하며, scene validation과 unseen-target 추론에서 그 동작을 확인함. 다음 단계는 `F_S`를 Occlusion·Complexity와 결합하는 fusion·DRL 경로를 구현하고, 탐색 순서·성공률·행동 수를 비교하는 것임. 현재의 relation MSE·정성 heatmap 평가는 stream 단위 결과이고, 통합 탐색 성능은 이후 별도 지표로 측정함.
+**확인 결과와 후속 효용:** 현재 Similarity는 기존 16종의 held-out scene에서 관계 score 회귀를 확인함. 이전 모델의 unseen-target 추론은 별도 이력임. 다음 단계는 `F_S`를 Occlusion·Complexity와 결합하는 fusion·DRL 경로를 구현하고, 탐색 순서·성공률·행동 수를 비교하는 것임. 현재의 relation MSE·정성 heatmap 평가는 stream 단위 결과이고, 통합 탐색 성능은 이후 별도 지표로 측정함.
 
 ---
 
 <!-- navigation:start -->
-[전체 개요](README.md) · **Similarity** · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md)
+[전체 개요](README.md) · **Similarity** · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->

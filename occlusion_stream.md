@@ -1,10 +1,93 @@
 # Occlusion Stream
 
 <!-- navigation:start -->
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · **Occlusion** · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md)
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · **Occlusion** · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->
 
-> **현재 확인된 결과:** Adaptive GT 240,000장 생성, 기존 16개 target을 모두 포함한 baseline 학습, seen-target scene-heldout 정량 평가와 외부 `packaged_food_5`의 zero-shot 정량 평가까지 완료함. 현재 모델은 `native 68-D geometry + raw target broadcast + global FiLM`이며 전체 scene key의 10%로 학습함. GT coverage 기준 full16 MAE 0.013997, 외부 target MAE 0.017998을 확인하여 checkpoint를 보존함. 이를 기준으로 추가 target·입력 조건의 일반화와 fusion·탐색 효용을 후속 평가함.
+> **현재 상태 — 2026-10-26 정리:** Native geometry68·raw target broadcast·global FiLM 구조를 전체 train 192,000장으로 새 학습함. 12 epochs 중 epoch 12를 선택했고 test 24,000장에서 coverage 가중 MAE `0.0043819107`, nonempty-union IoU@0.5 `0.9075418141`을 확인함. 이전 10% 학습·외부 `packaged_food_5` 결과는 현재 checkpoint와 구분함.
+
+## 최신 전체 학습·평가 — 2026-10-24 완료
+
+2026-10-24 04:18 KST에 세 stream의 개별 학습과 각 test 24,000장 평가가 모두 완료됨. 이 문서의 현재 모델은 `261013_data`에서 새로 학습한 Step 3 모델임. 과거 실험의 checkpoint·외부 물체 결과는 이력으로 구분함. 전체 연결과 그림 작성 규칙은 [Framework guide](framework_guide.md), 재개 상태와 공개 범위는 [연구 문맥](agent.md)을 따름. **세 stream의 학습 완료와 fusion 학습 완료는 다르며, fusion은 아직 미구현·미학습임.**
+
+### 현재 데이터와 공통 학습 절차
+
+- 원래 book·fruit·packaged_food·toy 각 4개, 총 16개 target을 유지함. `packaged_food_5`·`World1`은 이번 수집·학습·test에 포함하지 않음.
+- Scene은 16 targets × 50 scene IDs × 60 environments × 5 cameras = 240,000장임. 공통 CSV의 train 192,000 / validation 24,000 / test 24,000장을 전부 사용함.
+- `(target, scene)` 단위로 40/5/5 scene IDs를 나누고 같은 scene의 모든 환경·5뷰를 같은 split에 둠. 각 추론 입력은 한 시점의 관측이며 5뷰를 동시에 넣지 않음. 같은 배치의 camera view를 독립 실험 반복으로 해석하지 않음.
+- 사전학습 backbone은 frozen `eval/no_grad`, 뒤쪽 학습 층은 seed 0에서 새 초기화함. 기존 stream checkpoint를 이어 학습한 결과가 아님. Clean 관측, batch 16, float32, AdamW, gradient clipping 5를 사용함.
+- 매 epoch 전체 train·validation을 처리하고 validation loss의 실제 최솟값을 best로 저장함. 최소 3 epochs 이후 3회 연속 미개선이면 종료하도록 고정했으며, 이번 세 모델은 각각 최대 epoch까지 실행함.
+- Test GT는 학습·checkpoint 선택에 사용하지 않음. 선택된 best로 **RGB-D/reference만 읽어 모든 test 예측을 먼저 저장**한 뒤 별도 evaluator가 GT를 읽어 점수를 계산함. Target/reference 조건의 차이는 각 stream 설명을 따름.
+
+### 실제 모델과 학습 대상
+
+```text
+Scene RGB → frozen DINOv3 → layer2/5/8/11: 각각768×30×40
+Target center 전체 RGB → 같은 frozen DINO → 일반 공간평균 → appearance768×4
+Target reference mask → 고정 계산 geometry68 → 학습 MLP → layer별 gamma/beta
+Scene observed depth → 2.5–3.5m 정규화 + depth>0 valid → 2채널 입력
+  → 학습 ResNet18(from scratch), layer2/3/4 → projection·resize → depth256×30×40
+  → target geometry의 global FiLM: gamma×depth+beta
+각 DINO layer: [scene768 | conditioned depth256 | target broadcast768 | cosine1]
+  → Matching CNN1793→64, 네 결과 concat256 → 1×1 feature fusion64 = F_O
+F_O → 1×1 Conv64→1 + sigmoid → P_O: 1×30×40
+```
+
+DINO만 frozen이며 depth ResNet18·geometry FiLM MLP·MatchingBlocks·feature fusion·map head를 새 학습함. ResNet의 세 depth scale을 DINO 네 경로에 `layer2/3/4/4`로 대응함. Target appearance는 **원본 전체 RGB의 일반 평균**으로 만들고, mask는 area/bbox/log-aspect/8×8 silhouette의 68-D geometry에 사용함. 현재 mode는 `raw_broadcast/global_film`이며 과거 local gate·exact-extent ablation을 섞지 않음. Scene GT segmentation·target pose·GT coverage는 forward 입력이 아님.
+
+각 stream의 `64×30×40` 중간 feature를 이어 붙인 `192×30×40`을 CNN fusion에 입력하는 것은 **다음 단계의 계획**임. 세 개의 회색조 map을 이미 concat하여 학습한 결과가 아님. 공통 DINO 표시는 같은 사전학습 weight·feature 규격을 뜻하며, 현재 세 stream을 함께 실행하는 shared cache나 통합 forward가 구현되었다는 뜻은 아님.
+
+### 전체 test 결과와 해석
+
+| 항목 | 결과 |
+|---|---:|
+| 학습 완료 / 선택 epoch | 12 / 12 |
+| Validation total loss: coverage BCE+SmoothL1+safe-ring | 0.1656746813 |
+| Test coverage 가중 MAE | 0.0043819107 |
+| Test binary IoU@0.5, nonempty-union 이미지 평균 | 0.9075418141 |
+| IoU 평균에 포함한 이미지 | 21,612 / 24,000 |
+| GT·예측 union이 비어 IoU 평균에서 제외한 이미지 | 2,388 |
+
+MAE는 각 이미지에서 `sum(w×abs(pred−GT))/max(sum(w),1)`을 구한 뒤 24,000장을 같은 비중으로 평균함. IoU는 coverage 비율 `w≥0.5`인 patch 안에서 GT·예측을 각각 0.5로 나눈 겹침이며, union이 있는 21,612장의 평균임. 빈 union에 임의로 0 또는 1을 넣지 않음. **IoU 0.9075는 accuracy 90.75%가 아니며 MAE를 1에서 뺀 값을 정확도라고 부르지 않음.** Validation loss와 test MAE는 계산식·단위가 달라 직접 크기를 비교하지 않음. 이전 2,400장 full16·150장 external 결과는 dataset와 집계 순서도 다르므로 현재 수치와 직접 개선율을 계산하지 않음.
+
+### 동일한 test 5장: 원본 GT와 실제 예측
+
+![occlusion full-data GT and saved predictions on five fixed test scenes](img/occlusion/full_data_20261026_gt_prediction.png)
+
+세 stream 모두 동일한 아래 5장을 사용함. 지정한 target/camera 조합의 공통 test CSV 첫 행을 선택했으며 예측이 잘 맞는 순서로 고른 사례가 아님. 그림은 전체 24,000장 평가의 예시이고 별도 성능 지표를 만들지 않음.
+
+**GT는 native 640×480 PNG, 예측은 저장된 float32 `30×40` 출력을 640×480으로 bilinear 확대한 표시임.** 큰 그림이 원본 픽셀 해상도로 직접 추론했다는 뜻은 아님. 밝기는 모든 장면에서 `0–1 score`로 고정하고 영상별 min–max 정규화를 하지 않음. Occlusion 예측에는 bilinear 확대 **후** 기존 고정 camera별 workspace를 곱함. 이 mask는 모델 명세에 기록된 서랍 영역이며 target GT·GT coverage에서 만들지 않음. 수치 평가는 후처리 전 raw grid에서 수행한 기존 결과임.
+
+| Target / frame | GT 원본 PNG | 예측 표시 PNG |
+|---|---|---|
+| `book_1/scene00001_env0000_center` | [GT](img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_gt.png) | [Prediction](img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_prediction.png) |
+| `fruit_1/scene00003_env0000_left` | [GT](img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_gt.png) | [Prediction](img/occlusion/occlusion_20261026_fruit_1_scene00003_env0000_left_prediction.png) |
+| `packaged_food_1/scene00017_env0000_right` | [GT](img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_gt.png) | [Prediction](img/occlusion/occlusion_20261026_packaged_food_1_scene00017_env0000_right_prediction.png) |
+| `toy_1/scene00001_env0000_top` | [GT](img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_gt.png) | [Prediction](img/occlusion/occlusion_20261026_toy_1_scene00001_env0000_top_prediction.png) |
+| `toy_4/scene00007_env0000_bottom` | [GT](img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_gt.png) | [Prediction](img/occlusion/occlusion_20261026_toy_4_scene00007_env0000_bottom_prediction.png) |
+
+Target thumbnail은 별도 center reference의 표시용 crop임. 실제 모델 전처리는 아래 설명을 따르며, thumbnail의 크기를 모델 입력 크기로 해석하지 않음.
+
+### 현재 산출물과 재현 경로
+
+공개된 [전체 학습·평가 JSON](docs/stream_training_20261022_summary.json)에서 반올림 전 수치·target별·camera별 집계와 checkpoint hash를 확인할 수 있음.
+
+`<DEV_ROOT>`는 실제 개발 폴더 `2D-PDM_DINOv3`를 뜻함. 아래는 개발 폴더 기준 LOCAL 경로이며 공개 Git clone의 옛 실행 코드와 구분함.
+
+| 자료 | 실제 경로 |
+|---|---|
+| 고정 학습 설정·source hash | `outputs/stream_training_20261022/step3/protocol.json` |
+| 학습·추론 adapter | `experiments/stream_training_20261022/training_occlusion.py` |
+| 공통 runner·test 관측 loader·평가 | `experiments/stream_training_20261022/{train,training_observations,training_metrics}.py` |
+| 현재 선택 모델·명세 | `outputs/stream_training_20261022/step3/runs/occlusion/{best.pt,model_spec.json}` |
+| 학습·완료 기록 | 같은 run의 `history.json`, `completion.json` |
+| GT 없이 저장한 test 예측 | 같은 run의 `test_predictions.npy`, `prediction_complete.json` |
+| 전체·target별·camera별 평가 | 같은 run의 `evaluation/{evaluation.json,per_image.csv}` |
+| 공통 분할 | dataset `261013_data/_gt/full_stream_gt_20261016/common_{train,val,test}.csv` |
+
+현재 best checkpoint SHA256은 `441e40b4b7fc9e3d40e4d3ec1f3fd54278b4252f2e3fc5ee4444bfcf2e03dd5a`임. 공개 문서는 구조·설정·결과·선택 예시를 제공하며 전체 데이터·weight를 공개 clone에 복사한 것은 아님. 지금 공개 문서·그림의 갱신은 저장된 결과를 정리하는 작업이며 새 학습이나 새 실험이 아님.
+
+
 
 ## 1. 목적과 입출력
 
@@ -34,7 +117,7 @@ Occlusion의 목적은 **현재 더미에서 주어진 target이 가려질 수 �
 
 `F_O`는 위치별 64-channel 중간 표현임. 마지막 head가 이를 한 값으로 결합하고 sigmoid를 적용한 `P_O`가 `0–1` 범위를 가짐.
 
-**Target mask는 별도로 촬영한 reference의 silhouette임.** 현재 학습·외부 평가에서는 합성 segmentation으로 정확한 mask를 얻고 이를 geometry로 변환함. Scene segmentation이나 실제 target의 scene 위치를 network에 제공하지 않은 조건에서 가림 map 예측을 확인함.
+**Target mask는 별도로 촬영한 reference의 silhouette임.** 현재 학습·test에서는 별도 target reference의 합성 segmentation으로 mask를 얻고 geometry로 변환함. 외부 물체 평가는 아래의 이전 모델 이력임. Scene segmentation이나 실제 target의 scene 위치를 network에 제공하지 않은 조건에서 가림 map 예측을 확인함.
 
 ### 입력·고정 자료·감독 정보
 
@@ -47,7 +130,7 @@ Occlusion의 목적은 **현재 더미에서 주어진 target이 가려질 수 �
 
 Camera workspace는 고정 rig의 drawer 내부 영역임. Coverage는 GT generator가 표본화한 target pose의 투영 영역에 의존함. 전자는 고정 공간 정보, 후자는 target별 감독·평가 정보로 구분함.
 
-학습 정답은 **가상 target pose의 유효 투영 면적 중 70% 이상이 현재 scene depth 뒤에 있는 경우**를 집계한 값임. `P_O`가 이 GT를 근사하는 성능은 full16·외부 target 평가에서 확인함. 정의상 실제 target 위치를 직접 나타내거나 공간 합이 1인 위치 사후확률은 아니며, 다음에는 Similarity·Complexity와의 결합이 탐색 prior와 제거 action·DRL 성능에 주는 효과를 확인할 필요가 있음.
+학습 정답은 **가상 target pose의 유효 투영 면적 중 70% 이상이 현재 scene depth 뒤에 있는 경우**를 집계한 값임. `P_O`의 현재 GT 회귀 성능은 위 전체 test 24,000장에서 확인함. 외부 target 결과는 이전 checkpoint의 평가임. 정의상 실제 target 위치를 직접 나타내거나 공간 합이 1인 위치 사후확률은 아니며, 다음에는 Similarity·Complexity와의 결합이 탐색 prior와 제거 action·DRL 성능에 주는 효과를 확인할 필요가 있음.
 
 ## 2. 전체 모델 구조
 
@@ -389,7 +472,7 @@ A·B는 **같은 channel 지도 안의 서로 다른 두 칸**임. 7은 channel 
 
 새 물체라도 mask의 면적·bbox·윤곽은 같은 공식으로 계산할 수 있음. 그 68개 숫자를 기존 신경망에 넣으면 gamma·beta가 자동으로 나옴. 가까운 기존 물체의 FiLM을 찾아오거나 새 물체용으로 다시 학습할 필요가 없음. 사용자가 주는 것은 target RGB·mask임.
 
-실제로 기존 checkpoint에 학습하지 않은 `packaged_food_5`를 넣어 zero-shot 예측까지 확인함. 다음에는 여러 새 target에서도 이 결과가 유지되는지 확인함.
+이전 checkpoint에서는 `packaged_food_5` zero-shot 예측을 확인한 이력이 있음. 현재 Step 3 checkpoint에 대한 외부 target 검증은 아직 수행하지 않음.
 
 FiLM은 **값을 바꾸되 shape는 바꾸지 않음.** `256×30×40`의 depth feature가 같은 크기로 다음 단계에 전달됨.
 
@@ -450,7 +533,7 @@ Branch 네 개: 4 × 2 × 256 = 2,048개
 | Spatial/cross-attention | Query와 key의 관계로 위치·token의 가중치를 만들어 정보를 모음 | 어떤 위치나 token을 참조할지 학습할 수 있으나 구체적 동작은 attention 설계에 따라 다름 | 현재 Occlusion head에 target–scene cross-attention은 없음 |
 | 과거 local residual gate | 위치별 gate로 target 보정의 적용 강도를 조절하고 기존 depth에 변화량을 더함 | Target 보정을 위치마다 제한하려는 목적 | 과거 연구용 mode. 현재 baseline에 적용하지 않음 |
 
-현재 FiLM baseline의 full16·external 결과를 확보함. 단순 concat·attention과의 차이는 조건을 넣는 연산에 있으며 방식별 추가 효과는 동일 조건 비교로 확인할 필요가 있음. DINO 내부 attention과 target–scene cross-attention은 별개임. 과거 local gate는 현재 계산에 포함하지 않으며 상세 이력은 Phase 23–30에 기록함.
+Global FiLM 구조의 이전 full16·external 결과와 현재 Step 3의 전체 held-out 결과를 각각 확보함. 두 checkpoint의 평가를 구분함. 단순 concat·attention과의 차이는 조건을 넣는 연산에 있으며 방식별 추가 효과는 동일 조건 비교로 확인할 필요가 있음. DINO 내부 attention과 target–scene cross-attention은 별개임. 과거 local gate는 현재 계산에 포함하지 않으며 상세 이력은 Phase 23–30에 기록함.
 
 </details>
 
@@ -581,7 +664,7 @@ FiLM에서 2,048개가 나오는 이유도 여기서 연결됨. **한 경로의 
 
 같은 서랍에서 작은 장난감 대신 큰 책을 찾으면 scene RGB·depth feature는 그대로임. **바뀐 target RGB·mask에서 외형 vector와 geometry를 다시 만들고, broadcast·cosine·FiLM 조절값이 달라질 수 있음.** 이후 같은 MatchingBlock·head가 이 조건을 읽어 target에 따른 가림 map을 만듦.
 
-현재 이 흐름으로 full16과 외부 target의 예측을 확인함. 표시는 30×40 map을 480×640으로 보간하고 camera workspace로 서랍 밖을 제거할 수 있음. 이는 학습된 patch 값을 표시하는 후처리이며 아래 결과에는 raw와 masked 출력을 함께 제시함.
+현재 Step 3는 이 흐름으로 기존16종의 전체 test를 예측함. 외부 target은 아래 이전 모델 이력임. 현재 표시에는30×40 map을480×640으로 bilinear 보간한 뒤 고정 camera workspace를 곱함. 이 후처리는 target GT·GT coverage를 사용하지 않으며 학습·raw grid 평가는 바꾸지 않음.
 
 <details>
 <summary>구현 세부: Branch 연결·fusion 식·parameter 수</summary>
@@ -653,7 +736,7 @@ flowchart TD
 
 GT renderer를 loss로 수정하지 않으며 test GT를 추론 입력으로 사용하지 않음.
 
-추론은 동일 전처리·network로 예측을 계산하며 GT 비교·weight 갱신은 수행하지 않음. **Mesh 없는 forward의 예측 성능을 full16과 외부 target에서 확인함.** 학습 대상은 관측 depth로 정의한 가림 GT이며, 숨은 구조 전체의 복원과는 구분함.
+추론은 동일 전처리·network로 예측을 계산하며 GT 비교·weight 갱신은 수행하지 않음. **현재 Step 3는 mesh 없는 forward로 기존 16종의 전체 test를 평가함. 외부 target 성능은 이전 모델의 이력임.** 학습 대상은 관측 depth로 정의한 가림 GT이며, 숨은 구조 전체의 복원과는 구분함.
 
 ### 2. Adaptive candidate poses
 
@@ -670,7 +753,7 @@ Candidate pose는 위치 `(x,y,z)`와 yaw를 정한 가상 target 배치임. 이
 | Yaw | `0°,30°,…,330°`, 총 12개 |
 | 높이 | Target별 `BASE_Z + {0,0.03,0.06} m` |
 | Target scale | Native `1.0` |
-| Candidate 수 | Target별 `53,412–143,640`, 16개 합계 `1,783,176` |
+| Candidate 수의 이전 생성 기록 | Target별 `53,412–143,640`, 16개 합계 `1,783,176`; 현재 재생성 출처는 `_gt/full_stream_gt_20261016/occlusion/` 기록을 따름 |
 | GT inventory | `16 targets × 3,000 scene keys × 5 cameras = 240,000 maps` |
 
 `1cm` 간격·`30°` yaw 간격·세 높이·`70%` 기준으로 GT 240,000장 생성과 현재 학습·평가를 완료함. 이 값들은 재현을 위한 표집·판정 설정이며 보편 물리 법칙이나 최적값을 뜻하지 않음. 표집 밀도·판정 기준을 변경하면 후보와 통과 비율도 변하므로, 변경 시 GT 민감도를 함께 확인할 필요가 있음.
@@ -855,9 +938,20 @@ L_total = L_coverage + 0.0436912877 × L_ring
 
 `0.0436912877`은 protocol의 보조 loss weight이며 가림 threshold·확률·물리 상수·최적성 검증값이 아님. 계수 약 0.044가 전체 gradient의 4.4%를 뜻하지도 않음. Gradient 비중에는 두 loss의 실제 값과 기울기가 함께 영향을 줌.
 
-현재 adaptive pose·workspace에 맞춰 coverage 외부의 선택된 patch까지 보조 감독함. 전체 모델은 이 설정으로 학습했으며 raw·masked 출력을 함께 평가 자료로 보존함. 이 영역은 충돌·지지 검사로 정의한 절대 불가능 영역이 아니고, 모든 coverage 밖·image 외곽을 감독하지도 않음. 학습 중 raw prediction에 workspace를 강제로 곱하지 않으므로 남은 외곽 반응은 후처리 효과와 구분해 확인함.
+현재 adaptive pose·workspace에 맞춰 coverage 외부의 선택된 patch까지 보조 감독함. 현재 모델도 이 loss 설정으로 학습했으며 raw grid를 수치 평가함. 문서 앞의 현재 PNG는 고정 workspace 후처리 표시이고 아래 과거 그림은 당시 raw·masked 비교임. 이 영역은 충돌·지지 검사로 정의한 절대 불가능 영역이 아니고, 모든 coverage 밖·image 외곽을 감독하지도 않음. 학습 중 raw prediction에 workspace를 강제로 곱하지 않으므로 남은 외곽 반응은 후처리 효과와 구분해 확인함.
 
-### 8. 학습 조건과 checkpoint
+### 8. 현재 전체 데이터 학습과 checkpoint
+
+현재 `experiments/stream_training_20261022/training_occlusion.py`는 위 Native68/global-FiLM/raw-broadcast 구조를 새 초기화함. 공통 `(target, scene)` 분할의 train192,000/validation24,000/test24,000장을 전량 사용하며 `scene_stride=10`을 적용하지 않음. Target별50 scene IDs의40/5/5개를 분리하고 각 scene의60환경·5뷰를 묶음.
+
+AdamW `lr=1e-3`, weight decay `1e-4`, batch16/FP32, seed0, 고정 learning rate, 최대12epochs를 사용함. Validation total loss 최솟값으로 epoch12를 선택함. Frozen DINO를 제외한 depth encoder·FiLM·matching·feature fusion·head를 함께 학습함. Test 점수로 checkpoint를 선택하지 않음.
+
+GT는 `261013_data/occlusion/<target>/<frame>.png`의 native map과 `occlusion/_coverage/<target>/<camera>.png`를 읽음. Coverage는 target/camera별 후보 유효영역이며 학습·평가에만 사용함. Native PNG/255와 coverage를 16×16 가중 평균해30×40 loss를 계산함. Dataset·형식·checkpoint 경로는 문서 앞의 현재 결과를 따름.
+
+<details>
+<summary>이전 10% baseline의 학습 설정 보존 — 현재 Step 3가 아님</summary>
+
+### 이전 10% baseline 학습 조건과 checkpoint
 
 학습에는 `book_1–4`, `fruit_1–4`, `packaged_food_1–4`, `toy_1–4`의 기존 16개 target을 모두 사용함. 총 3,000개 scene key를 train/validation/test `2,400/300/300`으로 먼저 나누고, `scene_stride=10`으로 각 split에서 10%를 선택함.
 
@@ -871,7 +965,7 @@ Center/top/left/right/bottom은 같은 배치의 상관된 관측이므로 scene
 
 데이터는 `target T ↔ scene/T`의 해당 clutter pool로 구성됨. 다른 pool의 동일 key는 동일 더미를 뜻하지 않으며, 모든 target과 scene을 교차한 Cartesian dataset과 구분함. 이 조건에서 scene-heldout 성능과 wrong-target 반응을 확인함. Target identity와 scene 분포의 상관을 분리하려면 동일 scene에 여러 target 조건을 교차한 비교가 필요함.
 
-| 학습 항목 | 현재 설정·결과 |
+| 학습 항목 | 당시 설정·결과 |
 |---|---|
 | Batch·precision·seed | 16·BF16·seed 0 |
 | Optimizer | AdamW, `lr=1e−3`, weight decay `1e−4` |
@@ -883,7 +977,12 @@ Test 점수로 checkpoint를 선택하지 않음.
 
 **GT 240,000장 생성 후 위 10% 조건의 baseline 학습을 완료함.** Frozen DINO를 제외한 약 15.71M parameter를 seed 0에서 공동 학습하고 checkpoint를 선택함. 전체 데이터를 사용한 학습의 추가 효과와 seed 간 안정성은 후속 비교 항목임.
 
-## 5. 핵심 설계 과정과 검증 결과
+
+</details>
+
+## 5. 이전 설계 과정과 검증 결과 — Phase 32 및 당시 모델 이력
+
+> 이 절의 10% full16·외부 물체·wrong-target 수치와 그림은 이전 데이터 및 epoch-3 checkpoint의 결과임. 현재 Step 3 test 24,000장 결과는 문서 앞 표를 따름. 아래에서 말하는 baseline·당시 선택은 당시 연구 단계의 기록이며 새 모델의 외부 검증을 뜻하지 않음.
 
 ### 1. Adaptive GT와 baseline 선택
 
@@ -893,25 +992,25 @@ Peach의 target/yaw별 adaptive grid는 fixed grid 대비 coverage가 110.69% �
 
 GT 후보 누락이 일부 경계 반응 해석에 영향을 준다는 점을 확인하여 adaptive grid를 채택함. 이후에는 수정된 GT에서 예측을 평가하며, coverage 밖에 남는 raw 외곽 반응은 별도 출력 점검 대상으로 관리함.
 
-Adaptive GT에서 native 68-D·raw broadcast·global FiLM을 재학습하여 **full16 GT 회귀와 외부 target zero-shot 예측까지 확인함.** 이 성과를 현재 baseline으로 보존함. 후속 구조 변경은 이 기준 모델의 구체적인 개선 항목과 비교하여 판단함.
+Adaptive GT에서 native 68-D·raw broadcast·global FiLM을 재학습하여 **full16 GT 회귀와 외부 target zero-shot 예측까지 확인함.** 이 성과를 당시 baseline으로 보존함. 후속 구조 변경은 이 기준 모델의 구체적인 개선 항목과 비교하여 판단함.
 
-| 설계 쟁점 | 확인한 사실과 현재 선택 | 상세 이력 |
+| 설계 쟁점 | 확인한 사실과 당시 선택 | 상세 이력 |
 |---|---|---|
 | GT 밝기 기준의 일관성 | Corrected footprint의 `N_occ/N_all`을 공통 정의로 사용하고 scene별 min–max·visible overlay를 분리함 | Phase 7, Phase 8 |
 | Raw target vector의 필요성 | 당시 통제 실험에서 제거 시 악화됐고 재현 검사에서도 확인하여 raw broadcast 유지 | Phase 15, Phase 16 |
-| Exact extent·local gate의 추가 효과 | 상한선과 공간 적용 문제를 진단했으나 입력 계약 차이·trade-off가 남음. 현재 full16에 합치지 않음 | Phase 21–Phase 30 |
+| Exact extent·local gate의 추가 효과 | 상한선과 공간 적용 문제를 진단했으나 입력 계약 차이·trade-off가 남음. 당시 full16에 합치지 않음 | Phase 21–Phase 30 |
 | Coverage 밖 활성화의 원인 | Peach의 fixed grid가 후보를 누락함을 확인하여 adaptive grid로 변경 | Phase 31 |
 | Adaptive GT 이후 모델 선택 | Native 68-D·global FiLM으로 full16과 외부 1-target 결과를 확인해 baseline 보존 | Phase 32 |
 
-과거 fixed grid·14-target split·multi-scale oracle·local residual gate는 당시 가설을 검사한 이력임. 본문의 현재 방법은 **16-target adaptive/native-geometry/global-FiLM baseline**이며, 다른 GT·split에서 얻은 과거 수치를 같은 모델의 성능표로 합치지 않음.
+과거 fixed grid·14-target split·multi-scale oracle·local residual gate는 당시 가설을 검사한 이력임. 당시 채택한 방법은 **16-target adaptive/native-geometry/global-FiLM baseline**이며, 다른 GT·split에서 얻은 과거 수치를 같은 모델의 성능표로 합치지 않음.
 
 ### 2. 확인된 결과와 후속 비교
 
-| 구성 | 설계 역할 | 현재 확인된 결과 | 추가로 확인할 항목 |
+| 구성 | 설계 역할 | 당시 확인된 결과 | 추가로 확인할 항목 |
 |---|---|---|---|
 | Frozen DINO와 target reference | 새 target을 공통 RGB feature 규격으로 처리 | 학습 제외 `packaged_food_5`의 zero-shot 정량 평가와 five-camera 그림에서 전체 모델의 GT 예측을 확인함 | 추가 external target과 reference 촬영 조건 변화 |
 | Depth encoder와 geometry FiLM | 관측 depth에 target 크기·형태 조건을 반영 | 이 구성을 포함한 full16 모델의 GT 회귀 성능과 전체 target 조건 교체 시 성능 저하를 확인함 | FiLM 단독 효과와 RGB·depth 경로별 기여를 분리한 비교 |
-| Raw broadcast | Cosine에 압축되지 않은 target 정보 보존 | 이전 통제 실험·재현 검사에서 제거 시 성능 저하를 확인하여 현재 baseline에 유지함 | Adaptive full16 조건에서의 기여량. 기존 결과는 당시 GT·split의 결과임 |
+| Raw broadcast | Cosine에 압축되지 않은 target 정보 보존 | 이전 통제 실험·재현 검사에서 제거 시 성능 저하를 확인하여 당시 baseline에 유지함 | Adaptive full16 조건에서의 기여량. 기존 결과는 당시 GT·split의 결과임 |
 | 여러 layer와 MatchingBlock | RGB-D·target·주변 문맥 통합 | 전체 구조에서 full16과 external target의 가림 GT를 예측함 | Layer 수·convolution 구성별 성능·계산량 비교 |
 | Safe ring·workspace 후처리 | 선택된 비후보 영역 감독·표시 영역 정렬 | Safe-ring loss를 포함한 학습을 완료하고 workspace 적용 시 외곽 반응이 제거됨을 확인함 | Raw 외곽 반응 개선과 safe-ring의 독립 기여 |
 
@@ -921,7 +1020,7 @@ Adaptive GT에서 native 68-D·raw broadcast·global FiLM을 재학습하여 **f
 
 `p`는 patch 예측, `y`는 coverage-aware GT, `w`는 coverage 비율임. `Sum`은 평가 sample·patch 전체의 합을 나타냄.
 
-| Metric | 현재 계산 | 숫자의 뜻 |
+| Metric | 당시 계산 | 숫자의 뜻 |
 |---|---|---|
 | Coverage-weighted MAE ↓ | `Sum(w×abs(p−y))/Sum(w)` | Coverage를 반영한 평균 절대 확률 오차 |
 | Soft-IoU ↑ | `Sum(w×min(p,y))/Sum(w×max(p,y))` | Threshold 이전 확률 map의 겹침 |
@@ -952,7 +1051,7 @@ Wrong-target 대조는 scene·GT·평가 coverage를 고정하고 RGB-derived ta
 
 Macro의 nonempty sample 수는 correct 2,159개·wrong 2,307개임. Prediction을 포함한 union이 비어 있지 않은 sample을 평균하는 계산 조건 때문에 두 수가 다름. Target별 결과도 확보했으며 가장 낮은 seen-target micro IoU는 `book_1`의 약 `0.572`임. 전체 평균과 함께 이 target의 개선 항목을 검토할 수 있음.
 
-**그림 조건:** 현재 epoch-3 checkpoint, `book_1`, test key `scene00010_env0279`. 평가 코드가 test inventory의 마지막 key를 선택한 사례이며 최고·평균 성능 장면으로 선별하지 않음.
+**이전 그림 조건:** 당시 epoch-3 checkpoint, `book_1`, test key `scene00010_env0279`. 평가 코드가 test inventory의 마지막 key를 선택한 사례이며 최고·평균 성능 장면으로 선별하지 않음.
 
 ![Full16 book_1 scene-heldout predictions on five cameras](img/occlusion/full16_book_1_five_cameras.png)
 
@@ -1097,7 +1196,7 @@ Prediction의 0.8은 정의한 GT의 회귀값이며, 이 회귀의 정확도는
 
 모델은 RGB-D·reference만으로 raw 예측을 만든 뒤 coverage에서 GT와 비교하며 이 조건의 예측 성능을 확인함. Coverage는 감독·평가 domain을 정하고 workspace는 고정 공간 정보를 제공함. Coverage 밖 저장용 0은 물리적 불가능 정답으로 다루지 않으며 raw 외곽 출력은 별도로 점검함.
 
-### Q10. MAE는 0.014로 낮은데 raw 그림의 서랍 벽이 왜 강하게 반응하는가?
+### Q10. 이전 MAE 0.014 결과에서 raw 서랍 벽 반응이 남은 이유는 무엇인가?
 
 **Coverage 안에서 GT를 잘 근사하는 성능과 coverage 밖 raw 반응이 함께 관찰된 결과임.** MAE는 GT가 정의된 raw patch 영역을 측정하여 그 예측 정확도를 확인하고, 외곽 반응은 별도 그림으로 점검함.
 
@@ -1105,7 +1204,9 @@ Full16 그림의 네 번째 열은 raw, 다섯 번째 열은 workspace-masked pr
 
 현재 고정 rig에서는 workspace로 외곽을 제거한 출력까지 확인함. 후속 개선은 raw 외곽 반응과 중앙 과대·과소 예측을 구분해 평가할 필요가 있음. Camera 변경 시에는 workspace 재정렬을 확인하고 숨은 구조의 불확실성은 별도 모델링·평가 대상으로 둠.
 
-### Q11. 기존 16개를 모두 학습했는데 어떤 zero-shot 결과를 확인했고, 다음에는 무엇을 평가하는가?
+### Q11. 이전 zero-shot 결과와 현재 Step 3의 평가 범위는 어떻게 다른가?
+
+현재 Step 3는 원래16개 target의 새 scene24,000장을 평가했으며 외부 target은 포함하지 않음. 아래2,400/150장 결과는 이전 epoch-3 모델의 이력임.
 
 **기존 16개에서 seen-target scene-heldout 성능을, `packaged_food_5`에서 zero-shot 성능을 확인함.** 기존 target을 제외하지 않고 16개 전체를 학습한 뒤, 학습에 없던 추가 asset을 같은 checkpoint로 평가한 결과임.
 
@@ -1128,16 +1229,17 @@ Full16 그림의 네 번째 열은 raw, 다섯 번째 열은 workspace-masked pr
 
 `F_O`는 fusion에 전달할 표현으로 구현했고 `P_O`의 가림 GT 근사 성능을 확인함. 다음에는 Similarity·Complexity를 결합한 결과를 S+O와 비교하고, DRL의 target 발견 효율이 좋아지는지 평가할 필요가 있음.
 
-### Q13. 현재 full16 checkpoint를 `inference_occlusion.py`로 바로 실행할 수 있는가?
+### Q13. 현재 Step 3 checkpoint를 `inference_occlusion.py`로 바로 실행할 수 있는가?
 
-**현재 full16 실행·평가가 확인된 경로는 `train_occlusion.py`·`evaluate_occlusion_checkpoint.py`의 native 68-D 구현임.** 기존 standalone `inference_occlusion.py`는 별도 checkpoint 계약을 사용하므로 full16에 바로 연결하는 경로와 구분함.
+**현재 Step 3 실행 경로는 `experiments/stream_training_20261022/training_occlusion.py`의 `predict()`이며, GT를 읽지 않는 `ObservationDataset`과 연결해 test24,000장을 실제 평가함.** 현재 `best.pt`는 공통 runner의 `model_state`와 출처 metadata를 저장함. 공개 clone의 옛 standalone CLI가 새 checkpoint를 그대로 읽는다고 가정하지 않음.
 
-기존 script는 exact-extent `A_XYZ_RING` checkpoint용 target capture·geometry 계약을 사용함. 68-D 폭이 같아도 slot 의미·전처리가 다르면 호환되지 않음. 현재 입력은 center RGB·mask의 native descriptor이며 과거 3D extent로 대체할 수 없음.
+과거 `inference_occlusion.py`에는 exact-extent `A_XYZ_RING` 계약이 있으므로68-D 폭이 같아도 geometry slot·전처리가 다르면 서로 바꿔 사용할 수 없음. 현재 입력은 center RGB·mask의 native geometry이며 target depth·USD의3D extent로 대체하지 않음.
 
-Full16의 학습·평가 pipeline과 checkpoint는 확보되어 있으며, 이를 같은 전처리로 실행하는 standalone CLI 정리가 다음 배포 과제임. 현재 공개 clone은 최신 로컬 pipeline 전체와 동기화된 상태가 아니므로 재현 시 코드·checkpoint·geometry schema·depth 정규화·camera 조건을 함께 맞춤. 모델 평가 완료와 CLI 배포 준비를 별도 상태로 관리함.
+공개된 현재 예측 PNG는 기존의 **float bilinear 확대→고정 camera workspace 곱셈** 후처리를 사용함. 이 표시 규칙을 재사용한 것과 옛 CLI에서 현재 checkpoint의 전체 실행 호환성을 확인한 것은 다름. GT coverage로 예측을 자르거나 target GT를 overlay하지 않음. 원시30×40 예측·학습 weight·평가 수치는 보존함.
+
 
 ---
 
 <!-- navigation:start -->
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · **Occlusion** · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md)
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · **Occlusion** · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->

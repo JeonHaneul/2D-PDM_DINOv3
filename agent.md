@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-10-15 (Asia/Seoul) · 정식 연구 이력: Phase 1–42 · 최신 후속: 지역 GT 160장 재생성·수치 검산 완료; 마지막 학습은 Phase 42 count 모델; 새 GT 학습·fusion 미실행
+> 문서 기준일: 2026-10-26 (Asia/Seoul) · 현재 완료: 새 데이터의 개별 S/O/C 학습·test 24,000장 평가(10-24 완료) · Step 4 fusion 미승인·미학습 · Phase 1–42와 10-15 이전 상태는 날짜별 이력임
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
 
@@ -12,9 +12,121 @@
 
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
-## 읽는 순서와 현재 상태
+<a id="current-handoff-20261026"></a>
+## 2026-10-26 현재 인계 — 개별 stream 학습 완료와 다음 단계 경계
 
-### 2026-10-15 최신 후속 — 지역 GT 160장 재생성
+**현재 완료한 것은 새 데이터에서의 Similarity·Occlusion·Complexity 개별 모델 학습과 고정 test 평가임.** 세 stream은 2026-10-24 04:18 KST에 모두 완료됨. 최종 fusion GT는 준비됐지만 **Step 4 fusion은 아직 미승인·미학습**임. 아래 역사 본문의 “새 지역 GT 미학습”, “GT 160장”, “마지막 학습 Phase 42”, “공통 155장/420장 보류”는 각각 당시 기록이며 현재 상태로 인용하지 않음. 완료 시점과 문서·그림 정리 시점(10-26)을 구분함.
+
+### 외부 독자와 웹 GPT가 읽는 순서
+
+1. [README](README.md)로 연구 목표와 완료 범위를 확인한 뒤 이 절을 읽음.
+2. [Similarity](similarity_stream.md)·[Occlusion](occlusion_stream.md)·[Complexity](complexity_stream.md)에서 현재 입력·GT·모델·loss·결과를 확인함.
+3. 구조도를 설명하거나 다시 그릴 때는 [Framework Guide](framework_guide.md)를 먼저 읽음. 실제 tensor와 표시용 map의 차원·연결·실선/점선 규칙을 따름.
+4. 정량 근거는 [공개 결과 요약 JSON](docs/stream_training_20261022_summary.json), 정성 근거는 [동일 장면 비교](img/stream_gt_prediction_comparison_20261026.png), [논문 그림 PDF](img/paper_figures_20261026.pdf)를 함께 읽음.
+5. 설계 변경의 이유는 [Development Log](development_log.md)의 날짜별 후속 보고와 Phase 1–42 이력을 읽음. 아래 A–E는 이전 문맥의 보존본이며 이 최신 절과 충돌하면 최신 완료 기록을 우선함.
+
+이 repo는 최신 **설명·결과·그림을 공개한 자료**임. 현재 실행에 사용한 전체 trainer·checkpoint·원시 데이터의 재현 패키지를 배포한 것은 아님. 공개 clone에 남아 있는 과거 코드가 최신 전체 학습 runner와 같다고 가정하지 않음. 공개되지 않은 LOCAL 파일을 웹에서 읽은 것처럼 답하지 않으며, 공개 요약으로 확인할 수 없는 세부값은 확인 불가로 남김.
+
+### 데이터 수집에서 GT 확정까지
+
+새 원본 `261013_data`는 원래 16개 target × 50 scene × 60 environment × 5 camera = **240,000 RGB/depth/seg 세트**임. 원본 베이지 서랍, 실제 물리 계산, reset 뒤 정지 촬영을 유지하고 pose·instance ID·target reference를 저장함. 다섯 camera는 center/left/right/top/bottom임. 같은 target·scene의 60개 환경과 다섯 시점을 같은 split에 묶어 **train 192,000 / validation 24,000 / test 24,000**을 고정함. Target 자체를 분리한 unseen-target split이 아니며, 다섯 뷰는 독립 시행으로 세지 않음.
+
+2026-10-16 전체 GT 생성과 보완을 완료하여 S/O/C/fusion이 각각 240,000장이고 보류는 0장임. 최상위 PNG는 `<DATA_ROOT>/{similarity,occlusion,complexity,fusion}/<target>/<frame>.png`에 둠. S/C의 학습값은 표시 PNG가 아닌 정밀 float32 pooled 30×40 NPZ이며 `<DATA_ROOT>/_gt/full_stream_gt_20261016/arrays/`에 있음. O는 PNG/255와 coverage를 읽어 coverage 가중 pooling함. 최종 fusion 정답은 **보임 여부와 무관한 target amodal mask 한 종류**임. Visible mask는 보조 검사 자료이며 별도의 최종 fusion 정답 분기로 그리지 않음.
+
+초기 nvdiffrast 재투영 실패 85뷰가 포함된 84배치 전체 420장을 보류했다가, 저장 pose 그대로 target만 IsaacSim에서 직접 렌더링하여 보완함. 비동기 단위 변환과 float32 행렬→회전값 왕복 문제를 수정하고 float64 정규화 quaternion을 double USD orient로 적용함. 마스크 팽창·허용 기준 완화는 없음. 보완 420장+정상 비교 80장=500장 모두 기존 재투영 기준을 통과했고 visible target의 amodal 밖 픽셀·물리 진행·pose drift는 0임. 전체 segmentation은 442/500장 완전 일치, 58장은 총 70픽셀(장당 1–4px) 차이가 남음. 이 확인을 전체 240,000장의 독립 픽셀 일치 검사로 확대하지 않음. 원래 생성 provenance와 새 420장의 `repair_provenance`를 구분하고 이전 파일은 history에 보존함.
+
+### 현재 세 stream의 입력·표현·감독 계약
+
+| Stream | 실제 관측·target 입력과 frozen encoder | 학습되는 표현과 출력 | GT·loss |
+|---|---|---|---|
+| S | Scene RGB, target RGB reference·mask 및 의미용 text; frozen DINOv3의 2/5/8/11 layer와 SigLIP | Layer별 semantic projection과 no-shortcut MatchingBlock, 통합 특징 F_S 64×30×40, 1채널 map | 정밀 pooled similarity GT에 MSE; target scene segmentation은 추론 입력이 아님 |
+| O | Scene RGB-D·depth valid, target center 전체 RGB 및 reference mask의 geometry68; frozen DINOv3 | 학습 depth encoder, global FiLM, raw target broadcast, matching·통합 특징 F_O 64×30×40, 1채널 probability map | Coverage 가중 pooled GT와 기존 regression loss·safe-ring 항을 유지함 |
+| C | Scene RGB와 meter depth; frozen DINOv3 layer11·MultiMAE depth encoder; target query는 없음 | DINO32+RGB CNN32+MultiMAE projection32를 결합하여 F_C 64×30×40; 1×1 head+softplus의 1채널 지역 점수 | r48 지역 연속 GT, valid 안의 zero/positive group 균형 SmoothL1 |
+
+C GT는 가까운 이웃 물체의 거리 기여를 합산하고 가장 큰 물체 기여 하나를 제외하는 지역 점수임. 물체 밖 16px 이내에도 부드러운 기여를 허용함. 이전 48/96/160px의 3채널 instance count와 값의 의미·출력 채널이 다르며 현재 점수를 물체 개수 또는 확률로 해석하지 않음. 표시의 0–6 범위는 학습 출력의 상한이 아니며 softplus 출력은 비음수임.
+
+S target 외형은 bbox padding 25%·224 crop의 mask-weighted DINO pooling, 의미는 center 384 crop과 text의 SigLIP 특징을 결합함. 학습은 표본별 target 5뷰 중 무작위 참조를 사용하고 validation은 다섯 참조의 **MSE loss 평균**으로 선택함. Test는 center 참조 한 번이며 다섯 예측을 평균한 test가 아님. O의 target DINO 입력은 crop이 아닌 center 전체 RGB 평균 특징이며 reference-mask geometry68과 scene GT/coverage를 구분함. O coverage는 감독·평가에 사용하고 GT 없는 `predict()`가 읽는 입력은 아님.
+
+### 단계별 실행과 선택 규칙
+
+10-16의 지역 GT pilot은 기존 split을 지킨 960장(train640/val160/test160), seed0의 RGB/RGB-D head 두 개를 20epoch·1,600update씩 학습한 초기 확인임. Test MAE 0.212905→0.188750, 상위20% regret 0.083294→0.056998, 다섯 camera 모두 두 지표가 낮았음. 이는 같은 pilot 내 비교이며 이후 24,000장 test와 직접 성능 향상률을 계산하지 않음.
+
+10-22 Step 1은 공통 CSV·lazy Dataset을 연결하고 240,000행의 hash·중복·split·경로·파일 존재/크기를 확인함. Step 2는 train 16targets×1배치×5뷰=80장으로 실제 로딩·forward/loss/backward를 확인함. Frozen encoder gradient 없음, parameter hash 유지, optimizer 0회였음. RTX5090·FP32·batch2에서 S/O/C 최대 할당량은 4.124/2.774/0.990GiB였으며 이는 본학습·통합 사용량 측정이 아님.
+
+승인된 Step 3은 각 stream 32 train 영상의 batch16·optimizer·GT 없는 추론 연결 확인 뒤 사전 확인 가중치를 폐기하고 **seed0에서 학습 가능한 모듈을 새 초기화**하여 시작함. 과거 head checkpoint를 이어 학습한 것이 아님. 사전학습 DINOv3/SigLIP/MultiMAE는 frozen으로 유지함. Complexity→Similarity→Occlusion 순차 실행, batch16·FP32·gradient clip5이며 validation 최저 loss를 모델 선택 기준으로 사용함. 최소 3epoch 이후 validation 3회 연속 미개선 조기 종료 규칙이 있으나 세 run 모두 설정된 최대 epoch까지 실행됨.
+
+| 항목 | S | O | C |
+|---|---:|---:|---:|
+| AdamW learning rate / weight decay | .001 / .01 | .001 / .0001 | .001 / .01 |
+| Schedule | cosine20 | 고정 | 고정 |
+| 완료 epoch / 선택 epoch | 20 / 20 | 12 / 12 | 20 / 19 |
+| Optimizer update | 240,000 | 144,000 | 240,000 |
+| 최저 validation loss | 0.000050869270 | 0.165674681259 | 0.004238544442 |
+
+Loss 정의가 다르므로 stream 간 loss 숫자의 크기로 우열을 비교하지 않음. 모델을 선택한 뒤 test의 관측과 target 참조만 사용하여 모든 예측을 저장하고, 이후 별도 CPU 평가가 GT를 읽음. 전체 특징 cache를 생성하지 않으며 `best.pt`·`last.pt`, history, 완료 metadata, test 예측과 평가를 보존함. C의 batch16/32/64 속도 비교는 60.28/59.32/59.79장/s로 이득이 없어 batch16을 유지한 근거임. 최적 정확도 비교가 아니며 S/O의 batch 실험도 아님. C 첫 epoch wall time에는 상태보존 정지 90.32초가 포함됨.
+
+### 고정 test 24,000장 결과와 해석
+
+아래 수치는 각 영상의 지표를 계산한 뒤 영상에 동일 가중치를 준 평균임. 예측·평가는 30×40 격자에서 수행함. 같은 원래 16개 물체·고정 다섯 camera·합성 관측 조건의 결과이며 새 물체·실센서·depth noise·최종 탐색 성공률을 확인한 결과가 아님.
+
+| Stream | Test 지표 | 값 | 집계 범위 |
+|---|---|---:|---|
+| S | MSE / MAE | 0.000051107488 / 0.001355903733 | 전체 격자, 24,000장 |
+| S | Positive MAE / background MAE | 0.007645859636 / 0.000039634494 | GT>0 / GT=0 각 영역의 영상별 평균 |
+| O | Coverage 가중 MAE | 0.004381910718 | pooled coverage를 연속 가중치로 사용, 24,000장 |
+| O | IoU @0.5 | 0.907541814135 | coverage≥0.5 셀에서 예측·GT≥0.5, 합집합이 있는 21,612장 |
+| C | 전경 MAE / bias | 0.103904109184 / +0.000515420654 | valid & foreground_center, 24,000장 |
+| C | Top20% regret | 0.021594117339 | 같은 전경 후보 중 GT 최상위와 예측 선택의 GT 평균 차이 |
+| C | GT 최상위 / 예측 선택 GT 평균 | 2.653251977774 / 2.631657860435 | 영상별 상위20% 선택, 동점은 분수 가중 |
+| C | 전체 valid MAE / GT=0 평균 예측 | 0.026006650932 / 0.001565130936 | 전경 MAE와 다른 집계 범위 |
+
+O IoU의 빈 합집합 2,388장은 IoU 평균에서 제외했으며 0 또는 1로 채우지 않음. 높은 IoU를 모든 픽셀의 정확도나 target 위치 탐색 성공률로 바꾸어 말하지 않음. C 평균 bias가 작아도 개별 오차가 없다는 뜻이 아니며, 전체 valid MAE에는 배경이 포함되어 전경 MAE보다 낮음. S 역시 배경이 포함된 전체 MAE와 positive MAE를 함께 제시함.
+
+| Camera (각 4,800장) | S MAE | O coverage MAE | C 전경 MAE | C top20% regret |
+|---|---:|---:|---:|---:|
+| center | 0.001274687 | 0.004205146 | 0.090552694 | 0.017599330 |
+| left | 0.001391805 | 0.004453937 | 0.108555368 | 0.022653062 |
+| right | 0.001368199 | 0.004378551 | 0.108865015 | 0.023164919 |
+| top | 0.001391725 | 0.004395748 | 0.106655078 | 0.022907856 |
+| bottom | 0.001353103 | 0.004476172 | 0.104892390 | 0.021645420 |
+
+각 camera의 결과를 보존하지만 다섯 뷰가 독립적인 실험 반복은 아님. 이 표만으로 기존 모델 대비 개선, 다중 seed 재현성 또는 camera 일반화를 주장하지 않음.
+
+### 논문 그림·재작성 규칙과 표시 보정
+
+[현재 전체 구조도 PNG](img/overall_architecture.png)와 [SVG](img/overall_architecture.svg)·[PDF](img/overall_architecture.pdf)는 같은 흐름을 설명함. [그림 구성 가이드](framework_guide.md)와 [분리 asset manifest](img/framework_assets_20261026.json)를 따라 실제 입력·frozen encoder·학습 모듈·GT 감독·계획 경로를 구분함. 지도 썸네일은 1채널의 표시 결과이고 hidden feature는 64채널 tensor임. **계획된 fusion은 F_S/F_O/F_C의 64+64+64=192채널 concat→CNN이며, 최종 S/O/C 지도 세 장의 3채널 concat이 아님.** 공유 encoder 표시는 설계상 공유 가능성이고 세 stream의 공유 forward 실측 완료를 뜻하지 않음.
+
+[전체 GT·예측 비교](img/stream_gt_prediction_comparison_20261026.png)는 동일한 다섯 test 장면을 사용함. 개별 비교는 [S](img/similarity/full_data_20261026_gt_prediction.png), [O](img/occlusion/full_data_20261026_gt_prediction.png), [C](img/complexity/full_data_20261026_gt_prediction.png)에 있음. 원본 GT는 640×480, 실제 저장 예측은 30×40을 bilinear 확대한 그림임. S/O는 공통 0–1, C는 공통 0–6 색상 범위를 사용하고 개별 min-max 정규화를 하지 않음. 시각적 해상도를 모델의 native 출력 해상도로 쓰지 않음. 다섯 예시는 정량 test 전체를 대신하지 않음.
+
+10-26 사용자 지적에 따른 O 표시 보정은 **기존 고정 camera workspace mask**로 작업영역 밖을 0으로 처리한 것임. GT coverage를 가져와 예측을 정답 모양으로 자른 것이 아니며, 원시 저장 예측·checkpoint·평가 수치를 변경하지 않음. 초기 원시 표시 그림·source는 LOCAL `outputs/paper_figures_20261026/history/raw_before_workspace_20261026/`에 보존함. 논문 캡션에도 workspace 표시 조건과 GT/native 예측 해상도 차이를 유지함.
+
+### 다음 agent의 작업 지침과 근거 위치
+
+현재 단계 다음은 **Step 3 결과 보고 후 Step 4 승인 여부 확인**임. 이번 문서·그림 공개 요청을 fusion 실행 승인으로 해석하지 않음. 새 실험을 시작하려면 질문·split·비교군·선택 기준·평가 범위를 먼저 고정하고 기존 원본·GT·split·checkpoint·prediction을 덮어쓰지 않음. 이미 본 test를 반복 튜닝에 사용하고 새 독립 평가로 보고하지 않음. 새 실행 결과 없이 지도·구조도를 개선한 작업은 표시·문서 작업으로 기록함.
+
+| 근거 | 접근 범위·용도 |
+|---|---|
+| `docs/stream_training_20261022_summary.json` | PUBLIC, 완료·설정·지표의 공유용 요약; 원시 predictions/weights를 포함하지 않음 |
+| `img/framework_assets_20261026.json`, `framework_guide.md` | PUBLIC, 그림 재작성·분리 asset·map/feature 연결 규칙 |
+| `<DEV_ROOT>/outputs/stream_training_20261022/step3/completion.json` | LOCAL, 세 stream 모두 완료의 직접 근거; 실행 당시 `github_publication=false`는 당시 상태임 |
+| 같은 step3의 `protocol.json`, `runs/<stream>/{history,completion}.json` | LOCAL, 고정 source hash·모델 선택·epoch/update 기록 |
+| `runs/<stream>/best.pt`, `prediction_complete.json`, `test_predictions.npy`, `evaluation/{evaluation.json,per_image.csv}` | LOCAL, checkpoint→예측→평가 연결; 이름만으로 완료 여부를 추정하지 않음 |
+| `<DEV_ROOT>/experiments/stream_training_20261022/README.md`와 runner | LOCAL, 새 CSV adapter·실행·재개 규약; 오래된 공개 trainer CLI와 직접 호환된다고 가정하지 않음 |
+| `<DATA_ROOT>/_gt/full_stream_gt_20261016/` | LOCAL, 전체 목록·공통 split·GT 생성과 repair provenance |
+| `<DATA_ROOT>/_gt/amodal_repair_20261016/full_v2/` | LOCAL, 420장 보완·500장 검사·설치 기록 |
+| `<DEV_ROOT>/outputs/paper_figures_20261026/` | LOCAL, 그림 manifest·caption·provenance·원시 표시 history |
+
+역사적 경계도 유지함. Phase 38 접경 head는 미채택이며 GT 관계 회귀 수치·그림의 공개 철회와 평균 count 지도 보조 비교의 공개 제외를 되돌리지 않음. SAM2 자동 영역 비교는 여전히 미실행 계획임. Phase 39–42의 count·잡음·외부 물체 결과는 당시 모델의 결과이고 지금의 지역 GT 모델이나 새 S/O/C의 unseen 검증으로 옮기지 않음. 새 three-stream shared forward, fusion/decoder 학습, S+O 대 S+O+C 효용, DRL·실환경 탐색 효과는 미검증임.
+
+---
+
+## 2026-10-15까지의 인계 snapshot — 아래는 날짜별 이력
+
+> 보존 목적: 이후 변경된 가정과 판단의 근거를 남김. 이 절부터 A–E의 이전 완료/미실행 표현은 각 기록 시점을 뜻함. 최신 상태는 위 [2026-10-26 인계](#current-handoff-20261026)와 날짜별 Development Log를 따름.
+
+## 이전 읽는 순서와 당시 상태
+
+### 2026-10-15 당시 후속 — 지역 GT 160장 재생성
 
 사용자 요청으로 기존 train의 **16 targets × 2배치 × 5뷰 =160장** Complexity PNG·NPZ를 같은 경로에서 지역 GT로 교체함. 반경 48px에서 물체별 가까운 최대 16픽셀의 선형 거리 기여를 합산하고 가장 큰 기여도 하나를 제외함. 배경에서는 물체까지의 거리 16px 안에서 smoothstep으로 감소시킴. 물체 사이뿐 아니라 더미 바깥의 16px 이내 띠도 허용하며, 모든 배경이 0이라는 앞선 후보의 조건과 구분함.
 
@@ -102,7 +214,7 @@ GT 관계 회귀의 공개 철회와 Phase 38 모델 미채택은 유지함. 문
 
 ### 주요 공개 근거
 
-- 전체 tensor architecture (`img/overall_architecture.png`): 구현된 경로와 현재 지역 GT를 위한 학습안·미구현 fusion을 구분한 설명도. 같은 이름의 SVG 원본도 보존함. Phase 42 count 당시 그림은 `img/overall_architecture_phase42_20261006.png/.svg`임.
+- 전체 tensor architecture (`img/overall_architecture.png`): 구현된 경로와 현재 지역 GT를 위한 학습안·미구현 fusion을 구분한 설명도. 같은 이름의 SVG 원본도 보존함. 이는 10-15 당시 설명이며, 동일 경로의 현재 그림은 위 2026-10-26 최신 인계와 Framework Guide를 따름. Phase 42 count 당시 그림은 `img/overall_architecture_phase42_20261006.png/.svg`임.
 - Similarity 상세 설명·Q&A (`similarity_stream.md`), Occlusion 상세 설명·Q&A (`occlusion_stream.md`), 현재 지역 GT 설명·Q&A (`complexity_stream.md`); 이전 count 기술 설명은 `development_log.md#phase42-count-method-history`
 - Complexity V2 protocol 공개본 (`docs/complexity_results/protocol_public.json`), test 결과 (`docs/complexity_results/summary.json`), 정의 기술 통계 (`docs/complexity_results/gt_definition_audit_20260908.json`)
 - Full16 book_1 패널 (`img/occlusion/full16_book_1_five_cameras.png`), 외부 packaged_food_5 패널 (`img/occlusion/zero_shot_packaged_food_5_test30.png`)
@@ -159,6 +271,8 @@ GT 관계 회귀의 공개 철회와 Phase 38 모델 미채택은 유지함. 문
 <a id="project-context"></a>
 
 ## A. 현재 프로젝트 문맥 전체
+
+> 이 합본은 10-15까지의 역사적 snapshot임. 최신 학습·데이터·그림·다음 단계는 문서 앞 2026-10-26 인계를 우선함.
 
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
@@ -5802,6 +5916,8 @@ GT로 고른 상위 영역의 실제 평균 count는 **7.201개**, 현재 결합
 
 ## D. 근거·로그·체크포인트·이미지 색인 전체
 
+> 아래 current·기록 공백은 당시 색인 기준임. 새 S/O/C best checkpoint·test 예측·전체 GT의 현재 위치는 문서 앞 2026-10-26 근거 표를 따름.
+
 > 원본: `<DEV_ROOT>/PROJECT_LOG_INDEX.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.
 
@@ -6850,6 +6966,8 @@ hash와 위 discovery command를 사용한다. 이렇게 해야 새 결과가 �
 <a id="agent-guidelines"></a>
 
 ## E. 연구 인수인계와 작업 지침
+
+> 날짜가 있는 상태·다음 단계는 과거 snapshot임. 원본 보존·근거 확인 규칙을 유지하되 현재 승인 경계는 Step 4 fusion 미승인임.
 
 > 원본: `<DEV_ROOT>/AGENTS.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.

@@ -1,0 +1,697 @@
+{
+  "schema": "framework_layout_20261026_v1",
+  "path_base": "repository root",
+  "coordinate_system": {
+    "canvas_wh": [
+      1920,
+      1080
+    ],
+    "origin": "top-left",
+    "box_order": [
+      "x",
+      "y",
+      "width",
+      "height"
+    ],
+    "units": "logical drawing coordinates, not scene pixels"
+  },
+  "sample_id": "book_1_scene00001_env0000_center",
+  "purpose": "Recommended composition for redrawing; not exact bounding boxes for every element of existing SVG",
+  "guide": "framework_guide.md",
+  "asset_manifest": "img/framework_assets_20261026.json",
+  "current_figure": "img/overall_architecture.svg",
+  "nodes": [
+    {
+      "id": "input_panel",
+      "box_xywh": [
+        25,
+        95,
+        238,
+        830
+      ],
+      "label": "Single observation and target reference",
+      "kind": "panel",
+      "status": "implemented"
+    },
+    {
+      "id": "similarity_panel",
+      "box_xywh": [
+        335,
+        95,
+        1110,
+        270
+      ],
+      "label": "Similarity",
+      "kind": "panel",
+      "status": "implemented",
+      "color": "#fff2f4"
+    },
+    {
+      "id": "occlusion_panel",
+      "box_xywh": [
+        335,
+        375,
+        1110,
+        270
+      ],
+      "label": "Occlusion",
+      "kind": "panel",
+      "status": "implemented",
+      "color": "#eef6fd"
+    },
+    {
+      "id": "complexity_panel",
+      "box_xywh": [
+        335,
+        655,
+        1110,
+        270
+      ],
+      "label": "Complexity",
+      "kind": "panel",
+      "status": "implemented",
+      "color": "#eff8f2"
+    },
+    {
+      "id": "fusion_panel",
+      "box_xywh": [
+        1490,
+        95,
+        405,
+        830
+      ],
+      "label": "Proposed fusion: not trained",
+      "kind": "panel",
+      "status": "planned",
+      "border": "gold dashed"
+    },
+    {
+      "id": "rgb",
+      "box_xywh": [
+        43,
+        172,
+        202,
+        151.5
+      ],
+      "label": "Scene RGB",
+      "kind": "image",
+      "status": "implemented",
+      "asset": "img/scene_20261026_book_1_scene00001_env0000_center_rgb.png"
+    },
+    {
+      "id": "depth",
+      "box_xywh": [
+        43,
+        403,
+        202,
+        151.5
+      ],
+      "label": "Observed depth",
+      "kind": "image",
+      "status": "implemented",
+      "asset": "img/scene_20261026_book_1_scene00001_env0000_center_depth.png"
+    },
+    {
+      "id": "target_reference",
+      "box_xywh": [
+        34,
+        606,
+        221,
+        306
+      ],
+      "label": "Standalone target RGB / reference mask / text",
+      "kind": "input_group",
+      "status": "implemented",
+      "asset": "img/target_20261026_book_1_reference.png",
+      "note": "PNG is identification thumbnail only; reference mask/text are separate conceptual inputs, not scene GT."
+    },
+    {
+      "id": "s_dino",
+      "box_xywh": [
+        355,
+        153,
+        205,
+        72
+      ],
+      "label": "DINOv3 RGB / target appearance",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "frozen"
+    },
+    {
+      "id": "s_siglip",
+      "box_xywh": [
+        355,
+        255,
+        205,
+        72
+      ],
+      "label": "SigLIP reference image + text",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "frozen"
+    },
+    {
+      "id": "s_query",
+      "box_xywh": [
+        620,
+        255,
+        220,
+        72
+      ],
+      "label": "Linear1152→768 ×4 + appearance",
+      "kind": "query",
+      "status": "implemented",
+      "weights": "trainable"
+    },
+    {
+      "id": "s_matching",
+      "box_xywh": [
+        905,
+        173,
+        225,
+        92
+      ],
+      "label": "Matching1537→64 ×4; concat256→64",
+      "kind": "module",
+      "status": "implemented",
+      "weights": "trainable"
+    },
+    {
+      "id": "o_dino",
+      "box_xywh": [
+        355,
+        433,
+        205,
+        72
+      ],
+      "label": "DINOv3 scene / full target RGB",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "frozen"
+    },
+    {
+      "id": "o_depth",
+      "box_xywh": [
+        355,
+        543,
+        205,
+        72
+      ],
+      "label": "Depth + valid → ResNet18",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "trainable; weights=None at initialization"
+    },
+    {
+      "id": "o_film",
+      "box_xywh": [
+        620,
+        543,
+        220,
+        72
+      ],
+      "label": "Geometry68 → MLP → global FiLM",
+      "kind": "module",
+      "status": "implemented",
+      "weights": "trainable MLP; deterministic geometry"
+    },
+    {
+      "id": "o_matching",
+      "box_xywh": [
+        905,
+        453,
+        225,
+        92
+      ],
+      "label": "Matching1793→64 ×4; concat256→64",
+      "kind": "module",
+      "status": "implemented",
+      "weights": "trainable"
+    },
+    {
+      "id": "c_dino",
+      "box_xywh": [
+        355,
+        713,
+        205,
+        72
+      ],
+      "label": "DINO layer11 → projection32",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "frozen DINO; trainable projection"
+    },
+    {
+      "id": "c_rgb",
+      "box_xywh": [
+        355,
+        803,
+        205,
+        60
+      ],
+      "label": "RGB CNN →32",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "trainable"
+    },
+    {
+      "id": "c_depth",
+      "box_xywh": [
+        620,
+        788,
+        220,
+        72
+      ],
+      "label": "MultiMAE depth → projection32",
+      "kind": "encoder",
+      "status": "implemented",
+      "weights": "frozen depth adapter/encoder; trainable projection"
+    },
+    {
+      "id": "c_fusion",
+      "box_xywh": [
+        905,
+        733,
+        225,
+        92
+      ],
+      "label": "Concat96 → CNN dilation1/2/4 →64",
+      "kind": "module",
+      "status": "implemented",
+      "weights": "trainable"
+    },
+    {
+      "id": "concat",
+      "box_xywh": [
+        1535,
+        195,
+        70,
+        605
+      ],
+      "label": "Concat64+64+64=192",
+      "kind": "module",
+      "status": "planned"
+    },
+    {
+      "id": "fusion_head",
+      "box_xywh": [
+        1640,
+        404,
+        225,
+        93
+      ],
+      "label": "Fusion CNN: details pending",
+      "kind": "module",
+      "status": "planned",
+      "weights": "proposed trainable fusion only"
+    },
+    {
+      "id": "final_output",
+      "box_xywh": [
+        1640,
+        554,
+        225,
+        96
+      ],
+      "label": "Target-location map: not yet predicted",
+      "kind": "placeholder",
+      "status": "planned",
+      "asset": null
+    },
+    {
+      "id": "amodal_gt",
+      "box_xywh": [
+        1688,
+        729,
+        128,
+        96
+      ],
+      "label": "Amodal target GT: supervision only",
+      "kind": "ground_truth",
+      "status": "available_gt",
+      "asset": "img/fusion_20261026_book_1_scene00001_env0000_center_gt.png"
+    },
+    {
+      "id": "f_s",
+      "box_xywh": [
+        1190,
+        194,
+        88,
+        64
+      ],
+      "label": "F_S:64×30×40",
+      "kind": "schematic_feature",
+      "status": "implemented",
+      "note": "Conceptual stack, not actual activation image."
+    },
+    {
+      "id": "p_s",
+      "box_xywh": [
+        1320,
+        265,
+        104,
+        78
+      ],
+      "label": "P_S:1×30×40",
+      "kind": "prediction",
+      "status": "implemented",
+      "asset": "img/similarity/similarity_20261026_book_1_scene00001_env0000_center_prediction.png",
+      "head": "1×1 Conv + sigmoid",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ]
+    },
+    {
+      "id": "f_o",
+      "box_xywh": [
+        1190,
+        474,
+        88,
+        64
+      ],
+      "label": "F_O:64×30×40",
+      "kind": "schematic_feature",
+      "status": "implemented",
+      "note": "Conceptual stack, not actual activation image."
+    },
+    {
+      "id": "p_o",
+      "box_xywh": [
+        1320,
+        545,
+        104,
+        78
+      ],
+      "label": "P_O:1×30×40",
+      "kind": "prediction",
+      "status": "implemented",
+      "asset": "img/occlusion/occlusion_20261026_book_1_scene00001_env0000_center_prediction.png",
+      "head": "1×1 Conv + sigmoid",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ]
+    },
+    {
+      "id": "f_c",
+      "box_xywh": [
+        1190,
+        754,
+        88,
+        64
+      ],
+      "label": "F_C:64×30×40",
+      "kind": "schematic_feature",
+      "status": "implemented",
+      "note": "Conceptual stack, not actual activation image."
+    },
+    {
+      "id": "p_c",
+      "box_xywh": [
+        1320,
+        825,
+        104,
+        78
+      ],
+      "label": "P_C:1×30×40",
+      "kind": "prediction",
+      "status": "implemented",
+      "asset": "img/complexity/complexity_20261026_book_1_scene00001_env0000_center_prediction.png",
+      "head": "1×1 Conv + softplus",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "rgb",
+      "target": "s_dino",
+      "label": "RGB",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "rgb",
+      "target": "o_dino",
+      "label": "RGB",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "rgb",
+      "target": "c_dino",
+      "label": "RGB",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "rgb",
+      "target": "c_rgb",
+      "label": "RGB",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "depth",
+      "target": "o_depth",
+      "label": "Observed depth",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "depth",
+      "target": "c_depth",
+      "label": "Observed depth",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "target_reference",
+      "target": "s_dino",
+      "label": "masked target crop",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "target_reference",
+      "target": "s_siglip",
+      "label": "center crop + text",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "target_reference",
+      "target": "o_dino",
+      "label": "full target RGB",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "target_reference",
+      "target": "o_film",
+      "label": "reference mask → geometry68",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "s_dino",
+      "target": "s_query",
+      "label": "appearance",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "s_siglip",
+      "target": "s_query",
+      "label": "semantic1152",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "s_dino",
+      "target": "s_matching",
+      "label": "scene768",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "s_query",
+      "target": "s_matching",
+      "label": "query768 + cosine1",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "s_matching",
+      "target": "f_s",
+      "label": "64",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "o_depth",
+      "target": "o_film",
+      "label": "depth features256",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "o_film",
+      "target": "o_matching",
+      "label": "FiLM depth256",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "o_dino",
+      "target": "o_matching",
+      "label": "scene768 + target768 + cosine1",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "o_matching",
+      "target": "f_o",
+      "label": "64",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "c_dino",
+      "target": "c_fusion",
+      "label": "32",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "c_rgb",
+      "target": "c_fusion",
+      "label": "32",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "c_depth",
+      "target": "c_fusion",
+      "label": "32",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "c_fusion",
+      "target": "f_c",
+      "label": "64",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "f_s",
+      "target": "p_s",
+      "label": "Map head",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "f_s",
+      "target": "concat",
+      "label": "64-channel feature; before map head",
+      "status": "planned",
+      "style": "dashed"
+    },
+    {
+      "source": "f_o",
+      "target": "p_o",
+      "label": "Map head",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "f_o",
+      "target": "concat",
+      "label": "64-channel feature; before map head",
+      "status": "planned",
+      "style": "dashed"
+    },
+    {
+      "source": "f_c",
+      "target": "p_c",
+      "label": "Map head",
+      "status": "implemented",
+      "style": "solid"
+    },
+    {
+      "source": "f_c",
+      "target": "concat",
+      "label": "64-channel feature; before map head",
+      "status": "planned",
+      "style": "dashed"
+    },
+    {
+      "source": "concat",
+      "target": "fusion_head",
+      "label": "192×30×40",
+      "status": "planned",
+      "style": "dashed"
+    },
+    {
+      "source": "fusion_head",
+      "target": "final_output",
+      "label": "Final architecture / loss / resolution pending",
+      "status": "planned",
+      "style": "dashed"
+    },
+    {
+      "source": "amodal_gt",
+      "target": "final_output",
+      "label": "Supervision only; not inference input",
+      "status": "planned",
+      "style": "dashed"
+    }
+  ],
+  "display": {
+    "similarity": [
+      0,
+      1
+    ],
+    "occlusion": [
+      0,
+      1
+    ],
+    "complexity": [
+      0,
+      6
+    ],
+    "occlusion_workspace_applied": true,
+    "depth_m": [
+      2.5,
+      3.5
+    ],
+    "depth_near": "white",
+    "depth_far": "black"
+  },
+  "constraints": [
+    "All image assets in the framework use the same sample_id.",
+    "All maps remain grayscale; panel colors only identify streams.",
+    "Features feed proposed concat; map outputs are separate supervision branches.",
+    "Fusion prediction does not exist. Do not put amodal GT in the prediction placeholder.",
+    "DINO uses RGB. MultiMAE encodes observed depth. Complexity has no target input.",
+    "Shared DINO execution and attention/Transformer fusion are not implemented.",
+    "Reference thumbnail is display only; actual target preprocessing differs between S and O."
+  ]
+}
