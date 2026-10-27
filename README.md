@@ -33,9 +33,23 @@
 | Occlusion | 해당 target이 가려질 수 있는 위치 추론 | O12 전체 test 및 외부1종의 동일 GT 정의 평가 완료 |
 | Complexity | 단일 RGB-D에서 여러 물체가 가까이 있는 영역의 점수 예측 | 지역 GT의 C19 전체 test 및 외부1종 포함 장면 평가 완료 |
 
-**2026-10-27 최신 상태:** 공통 train192,000/validation24,000/test24,000으로 학습한 S20/O12/C19를 고정하고, 단일 RGB-D의 특징을 공유하는 concat+CNN fusion을 구현·학습함. **SOC(세 stream 결합)는 13epoch에서 조기 종료됐고 validation 기준 best epoch10을 선택함.** SO(Complexity를 제외한 비교 모델)는 학습 중이며 전체 test 평가와 SOC–SO 성능 비교는 아직 미완료임. Amodal GT는 보임 여부와 무관한 target 전체 mask 한 종류임.
+**2026-10-27 최신 상태:** 공통 train192,000/validation24,000/test24,000으로 학습한 S20/O12/C19를 고정하고, 단일 RGB-D의 특징을 공유하는 concat+CNN fusion을 구현·학습함. **SOC(세 stream 결합)는13epoch에서 종료됐고 validation 기준 best10의 test24,000장 평가까지 완료함.** SO(Complexity를 제외한 비교 모델)는17:56:50 KST snapshot에서epoch18 학습 중이며 SOC–SO 성능 비교는 미완료임. Amodal GT는 보임 여부와 무관한 target 전체 mask 한 종류임.
 
-현재 세 stream의 외부 물체1종 평가와 SOC 실제 test 예시5장을 추가 공개함. 아래 % 표는 외부 물체80장, fusion 그림은 기존16종의 별도 test5장으로 **서로 다른 자료**임. 웹 GPT는 [Framework 작성 지침](framework_guide.md)과 [최신 인계·색인](agent.md#current-handoff-20261027)을 우선 읽음.
+현재 세 stream의 외부 물체1종 평가·전체 유효영역 오차, SOC의 기존16종 test24,000장·외부80장 visible 진단을 공개함. Fusion 그림은 미리 선택한 기존16종 test5장의 실제 예측이며, 외부80장 자료와 구분함. 웹 GPT는 [최신 인계·색인](agent.md#current-handoff-20261027)과 [Framework 작성 지침](framework_guide.md)을 우선 읽음.
+
+### Fusion 전체 test — 85.06%의 의미
+
+SOC best10을 학습에 사용하지 않은 기존16종·5뷰의24,000장에 적용함. **85.06%는 영상마다 가장 높은 점수 한 점이 target 전체 영역 안에 들어간 비율**임. 가려진 부분도 정답인 amodal 기준이므로 일반적인 pixel accuracy·마스크 일치율·보이는 표면 선택 성공률과 다름.
+
+| 평가 조건 | 영상 수 | Amodal 마스크 mIoU | Amodal 최고점 적중률 |
+|---|---:|---:|---:|
+| 전체 | 24,000 | **50.92%** | **85.06% (20,414/24,000)** |
+| Target이 일부라도 보임 | 15,235 | 65.30% | 93.56% |
+| Target이 완전히 가려짐 | 8,755 | 25.96% | 70.36% |
+
+전체에는 amodal 영역이 화면에 없는10장도 포함하며 해당10장의 두 지표는0임. mIoU는0.5 이상 예측 영역과 native GT의 교집합/합집합을 영상별로 평균한 값임. 보이는15,235장에서 최고점이 **실제 보이는 부분** 안에 들어간 비율은 별도로 **41.45% (6,315/15,235)**임. 예측은30×40 확률의 bilinear 확대이며 GT/workspace mask로 자르지 않음. [전체 test 결과](docs/fusion_test_evaluation_20261027.json) · [Fusion 상세](fusion_stream.md)
+
+**외부 물체 성능은 별도임.** 같은 모델을 packaged_food_5/World1 외부80장에 추가 학습 없이 적용한 visible 최고점 적중은 **0/80=0.00%**임. 모든 영상에 target이 일부 보이는 조건이며 외부 amodal GT는 평가하지 않았으므로 전체 target 위치 적중0%나 IoU0%를 뜻하지 않음. 위85.06%를 zero-shot 정확도로 표기하지 않음. [외부 진단](docs/fusion_external_diagnostic_20261027.json)
 
 ### 외부 물체 평가 — %의 의미와 범위
 
@@ -48,6 +62,18 @@
 | Complexity / 19 | **90.85%** | 해당 과제의 지표가 아님 |
 
 **상위20% 일치율**은 각 영상에서 GT 점수가 높은 위치들과 모델이 높은 점수를 준 위치들이 얼마나 겹치는지 나타냄. 예를 들어 동점 없이 20곳을 골라18곳이 GT 상위20곳에 포함되면90%임. 실제 평가는 공통 `C valid ∩ foreground_center ∩ O coverage≥0.5`의30×40 격자에서 수행하며, GT 동점은 동등한 정답으로, 예측 동점은 분수 가중으로 처리함. **Pixel accuracy나 target 발견률이 아니며, 세 GT 과제가 같은 난이도라는 뜻도 아님.**
+
+20%는 기존 Complexity 평가에서 고정한 선택 비율을 이어 쓴 것이며, 반드시20%여야 하거나 최적인 것으로 검증한 값은 아님. 전체 화면의20%가 아니라 위 평가 영역 안에서 점수가 높은20% 위치를 선택한 결과임. 이 지표에서는 평가 영역 밖의 배경 오검출을 반영하지 않음.
+
+상위20% 제한을 없애고 같은80장의 **전체 유효 영역**을 재집계한 결과는 다음과 같음. 연속 점수 지도의 오차이므로 정확도나 맞춘 칸의 비율로 쓰지 않음.
+
+| Stream | GT 총량 대비 절대오차율(%, 낮을수록 좋음) | 전체 평가 영역 |
+|---|---:|---|
+| Similarity | **9.59** | 배경 포함30×40 전체 격자 |
+| Occlusion | **12.39** | GT 후보가 존재하는 전체 작업 영역, 기존coverage가중 |
+| Complexity | **9.34** | 배경 포함 전체valid 영역, 바깥48px 제외 |
+
+계산은80장의 `가중 절대오차 합 ÷ 가중 GT 점수 합 ×100`이며 영상별 오차율을 단순 평균한 값이 아님. **100−오차율을 정확도·일치율로 표시하지 않음.** 오차율은100%를 넘을 수 있고 GT 단위·분포·유효 영역도 서로 다르므로 stream 우열을 이 표만으로 판단하지 않음. 허용오차 안의 칸을 맞았다고 세는 별도 일치율은 기준을 채택하거나 계산하지 않았음. 반올림 전 값과 정의는 [전체 영역 오차 JSON](docs/stream_full_map_error_20261027.json)을 따름.
 
 S의 최고점은 나머지78장에서 다른 포장식품 위에 있었음. 같은 category에도 높은 GT(.8)를 주므로 높은 영역 일치율과 낮은 정확한 target 적중률이 함께 나올 수 있음. GT 자체를 pooled→bilinear 확대해 최고점을 고르면64/80=80%였으므로 모델의2.5%를 격자 해상도만으로 설명할 수 없음. 이80%는 모델 성능 상한이 아니며 원인은 아직 확정하지 않음. 다양한 새 category·완전 가림 target·실센서·fusion 탐색 성능으로 확대하지 않음. 반올림 전 수치·분모·camera/scene별 결과는 [외부 평가 JSON](docs/stream_external_evaluation_20261027.json)을 따름.
 
@@ -67,7 +93,7 @@ S의 최고점은 나머지78장에서 다른 포장식품 위에 있었음. 같
 
 **⑤ Feature fusion과 최종 위치 map.** 고정된 세 모델의 head 이전 `F_S/F_O/F_C:64×30×40`을 concat하여192채널로 만듦. `1×1 Conv64 → 3×3 Conv64 두 층 → 1×1 Conv1`을 적용하며 중간 층은 GroupNorm8·GELU를 사용함. `1×30×40` logit을 native amodal GT의16×16 평균과 BCEWithLogits로 학습하고, sigmoid는 추론·표시에 적용함. 세1채널 map을 합치는 구조가 아니며 attention·명시적 stream별 가중치 gate는 없음. CNN은 결합 특징의 관계를 학습하지만 환경별 기여도 변화의 실증은 별도 분석이 필요함.
 
-SOC best10의 실제 예측은 생성했고 SO 비교 학습·전체 test 평가는 진행 중임. 단일 RGB-D 추론에 crop/재분할 반복은 없으며, 실제 탐색 행동·실센서·fusion zero-shot 성능은 미검증임. 상세 설정과 완료 범위는 [Fusion](fusion_stream.md)을 따름.
+SOC best10의 전체 test 평가는 완료했고 SO 비교 학습·test·추가효과 비교는 진행 중임. 단일 RGB-D 추론에 crop/재분할 반복은 없으며, 실제 탐색 행동·실센서·외부 target amodal 성능은 미검증임. 외부80장 visible 진단의0/80 결과와 위 기존16종 결과를 구분함. 상세 설정과 완료 범위는 [Fusion](fusion_stream.md)을 따름.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
@@ -252,7 +278,7 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 | 데이터·GT | 원래16target, 5뷰, 240,000관측 및 S/O/C/amodal GT 전량 준비; 보류0 | 새 물체·실센서 조건 |
 | 개별 stream | 공통 split의 학습/test 및 현재 checkpoint의 외부1종80장 평가 완료 | 여러 새 target·category·관측 조건 |
 | 최종 감독값 | 단일 amodal target mask·avg16 BCE 학습 적용 | 완전 가림 상태의 추론 한계·효용 |
-| Three-stream fusion | 통합 forward·scene DINO 공유·SOC best10 선택·실제5장 예측 | SO 학습과 전체 test·SOC–SO 비교 완료 |
+| Three-stream fusion | 통합 forward·scene DINO 공유·SOC best10의 test24,000장 평가·외부80장 visible 진단 | SO 학습·test와 SOC–SO 비교, 외부 amodal 평가 |
 | 탐색 정책 | Target 검색을 위한 세 단서의 표현 | S+O 대비 S+O+C 효용, DRL·실환경 평가 |
 
 이전 Similarity의 unseen-target 정성 동작과 Occlusion의 external target 정량 결과는 해당 이전 checkpoint의 완료 이력으로 유지함. 이번 현재 S20/O12/C19 외부80장 평가와 서로 다른 checkpoint·GT 기록으로 구분함. Phase38 미채택, GT 관계 회귀 공개 철회, SAM2 자동 영역 비교 미실행도 유지함.
@@ -271,7 +297,7 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 | 현재 지역 Complexity | `<DEV_ROOT>/experiments/complexity_regional_validation_20261016/model.py` | LOCAL; DINO+RGB+MultiMAE,64feature,1채널softplus |
 | Frozen depth 특징 | `<DEV_ROOT>/experiments/complexity_depth_pretrain_20261001/multimae_depth.py` | LOCAL; 현재 관측 depth 인코딩에 재사용 |
 | 현재 세 stream 학습 | `<DEV_ROOT>/experiments/stream_training_20261022/` | LOCAL; 공통CSV adapter·fresh 모델·validation선택·GT없는 test추론 |
-| 현재 수치 근거 | `docs/stream_training_20261022_summary.json`, `docs/stream_external_evaluation_20261027.json`, `docs/fusion_training_20261027_summary.json` | PUBLIC; 개별test·외부80장·fusion진행 상태를 구분한 원본 요약·hash |
+| 현재 수치 근거 | `docs/stream_training_20261022_summary.json`, `docs/stream_external_evaluation_20261027.json`, `docs/stream_full_map_error_20261027.json`, `docs/fusion_training_20261027_summary.json`, `docs/fusion_test_evaluation_20261027.json`, `docs/fusion_external_diagnostic_20261027.json` | PUBLIC; 개별test·외부80장·전체오차·SOC test·외부visible진단·SO진행 상태를 구분한 요약·hash |
 | 그림 작성 입력 | `framework_guide.md`, `img/framework_assets_20261026.json`, `img/framework_assets_20261027.json` | PUBLIC; 독립 PNG·의미·배치 좌표·연결 규칙 |
 
 공개 `complexity_cues.py`, `complexity_model.py`, `run_complexity_pilot.py`, `inference_complexity.py`의 density pilot 구조를 현재 지역 점수 모델로 대체 해석하지 않음. 최신 그림의 C는 지역 모델이며, 과거 count/density 수치와 분리함.
@@ -288,12 +314,14 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 - [x] 현재 S20/O12/C19의 외부1종80장 평가·%지표와 정확한target적중의 구분
 - [x] 동일 관측 통합 forward·DINO 공유 정합 확인·concat+CNN fusion 구현
 - [x] Amodal avg16 BCE 적용·SOC 학습 종료 및 best10 실제 예시 생성
-- [ ] SO 비교 학습·전체 test 평가 완료와 S+O 대비 S+O+C 기여 확인
+- [x] 확정 SOC best10의 전체 test24,000장 평가·지표별 분모 공개
+- [x] SOC 외부80장 visible 최고점 진단·stream 전체유효영역 상대오차 공개
+- [ ] SO 비교 학습·test 평가 완료와 S+O 대비 S+O+C 기여 확인
 - [ ] 배포 조건의 전체 지연·실제 탐색 효용 검증
 - [ ] 필요성이 확인될 때 attention/Transformer와 기준안 비교
 - [ ] 현재 모델의 여러 새 target·실제 RGB-D 조건·탐색 효용 검증
 
-Fusion 학습은 사용자 승인 후 실행했으며 SOC 선택 모델의 실제 예측까지 생성함. SO 비교·전체 test 결과는 완료 근거가 생긴 뒤 갱신함.
+Fusion 학습은 사용자 승인 후 실행했으며 SOC 선택 모델의 전체 test 평가까지 완료함. 원래 공동 실행이 끝나기 전에 고정 SOC만 별도 평가한 시점 예외는 protocol과 Fusion 문서에 기록함. SO 비교 결과는 완료 근거가 생긴 뒤 갱신함.
 
 ---
 

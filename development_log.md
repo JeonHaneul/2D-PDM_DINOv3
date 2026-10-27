@@ -6,9 +6,47 @@
 
 Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를 시간순으로 기록함. 각 Phase는 단순 모델 목록이 아니라 **왜 문제가 되었는지 → 무엇만 바꿨는지 → 결과가 무엇을 뜻하는지 → 다음 Step은 무엇인지**를 설명함.
 
-> 최신: 2026-10-27 현재 S20/O12/C19 외부 1종 평가·[SOC best 10 실제 예측](fusion_stream.md)을 공개함. SOC 학습은 종료됐고 SO 학습·전체 fusion test 평가는 진행 중임. Phase 1–42와 10-26 이전의 미실행 문구는 당시 이력임.
+> 최신: 2026-10-27 SOC best10의 기존16종 test24,000장 평가·외부80장 visible 진단·개별 stream 전체유효영역 상대오차를 공개함. SO는17:56:50 KST snapshot에서epoch18 학습 중이며 공동 비교는 미완료임. 아래 날짜별 미실행·진행 중 문구는 당시 이력임.
 
-## 2026-10-26–27 — Fusion 학습과 현재 모델의 외부 물체 평가
+<a id="fusion-test-results-20261027"></a>
+## 2026-10-27 — SOC 전체 test 완료와 % 지표의 구분
+
+**목적과 방법.** 기존 공개 내용은 SOC 실제 예시5장과 개별 stream의 외부80장 상위20% 선택 평가를 담았지만 SOC의 일반 test %가 없었음. 이미 validation으로 선택·종료된 SOC best10을 원래 test24,000장에 고정 적용하고 전체 예측 저장 후 기존 CPU evaluator로 평가함. SO 종료를 기다리는 원래 공동 protocol은 유지하고 SOC 단독 평가 시점 예외를 별도 protocol에 기록함. 기존40개 학습source·checkpoint·GT·split을 바꾸거나 test 결과로 모델을 튜닝하지 않았음.
+
+| SOC test 조건 | 영상 수 | Amodal mIoU | Amodal 최고점 적중률 |
+|---|---:|---:|---:|
+| 기존16종 전체 | 24,000 | **50.920985%** | **85.058333% (20,414/24,000)** |
+| 일부라도 보이는 target | 15,235 | 65.299112% | 93.560880% (14,254/15,235) |
+| 완전히 가려진 target | 8,755 | 25.959073% | 70.359794% (6,160/8,755) |
+| 화면에 amodal 영역 없음 | 10 | 0.000000% | 0.000000% (0/10) |
+
+**해석.** 85.06%는 영상마다 가장 높은 한 점이 가려진 부분을 포함한 target 전체 영역 안에 들어간 비율임. Pixel accuracy·마스크 일치율·zero-shot·집기 성공률이 아님. 마스크는 raw30×40 확률을 bilinear640×480로 확대한 뒤0.5를 기준으로 이진화해 native amodal GT와 비교함. 각 영상 IoU의 평균이며 빈 union 제외0장임. **보이는15,235장에서 실제 visible 부분 최고점 적중은41.450607% (6,315/15,235)**로 별도임. Amodal 학습 목표는 가려진 부분도 정답으로 인정하므로 두 위치 지표를 구분함. Target별 mIoU는 book_1 89.57%와 toy_4 14.89%처럼 편차가 남음.
+
+![동일한 사전 선택5장면의 실제 GT·예측](img/stream_fusion_gt_prediction_comparison_20261027.png)
+
+이 그림은 앞서 게시한 동일5장의 실제 예측이며 전체24,000장 통계의 근거를5장으로 대체하지 않음. 현재 전체 구조도의 footer는 위 평가로 갱신했고, 이전 '전체 test 미완료' 그림은 `img/overall_architecture_pre_full_test_20261027.*`로 보존함. [SOC test 공개 JSON](docs/fusion_test_evaluation_20261027.json)에 camera·target·visibility별 수치와 분모를 제공함.
+
+**외부 조건의 제한 결과.** 같은 SOC best10으로 packaged_food_5/World1 외부80장(16layout×5뷰, 기존15종+새instance1종)을 추가 학습 없이 예측함.80장 모두 target이 일부 보이며 **visible 최고점 적중0/80=0%**, 각 camera0/16임. 최고점은 book54/fruit2/packaged_food18/toy6의 가시 표면에 있었음. 외부 amodal GT를 평가하지 않았으므로0%를 target 전체 영역 적중이나 IoU로 확대하지 않음. 기존16종의85.06%와 외부 visible0%는 데이터와 정답 영역이 다르므로 직접적인85.06%p 성능 하락으로 계산하지 않음. [외부 진단 JSON](docs/fusion_external_diagnostic_20261027.json)을 따름.
+
+**개별 stream의 전체 영역 오차.** 기존 외부80장 저장 예측을 재사용해 상위20%를 선택하는 제한을 없애고 전체 유효 영역의 절대오차를 CPU로 재집계함. 새 학습·추론이나 GT 수정은 없음.
+
+| Stream | GT 총량 대비 절대오차율(%, 낮을수록 좋음) | 전체 평가 영역 |
+|---|---:|---|
+| Similarity | **9.590953** | 배경 포함1,200격자 |
+| Occlusion | **12.387137** | 후보가 존재하는 전체영역의coverage가중 |
+| Complexity | **9.339559** | 배경 포함valid816격자, 바깥48px 제외 |
+
+비율은80장의 가중 절대오차 합/가중 GT 점수 합×100임. 영상별 오차율 평균이 아니고100%를 넘을 수 있음. **100−오차율은 정확도나 맞춘 칸의 일치율이 아님.** 허용오차 안의 칸을 세는 일치율은 기준을 채택하거나 측정하지 않았음. C의0–6은 그림 표시 범위여서 정답 범위로 나누어 정확도를 만들지 않음. 각 과제·단위·유효 영역이 다르므로 이 숫자만으로 stream 우열을 정하지 않음. [전체 영역 오차 JSON](docs/stream_full_map_error_20261027.json)에 가중합·분모와 별도의 raw 전체격자 진단을 보존함. O/C의 무효영역 저장0은 일반 배경 정답0과 다르므로 그 진단을 주평가로 쓰지 않음.
+
+기존 공통 영역의 상위20% 선택 일치율 S90.16/O95.25/C90.85%와 S exact target 최고점2.5%는 이전 평가로 유지함.20%는 기존 평가에서 고정한 선택 비율이며 최적성을 입증한 값이 아님. 선택 일치율·전체 지도 상대오차·target 최고점 적중률의 목적과 분모를 구분함.
+
+**검사 범위와 남은 Step.** SOC 예측과 고정모델 tensor 보존·24,000개 고유ID·CSV/JSON 수치 대응을 확인함. 기존 visible mask의 amodal 밖 차이는4,321장 총8,566픽셀(전체visible픽셀의0.040587%, 최대107픽셀/장)이며 원본GT를 유지함. 이 작은 전체 비율만으로 각 IoU 영향이 없다고 단정하지 않음. SO 학습·test와 SOC/SO 비교, 외부 amodal·다양한 새 target·실센서·탐색 행동 효용은 남아 있음. Complexity 기여의 인과적 개선은 아직 확정하지 않음.
+
+실행 근거는 LOCAL `outputs/fusion_soc_test_20261027/`, `outputs/fusion_external_check_20261027/`, `outputs/streams_full_map_error_20261027/`임. 초기 SOC 단독 실행의 seed 전달 누락은 예측 loop 전 실패했고 `outputs/fusion_soc_test_20261027_failed_seed_setup/`에 보존한 뒤 수정된 별도 runner로 완료함. 원래 공동 trainer의 완료 상태를 임의로 바꾸지 않았음. 공개 문서·수치·그림 갱신이며 원시 데이터·weights를 업로드한 단계가 아님.
+
+## 이전 공개 snapshot: 2026-10-26–27 — Fusion 학습과 현재 모델의 외부 물체 평가
+
+아래는16:43 KST 공개 준비 당시의 기록이며, 전체test·외부fusion 진단의 최신 완료 상태는 바로 위 항목을 우선함.
 
 **목적과 방법.** 개별 학습을 끝낸 S20/O12/C19를 모두 고정하고, head 이전 64채널 특징을 concat하여 192채널로 만든 뒤 작은 CNN만 amodal GT로 학습함. 공통 RGB-D·scene DINO 1회 공유, 기존 split·seed 0·batch 16 FP32를 유지함. Complexity 추가 효과를 확인할 SO 비교 head도 같은 입력 순서로 학습하되, 각 head의 best·조기종료를 별도로 관리함. 10-26 22:31 KST에 승인된 본학습을 시작했으며 이전 fusion 미승인 문구는 시작 전 이력임.
 

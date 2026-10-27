@@ -1,5 +1,5 @@
 {
-  "schema": "framework_layout_20261027_v1",
+  "schema": "framework_layout_20261027_v2",
   "path_base": "repository root",
   "coordinate_system": {
     "canvas_wh": [
@@ -80,10 +80,11 @@
         405,
         830
       ],
-      "label": "SOC best10; full test pending",
+      "label": "SOC best10; known16 held-out test n=24,000",
       "kind": "panel",
       "status": "implemented",
-      "border": "gold solid"
+      "border": "gold solid",
+      "metric_note": "Amodal peak hit 85.06%; mean amodal IoU 50.92%. Not generic accuracy, visible-hit, zero-shot, or grasp success."
     },
     {
       "id": "rgb",
@@ -712,17 +713,64 @@
     "Actual fusion prediction and amodal GT are separate assets.",
     "One shared scene DINO forward is implemented; no attention/Transformer fusion.",
     "All encoders and S/O/C weights and buffers are frozen; only fusion CNN is trainable.",
-    "SOC best10 qualitative examples do not establish full-test accuracy or SO/SOC advantage."
+    "The five fixed examples are qualitative; full-test metrics come from the separate known16 held-out test of 24,000 images, and SO/SOC advantage is not yet established.",
+    "Any 85.06% badge must include SOC best10, known16 held-out test n=24,000, and amodal peak hit; never label it generic accuracy or external success.",
+    "External 80-image visible peak 0/80 is a different diagnostic; external amodal IoU and amodal peak remain unevaluated.",
+    "Stream full valid-domain error percentages are 100*sum(w*abs(pred-GT))/sum(w*GT), not accuracy; do not report 100-minus-error.",
+    "Top 20% is a retained evaluation fraction, not a validated optimal or required fraction."
   ],
   "training_snapshot": {
     "date": "2026-10-27",
+    "as_of_kst": "2026-10-27T17:56:50+09:00",
     "soc_epochs": 13,
     "soc_best_epoch": 10,
     "soc_best_validation_bce": 0.012314409569526712,
     "soc_stopped": true,
-    "so_status": "epoch17_in_progress",
-    "whole_test_complete": false,
-    "fusion_accuracy_percent": null
+    "so_status": "epoch18_train_in_progress",
+    "so_completed_epochs": 17,
+    "original_joint_run_whole_test_completed": false,
+    "selected_soc_full_test_completed": true,
+    "fusion_accuracy_percent": null,
+    "accuracy_field_note": "No generic accuracy is defined; report named metrics and their population from evaluation_summary."
   },
-  "shared_scene_dino_forward": true
+  "shared_scene_dino_forward": true,
+  "evaluation_summary": {
+    "known16_heldout_test": {
+      "source": "docs/fusion_test_evaluation_20261027.json",
+      "images": 24000,
+      "amodal_miou_percent": 50.92098544438679,
+      "amodal_peak_hits": 20414,
+      "amodal_peak_hit_percent": 85.05833333333334,
+      "visible_images": 15235,
+      "visible_peak_hits": 6315,
+      "visible_peak_hit_percent": 41.45060715457827,
+      "fully_occluded_images": 8755,
+      "fully_occluded_amodal_peak_hits": 6160,
+      "fully_occluded_amodal_peak_hit_percent": 70.35979440319817,
+      "empty_amodal_images_included": 10,
+      "is_zero_shot": false
+    },
+    "external_visible_diagnostic": {
+      "source": "docs/fusion_external_diagnostic_20261027.json",
+      "images": 80,
+      "visible_peak_hits": 0,
+      "visible_peak_hit_percent": 0.0,
+      "amodal_evaluated": false
+    },
+    "stream_full_valid_domain_error": {
+      "source": "docs/stream_full_map_error_20261027.json",
+      "images": 80,
+      "relative_absolute_error_percent": {
+        "similarity": 9.590952502491792,
+        "occlusion": 12.3871374950817,
+        "complexity": 9.339558679512987
+      },
+      "is_accuracy": false
+    }
+  },
+  "prior_figure_snapshot": {
+    "png": "img/overall_architecture_pre_full_test_20261027.png",
+    "svg": "img/overall_architecture_pre_full_test_20261027.svg",
+    "pdf": "img/overall_architecture_pre_full_test_20261027.pdf"
+  }
 }

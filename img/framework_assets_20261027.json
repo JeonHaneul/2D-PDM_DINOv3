@@ -187,18 +187,33 @@
     },
     {
       "path": "img/overall_architecture.png",
-      "sha256": "2f9283075ddfc26f77d7369e7c6bce1e1a4a77c1ca4a07a294c4890d7915afb2",
-      "role": "Current implemented SOC diagram"
+      "sha256": "cf47993678e5b317469b78e4ff1621c17f929dba3f57881ec03593fd0cb16a83",
+      "role": "Current implemented SOC diagram; original16 full-test24000 amodal peak-hit and mIoU footer",
+      "source": {
+        "path": "outputs/fusion_results_publication_20261027/overall_architecture.png",
+        "sha256": "cf47993678e5b317469b78e4ff1621c17f929dba3f57881ec03593fd0cb16a83",
+        "availability": "LOCAL"
+      }
     },
     {
       "path": "img/overall_architecture.svg",
-      "sha256": "04e8cc8395669bc61560f749f30be37a109a8b68fa609f733bb1f89d7e029f68",
-      "role": "Current implemented SOC diagram"
+      "sha256": "42e9c052707b8adbe202cfee6c721e8752c1d9864a3126f2be3c063a2f7819f6",
+      "role": "Current implemented SOC diagram; original16 full-test24000 amodal peak-hit and mIoU footer",
+      "source": {
+        "path": "outputs/fusion_results_publication_20261027/overall_architecture.svg",
+        "sha256": "42e9c052707b8adbe202cfee6c721e8752c1d9864a3126f2be3c063a2f7819f6",
+        "availability": "LOCAL"
+      }
     },
     {
       "path": "img/overall_architecture.pdf",
-      "sha256": "c4914ac1995ebbffc8e954be5341f3b92fec6cea5bc7bda6bd99ecbacf90dd70",
-      "role": "Current implemented SOC diagram"
+      "sha256": "c3edf06b8d51e7836c42e7372f3a4110067407eb5408a012fdaff86b74281374",
+      "role": "Current implemented SOC diagram; original16 full-test24000 amodal peak-hit and mIoU footer",
+      "source": {
+        "path": "outputs/fusion_results_publication_20261027/overall_architecture.pdf",
+        "sha256": "c3edf06b8d51e7836c42e7372f3a4110067407eb5408a012fdaff86b74281374",
+        "availability": "LOCAL"
+      }
     },
     {
       "path": "img/overall_architecture_pre_fusion_20261026.png",
@@ -214,6 +229,21 @@
       "path": "img/overall_architecture_pre_fusion_20261026.pdf",
       "sha256": "60c3e289d633dfb4b4190cc1fbdcba5e3e8d075a1c62a71d33ca5beb8096ba69",
       "role": "Archived pre-fusion diagram"
+    },
+    {
+      "path": "img/overall_architecture_pre_full_test_20261027.png",
+      "sha256": "2f9283075ddfc26f77d7369e7c6bce1e1a4a77c1ca4a07a294c4890d7915afb2",
+      "role": "Archived SOC diagram before full-test24000 footer update; five-example snapshot"
+    },
+    {
+      "path": "img/overall_architecture_pre_full_test_20261027.svg",
+      "sha256": "04e8cc8395669bc61560f749f30be37a109a8b68fa609f733bb1f89d7e029f68",
+      "role": "Archived SOC diagram before full-test24000 footer update; five-example snapshot"
+    },
+    {
+      "path": "img/overall_architecture_pre_full_test_20261027.pdf",
+      "sha256": "c4914ac1995ebbffc8e954be5341f3b92fec6cea5bc7bda6bd99ecbacf90dd70",
+      "role": "Archived SOC diagram before full-test24000 footer update; five-example snapshot"
     }
   ],
   "checkpoint": {
@@ -230,5 +260,16 @@
     "sha256": "9d77f3ed4d5d0bd31d5176f5bb623959b6948bd0857150d6e103acf6169824c9",
     "availability": "LOCAL"
   },
-  "full_test_evaluation_complete": false
+  "full_test_evaluation_complete": true,
+  "full_test_evaluation_scope": "Fixed SOC best10; original16 assets, 5 views, held-out test24000; not external zero-shot or a completed SOC/SO comparison",
+  "full_test_evaluation": {
+    "path": "outputs/fusion_soc_test_20261027/evaluation/evaluation.json",
+    "sha256": "adcf6376cb30be2d1ee7235068031925aa716d29b7f9706fb2d36032c610052b",
+    "availability": "LOCAL",
+    "images": 24000,
+    "amodal_peak_hit_percent": 85.05833333333334,
+    "amodal_miou_percent": 50.92098544438679,
+    "displayed_precision_decimal_places": 2,
+    "definition": "Peak hit is one unmasked native-bilinear argmax inside amodal GT; mIoU thresholds the same probabilities at 0.5. Neither metric is pixel accuracy or grasp success."
+  }
 }

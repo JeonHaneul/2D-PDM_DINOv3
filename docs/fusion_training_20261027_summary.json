@@ -1,7 +1,7 @@
 {
-  "schema": "public_fusion_training_snapshot_v1",
-  "recorded_at_kst": "2026-10-27T16:43:01.515058+09:00",
-  "status": "SOC training stopped; SO training ongoing; whole-test evaluation pending",
+  "schema": "public_fusion_training_snapshot_v2",
+  "recorded_at_kst": "2026-10-27T17:56:50.576756+09:00",
+  "status": "SOC best10 full test completed in separate fixed-model evaluation; SO paired training/evaluation remains ongoing at snapshot",
   "split": {
     "train_images": 192000,
     "validation_images": 24000,
@@ -40,27 +40,27 @@
   },
   "variants": {
     "soc": {
-      "epoch": 13,
-      "best_epoch": 10,
       "best": 0.012314409569526712,
+      "best_epoch": 10,
+      "stale": 3,
       "stopped": true,
       "updates": 156000,
       "epochs": 13
     },
     "so": {
-      "epoch": 16,
-      "best_epoch": 15,
       "best": 0.012817045819635192,
+      "best_epoch": 15,
+      "stale": 2,
       "stopped": false,
-      "updates": 192000,
-      "epochs": 16
+      "updates": 214658,
+      "epochs": 17
     }
   },
   "ongoing_status": {
-    "updated_unix": 1793086952.629478,
+    "updated_unix": 1793091410.5767562,
     "phase": "train",
-    "epoch": 17,
-    "images": 165248,
+    "epoch": 18,
+    "images": 170528,
     "total_images": 192000,
     "active_variants": [
       "so"
@@ -82,8 +82,8 @@
   "qualitative_prediction_seconds": 0.5618336941115558,
   "formal_whole_test_completed": false,
   "fusion_test_accuracy_percent": null,
-  "fusion_zero_shot_evaluated": false,
-  "interpretation": "Five selected examples are qualitative; validation BCE is not accuracy; no SOC versus SO test conclusion yet.",
+  "fusion_zero_shot_evaluated": true,
+  "interpretation": "Known16 SOC test: amodal peak hit85.058333%, mIoU50.920985%, visible peak hit41.450607%. These are distinct metrics, not generic accuracy. SO comparison remains pending.",
   "sources": {
     "protocol.json": {
       "path": "outputs/fusion_publication_20261027/source_evidence/protocol.json",
@@ -91,24 +91,30 @@
       "availability": "LOCAL"
     },
     "status.json": {
-      "path": "outputs/fusion_publication_20261027/source_evidence/status.json",
-      "sha256": "b5de48de3265f4fcfe8c7522220861af9f9d34a937fa4210ca2e3316d3f81be2",
-      "availability": "LOCAL"
+      "path": "outputs/fusion_results_publication_20261027/source_evidence/fusion_status.json",
+      "sha256": "2a68a5de4e674934bfb3f157b77268843760acef8dbbb8770923befb2e55d68c",
+      "availability": "LOCAL fixed snapshot"
     },
     "runs/soc/history.json": {
-      "path": "outputs/fusion_publication_20261027/source_evidence/runs/soc/history.json",
+      "path": "outputs/fusion_results_publication_20261027/source_evidence/soc_history.json",
       "sha256": "34f555dd13c22628d568d4744dcf3452d3f70f299ac4424457fe9f320539a408",
-      "availability": "LOCAL"
+      "availability": "LOCAL fixed snapshot"
     },
     "runs/so/history.json": {
-      "path": "outputs/fusion_publication_20261027/source_evidence/runs/so/history.json",
-      "sha256": "a587e33646d9a6601f374dcad2b424fb63b8ad97ae46d249d0203c4b02851052",
-      "availability": "LOCAL"
+      "path": "outputs/fusion_results_publication_20261027/source_evidence/so_history.json",
+      "sha256": "0aa510bf851e2499711af47e5b545cfdff55e82a1791f912ed2a6d97d7668bc5",
+      "availability": "LOCAL fixed snapshot"
     }
   },
   "example_provenance": {
     "path": "outputs/fusion_examples_20261027/comparison_provenance.json",
     "sha256": "2450400bf3c70a80462aae58497efbbd120ed853226f4761367c097bdb64cedc",
     "availability": "LOCAL"
-  }
+  },
+  "formal_whole_test_scope": "Original paired SOC+SO run; separate SOC-only completion is recorded below",
+  "selected_soc_full_test_completed": true,
+  "selected_soc_full_test_report": "docs/fusion_test_evaluation_20261027.json",
+  "fusion_zero_shot_scope": "Visible-target peak diagnostic only, one unseen instance, all80 partly visible. Amodal zero-shot performance remains unevaluated.",
+  "fusion_zero_shot_report": "docs/fusion_external_diagnostic_20261027.json",
+  "prior_public_snapshot_commit": "9537907c64cead3c3133531e95b3f15a9ffeacd7"
 }

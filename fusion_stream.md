@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Fusion** · [Framework Guide](framework_guide.md) · [Development Log](development_log.md) · [연구 문맥](agent.md#current-handoff-20261027)
 <!-- navigation:end -->
 
-> 2026-10-27 공개 snapshot: Step4 승인 후 fusion 구현·학습을 진행함. SOC는13epoch에서 조기 종료, best10의 실제 test 예시5장을 생성함. SO는epoch17 학습 중임. **전체24,000장 fusion test 평가·최종 성능%·SOC/SO 우열은 아직 확정되지 않음.** 최신 수치 근거는 [Fusion 학습 요약](docs/fusion_training_20261027_summary.json)임.
+> 2026-10-27 최신 결과: SOC는13epoch에서 종료됐고 validation으로 선택한 best10의 **기존16종 test24,000장 평가를 완료함. Amodal 최고점 적중률85.06%, 마스크 mIoU50.92%이며 실제 보이는 부분 최고점 적중률은41.45%임.** 서로 다른 지표이며 일반적인 pixel accuracy나 zero-shot 정확도가 아님. SO는17:56:50 KST snapshot에서epoch18 학습 중이고 SOC/SO 비교는 미완료임. [학습·진행 요약](docs/fusion_training_20261027_summary.json) · [SOC test 결과](docs/fusion_test_evaluation_20261027.json)
 
 ## 목적과 현재 확인 범위
 
@@ -65,12 +65,13 @@ SO 비교 head는 C를 제외한128채널을 같은64채널 크기로 projection
 | 모델 선택 | 각 head의 전체 validation BCE 최저 |
 | SOC 상태 | 13epoch·156,000updates 후 조기 종료 |
 | SOC 선택 모델 | Epoch10, validation BCE **0.012314409569526712** |
-| SO 상태 | Epoch17 학습 중인 snapshot |
-| 전체 fusion test | 미완료; 최종 mIoU·위치 적중률%·비교 우열 미확정 |
+| SO 상태 | 2026-10-27 17:56:50 KST, epoch18 학습 중인 snapshot |
+| SOC 전체 test | Best10 고정, 24,000장 예측·평가 완료 |
+| SOC/SO 공동 비교 | 원래 공동 실행의 SO 학습·test 및 두 모델 비교 미완료 |
 
 Validation BCE는 모델 선택 손실이며 “정확도98.77%”처럼 변환할 수 없음. 선택epoch10이 실행epoch13보다 이른 이유는 마지막epoch가 아니라 validation 최저 checkpoint를 쓰기 때문임. 실행 중 상태는 계속 바뀌므로 이 표는 위 날짜의 기록이며 [요약 JSON](docs/fusion_training_20261027_summary.json)의 상태와 함께 읽음.
 
-정식 평가는 두 head를 validation으로 선택한 뒤 모든 test 예측을 GT 없이 저장하고 별도 CPU evaluator가 GT를 읽도록 분리함. Native amodal IoU@0.5와 최고점의 amodal/visible 내부 적중률, camera·target·visibility별 결과 및 빈 집합 분모를 기록하도록 구현함. **평가 코드의 존재는 전체 평가 완료를 뜻하지 않음.**
+원래 공동 실행은 두 head를 validation으로 선택한 뒤 두 모델의 모든 test 예측을 GT 없이 저장하고 CPU evaluator로 평가하는 순서임. 사용자의 SOC test 결과 요청에 따라 **이미 선택·종료된 SOC best10만 먼저 별도 평가**했으며, 이 시점 예외를 별도 protocol에 기록함. SOC24,000장 예측 저장 후 기존 evaluator가 GT를 읽었고 모델·threshold·GT·split을 바꾸지 않았음. 원래 공동 protocol과 학습source40개를 유지했으며 이 결과로 SOC/SO 모델을 선택하거나 튜닝하지 않음. SOC 단독 평가 완료와 원래 공동 실행 완료를 구분함.
 
 ## 실제 GT·예측 비교 — 같은 고정 test 5장
 
@@ -92,16 +93,37 @@ Fusion 예측은 공통0–1 범위의 grayscale이며 장면별 밝기 정규�
 
 ## % 결과와 한계
 
-[외부80장 개별 stream 평가](docs/stream_external_evaluation_20261027.json)의 같은 ROI 상위20% 영역 일치율은 S90.16% / O95.25% / C90.85%임. 각 stream의 서로 다른 GT에서 높은 영역을 선택하는 평가이고 fusion 위치 성능%가 아님. 특히 S의 visible query 최고점 적중률은2.5%이므로 관계 점수 일치율을 정확한 target 위치 발견률로 바꿀 수 없음. Fusion 전체 test 성능%는 아직 없음.
+### 기존16종의 별도 test24,000장
+
+모든 카메라의 원시30×40 확률 지도를 bilinear로640×480에 확대하고 GT/workspace mask로 자르지 않은 상태에서 평가함. **최고점 적중률**은 영상마다 가장 밝은 한 점이 target GT 안에 들어간 영상 수의 비율임. 동점이면 행 우선 첫 위치를 사용함. **Amodal**은 가려진 부분을 포함한 target 전체 영역이며, **visible**은 현재 관측에서 실제로 보이는 부분임. **mIoU**는 확률0.5 이상인 예측 영역과 amodal GT의 교집합/합집합을 영상별로 계산한 평균임.
+
+| 평가 조건 | 영상 수 | Amodal mIoU | Amodal 최고점 적중률 |
+|---|---:|---:|---:|
+| 전체 | 24,000 | **50.92%** | **85.06% (20,414/24,000)** |
+| Target이 일부라도 보임 | 15,235 | 65.30% | 93.56% (14,254/15,235) |
+| Target이 완전히 가려짐 | 8,755 | 25.96% | 70.36% (6,160/8,755) |
+| 화면에 amodal 영역이 없음 | 10 | 0.00% | 0.00% (0/10) |
+
+별도로, target이 보이는15,235장에서 최고점이 **실제 보이는 부분**에 들어간 비율은 **41.45% (6,315/15,235)**임. 보이는 장면의 amodal 적중93.56%는 가려진 부분에 최고점이 있어도 맞은 것으로 세므로41.45%와 다른 조건임. 따라서85.06%는 **전체 위치 최고점 적중률**로 표기하고 마스크 전체 정확도·보이는 표면 선택 성공률·집기 성공률로 확대하지 않음.
+
+전체 mIoU의 유효 분모는24,000장이고 빈 합집합 제외는0장임. Camera별 amodal 적중은84.52–85.42%이지만 target별 편차가 있음. 예를 들어 book_1의 mIoU는89.57%, toy_4는14.89%임. 세부 camera·target·visibility 결과와 반올림 전 수치는 [전체 test JSON](docs/fusion_test_evaluation_20261027.json)을 따름. 이는 학습에 사용한16개 asset의 별도 장면 test이며 새 target의 zero-shot 결과가 아님.
+
+기존 visible mask 중 amodal 밖에 있는 차이는4,321장 총8,566픽셀, 장당 최대107픽셀로 전체 visible 픽셀의0.040587%임. 원본 GT를 유지한 평가이며, 이 작은 전체 비율만으로 각 영상의 IoU 영향이 없다고 단정하지 않음. 앞선500장 GT 복원 검사가 전체 test의 픽셀 일치를 보장한다는 뜻도 아님.
+
+### 외부 물체1종80장의 별도 진단
+
+같은 SOC best10을 추가 학습 없이 packaged_food_5/World1에 적용했을 때 **보이는 target 최고점 적중은0/80=0.00%**임. 학습에서 본 category의 새 instance1개와 기존15개 물체가 섞인16layout×5뷰이며80장 모두 target이 일부 보임. 최고점은 book54/fruit2/packaged_food18/toy6의 가시 표면 위에 있었음. **외부80장의 amodal GT는 평가하지 않았으므로 amodal 적중0%나 IoU0%로 읽지 않음.** 가림 아래 target 영역에 최고점이 들어갔는지는 이 진단으로 판정할 수 없음. [외부 진단 JSON](docs/fusion_external_diagnostic_20261027.json)에 분모·camera/layout별 결과·checkpoint를 보존함.
+
+[개별 stream의 외부80장 평가](docs/stream_external_evaluation_20261027.json)에서 공통 영역의 상위20% 선택 일치율은 S90.16% / O95.25% / C90.85%, S의 실제 target visible 최고점 적중은2.50%임. 이는 fusion 위치 적중률과 다른 지표임. 20%는 기존 평가에서 고정한 비율이며 최적값으로 검증한 것은 아님. 전체 유효 영역으로 재집계한 **GT 총량 대비 절대오차율**은 S9.59% / O12.39% / C9.34%이며 낮을수록 좋음. 이는80장 전체의 가중 절대오차 합/가중 GT 합×100으로, 100에서 빼서 정확도나 일치율로 쓰지 않음. 평가 영역·집계식은 [전체 영역 오차 JSON](docs/stream_full_map_error_20261027.json)을 따름.
 
 완전히 가려진 물체는 동일 RGB-D에서도 여러 숨은 배치가 가능하므로 단일 관측만으로 실제 pose가 유일하게 결정되지 않을 수 있음. Amodal 감독은 숨은 부분을 포함한 위치 학습 목표이지만 가림 아래의 정확한 위치를 항상 식별한다는 보장은 아님. 또한 amodal 최고점이 보이는 부분 또는 집기 가능한 점이라는 보장도 없음. Visible 적중률은 그 차이를 보는 진단이며 실제 집기·가림물 제거·DRL 탐색 성공률은 별도 미검증임.
 
-현재 실제 fusion 예시는 원래16종·고정camera·합성관측 범위임. 새 물체에 대한 fusion 일반화·실센서·정책 효용을 확인하지 않았으며, SO/SOC test 비교 전에 “Complexity 때문에 성능이 좋아졌다”고 결론내리지 않음.
+기존16종 test의 위치 적중과 외부1종의 visible 실패를 함께 유지함. 여러 새 물체·새 category·완전 가림 외부 target·실센서·정책 효용은 미검증이며, SO/SOC test 비교 전에 “Complexity 때문에 성능이 좋아졌다”고 결론내리지 않음.
 
 ## 재작성·근거 안내
 
 외부 독자는 [최신 인계](agent.md#current-handoff-20261027) → [학습 요약](docs/fusion_training_20261027_summary.json) → [Framework Guide](framework_guide.md) → [asset manifest](img/framework_assets_20261027.json) 순서로 읽음. 현재 그림은 한 장면의 RGB/depth/S/O/C/fusion 예측과 amodal GT를 함께 쓰며, feature64×3 연결과 실제 예측·GT를 구분함. 구조도에서 fusion을 미학습 점선 계획으로 되돌리지 않음.
 
-LOCAL 근거는 개발 폴더의 `experiments/fusion_training_20261026/`, `outputs/fusion_training_20261026/{protocol,status,history}.json`, `runs/soc/best.pt`, `outputs/fusion_examples_20261027/{selection,prediction_complete,comparison_provenance}.json`임. 이들은 공개 clone에 전체 포함된 실행 패키지를 뜻하지 않음. 공개 내용은 설명·상태 요약·그림과 출처이며 원시 데이터·전체 trainer·weights를 모두 재현 릴리스한 것은 아님.
+LOCAL 근거는 개발 폴더의 `experiments/fusion_training_20261026/`, `outputs/fusion_training_20261026/{protocol,status,history}.json`, `runs/soc/best.pt`, `outputs/fusion_examples_20261027/{selection,prediction_complete,comparison_provenance}.json`임. 새 test와 외부 진단은 `outputs/fusion_soc_test_20261027/`, `outputs/fusion_external_check_20261027/`, stream 전체 오차는 `outputs/streams_full_map_error_20261027/`를 따름. 공개 JSON은 각 원본의 경로·hash와 수치·정의를 제공하며, 공개 clone에 원시 데이터·전체 trainer·weights를 모두 포함한 재현 릴리스는 아님.
 
 [전체 개요](README.md) · [Framework Guide](framework_guide.md) · [연구 문맥](agent.md#current-handoff-20261027)

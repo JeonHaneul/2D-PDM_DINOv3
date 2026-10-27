@@ -1,0 +1,501 @@
+{
+  "status": "complete",
+  "stream": "fusion",
+  "images": 24000,
+  "aggregation": "Equal image means. Undefined IoU/visible-hit subsets excluded with explicit denominators. Views are correlated observations.",
+  "definitions": {
+    "output": "raw 30x40 probabilities; no workspace/GT masking",
+    "pooled_bce": "float64 numpy BCE clipped to [1e-7,1-1e-7] against avg16 binary amodal; reporting only",
+    "amodal_iou": "cv2.INTER_LINEAR 640x480 probability >=0.5 versus native binary amodal; empty union excluded",
+    "top1": "first row-major native bilinear probability argmax; no GT/coverage masking",
+    "top1_visible_hit": "undefined when no visible target pixels; not a grasp success measure",
+    "visibility": "original raw physical IDs; visible if >0 pixels, fully_occluded if visible=0 and amodal>0, otherwise out_of_frame"
+  },
+  "overall": {
+    "images": 24000,
+    "metric_valid_images": {
+      "pooled_bce": 24000,
+      "amodal_iou": 24000,
+      "top1_amodal_hit": 24000,
+      "top1_visible_hit": 15235
+    },
+    "pooled_bce": 0.012119633212203884,
+    "amodal_iou": 0.5092098544438679,
+    "top1_amodal_hit": 0.8505833333333334,
+    "top1_visible_hit": 0.41450607154578273,
+    "iou_empty_union_images": 0,
+    "empty_amodal_images": 10,
+    "visible_images": 15235,
+    "visible_outside_amodal_pixels": 8566
+  },
+  "per_target": {
+    "book_1": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 1500
+      },
+      "pooled_bce": 0.018205329745668786,
+      "amodal_iou": 0.8956857334956292,
+      "top1_amodal_hit": 1.0,
+      "top1_visible_hit": 0.4713333333333333,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 1500,
+      "visible_outside_amodal_pixels": 2275
+    },
+    "book_2": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 1344
+      },
+      "pooled_bce": 0.019818982103884348,
+      "amodal_iou": 0.8299123642175413,
+      "top1_amodal_hit": 1.0,
+      "top1_visible_hit": 0.3020833333333333,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 1344,
+      "visible_outside_amodal_pixels": 1113
+    },
+    "book_3": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 804
+      },
+      "pooled_bce": 0.023619353432845866,
+      "amodal_iou": 0.7852648153464118,
+      "top1_amodal_hit": 0.9993333333333333,
+      "top1_visible_hit": 0.35074626865671643,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 804,
+      "visible_outside_amodal_pixels": 757
+    },
+    "book_4": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 1147
+      },
+      "pooled_bce": 0.01952748512005293,
+      "amodal_iou": 0.7973554883523457,
+      "top1_amodal_hit": 1.0,
+      "top1_visible_hit": 0.33391455972101136,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 1147,
+      "visible_outside_amodal_pixels": 912
+    },
+    "fruit_1": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 1057
+      },
+      "pooled_bce": 0.007822255496956287,
+      "amodal_iou": 0.5222483002012601,
+      "top1_amodal_hit": 0.8646666666666667,
+      "top1_visible_hit": 0.467360454115421,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 1057,
+      "visible_outside_amodal_pixels": 371
+    },
+    "fruit_2": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 672
+      },
+      "pooled_bce": 0.00799793710597559,
+      "amodal_iou": 0.1656072744929418,
+      "top1_amodal_hit": 0.5773333333333334,
+      "top1_visible_hit": 0.43601190476190477,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 672,
+      "visible_outside_amodal_pixels": 188
+    },
+    "fruit_3": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 666
+      },
+      "pooled_bce": 0.006478870787773742,
+      "amodal_iou": 0.1793700256373777,
+      "top1_amodal_hit": 0.5846666666666667,
+      "top1_visible_hit": 0.46996996996997,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 666,
+      "visible_outside_amodal_pixels": 152
+    },
+    "fruit_4": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 954
+      },
+      "pooled_bce": 0.007436702306672712,
+      "amodal_iou": 0.4349313123024259,
+      "top1_amodal_hit": 0.8526666666666667,
+      "top1_visible_hit": 0.4224318658280922,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 5,
+      "visible_images": 954,
+      "visible_outside_amodal_pixels": 248
+    },
+    "packaged_food_1": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 990
+      },
+      "pooled_bce": 0.009278008628838113,
+      "amodal_iou": 0.4356131234447298,
+      "top1_amodal_hit": 0.8333333333333334,
+      "top1_visible_hit": 0.4131313131313131,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 990,
+      "visible_outside_amodal_pixels": 326
+    },
+    "packaged_food_2": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 940
+      },
+      "pooled_bce": 0.009546537790596237,
+      "amodal_iou": 0.5001310379019821,
+      "top1_amodal_hit": 0.9113333333333333,
+      "top1_visible_hit": 0.42021276595744683,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 940,
+      "visible_outside_amodal_pixels": 354
+    },
+    "packaged_food_3": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 1171
+      },
+      "pooled_bce": 0.012820071399372253,
+      "amodal_iou": 0.6369264298778016,
+      "top1_amodal_hit": 0.9586666666666667,
+      "top1_visible_hit": 0.4039282664389411,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 1171,
+      "visible_outside_amodal_pixels": 424
+    },
+    "packaged_food_4": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 974
+      },
+      "pooled_bce": 0.011149806712797144,
+      "amodal_iou": 0.5328566107831965,
+      "top1_amodal_hit": 0.9046666666666666,
+      "top1_visible_hit": 0.39630390143737165,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 974,
+      "visible_outside_amodal_pixels": 383
+    },
+    "toy_1": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 730
+      },
+      "pooled_bce": 0.009448951222085422,
+      "amodal_iou": 0.30004910206047036,
+      "top1_amodal_hit": 0.7606666666666667,
+      "top1_visible_hit": 0.5315068493150685,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 5,
+      "visible_images": 730,
+      "visible_outside_amodal_pixels": 375
+    },
+    "toy_2": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 992
+      },
+      "pooled_bce": 0.009106660898072468,
+      "amodal_iou": 0.5192904802707092,
+      "top1_amodal_hit": 0.8733333333333333,
+      "top1_visible_hit": 0.48689516129032256,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 992,
+      "visible_outside_amodal_pixels": 344
+    },
+    "toy_3": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 756
+      },
+      "pooled_bce": 0.014310808654838922,
+      "amodal_iou": 0.4632402851014396,
+      "top1_amodal_hit": 0.8653333333333333,
+      "top1_visible_hit": 0.3584656084656085,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 756,
+      "visible_outside_amodal_pixels": 186
+    },
+    "toy_4": {
+      "images": 1500,
+      "metric_valid_images": {
+        "pooled_bce": 1500,
+        "amodal_iou": 1500,
+        "top1_amodal_hit": 1500,
+        "top1_visible_hit": 538
+      },
+      "pooled_bce": 0.007346369988831355,
+      "amodal_iou": 0.1488752876156242,
+      "top1_amodal_hit": 0.6233333333333333,
+      "top1_visible_hit": 0.4256505576208178,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 538,
+      "visible_outside_amodal_pixels": 158
+    }
+  },
+  "per_camera": {
+    "center": {
+      "images": 4800,
+      "metric_valid_images": {
+        "pooled_bce": 4800,
+        "amodal_iou": 4800,
+        "top1_amodal_hit": 4800,
+        "top1_visible_hit": 3009
+      },
+      "pooled_bce": 0.012959168718310132,
+      "amodal_iou": 0.5119081025924879,
+      "top1_amodal_hit": 0.8514583333333333,
+      "top1_visible_hit": 0.42140245928880027,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 2,
+      "visible_images": 3009,
+      "visible_outside_amodal_pixels": 1999
+    },
+    "left": {
+      "images": 4800,
+      "metric_valid_images": {
+        "pooled_bce": 4800,
+        "amodal_iou": 4800,
+        "top1_amodal_hit": 4800,
+        "top1_visible_hit": 3038
+      },
+      "pooled_bce": 0.011893227516629206,
+      "amodal_iou": 0.5034804021928276,
+      "top1_amodal_hit": 0.8452083333333333,
+      "top1_visible_hit": 0.4259381171823568,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 2,
+      "visible_images": 3038,
+      "visible_outside_amodal_pixels": 1656
+    },
+    "right": {
+      "images": 4800,
+      "metric_valid_images": {
+        "pooled_bce": 4800,
+        "amodal_iou": 4800,
+        "top1_amodal_hit": 4800,
+        "top1_visible_hit": 3015
+      },
+      "pooled_bce": 0.011886796492438375,
+      "amodal_iou": 0.5093597917804912,
+      "top1_amodal_hit": 0.849375,
+      "top1_visible_hit": 0.3983416252072968,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 2,
+      "visible_images": 3015,
+      "visible_outside_amodal_pixels": 1715
+    },
+    "top": {
+      "images": 4800,
+      "metric_valid_images": {
+        "pooled_bce": 4800,
+        "amodal_iou": 4800,
+        "top1_amodal_hit": 4800,
+        "top1_visible_hit": 3085
+      },
+      "pooled_bce": 0.011940123263815322,
+      "amodal_iou": 0.5049872383836679,
+      "top1_amodal_hit": 0.8527083333333333,
+      "top1_visible_hit": 0.41458670988654783,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 2,
+      "visible_images": 3085,
+      "visible_outside_amodal_pixels": 1531
+    },
+    "bottom": {
+      "images": 4800,
+      "metric_valid_images": {
+        "pooled_bce": 4800,
+        "amodal_iou": 4800,
+        "top1_amodal_hit": 4800,
+        "top1_visible_hit": 3088
+      },
+      "pooled_bce": 0.011918850069826395,
+      "amodal_iou": 0.5163137372698651,
+      "top1_amodal_hit": 0.8541666666666666,
+      "top1_visible_hit": 0.41224093264248707,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 2,
+      "visible_images": 3088,
+      "visible_outside_amodal_pixels": 1665
+    }
+  },
+  "per_visibility": {
+    "visible": {
+      "images": 15235,
+      "metric_valid_images": {
+        "pooled_bce": 15235,
+        "amodal_iou": 15235,
+        "top1_amodal_hit": 15235,
+        "top1_visible_hit": 15235
+      },
+      "pooled_bce": 0.011459407110053228,
+      "amodal_iou": 0.6529911187517747,
+      "top1_amodal_hit": 0.9356087955365934,
+      "top1_visible_hit": 0.41450607154578273,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 15235,
+      "visible_outside_amodal_pixels": 8566
+    },
+    "fully_occluded": {
+      "images": 8755,
+      "metric_valid_images": {
+        "pooled_bce": 8755,
+        "amodal_iou": 8755,
+        "top1_amodal_hit": 8755,
+        "top1_visible_hit": 0
+      },
+      "pooled_bce": 0.01327488659428812,
+      "amodal_iou": 0.25959072672410527,
+      "top1_amodal_hit": 0.7035979440319817,
+      "top1_visible_hit": null,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 0,
+      "visible_images": 0,
+      "visible_outside_amodal_pixels": 0
+    },
+    "out_of_frame": {
+      "images": 10,
+      "metric_valid_images": {
+        "pooled_bce": 10,
+        "amodal_iou": 10,
+        "top1_amodal_hit": 10,
+        "top1_visible_hit": 0
+      },
+      "pooled_bce": 0.006549763823984739,
+      "amodal_iou": 0.0,
+      "top1_amodal_hit": 0.0,
+      "top1_visible_hit": null,
+      "iou_empty_union_images": 0,
+      "empty_amodal_images": 10,
+      "visible_images": 0,
+      "visible_outside_amodal_pixels": 0
+    }
+  },
+  "predictions": {
+    "path": "<DEV_ROOT>/outputs/fusion_soc_test_20261027/test_predictions.npy",
+    "sha256": "c2a569a721adf547daca08aa25fe4fea9e6ccd307b6550116c0b1ee4ed710088",
+    "completion_sha256": "2be733e292719f1387a5b82ea14cbff41ef40105714e6b8a33bcea21f8c90279",
+    "test_csv_sha256": "ababa93942e06c484f881c31c6a11c56c1c754f469343ab8d9a012508c1522ce",
+    "best_sha256": "ae5a458fbc3c80c965219388c7006e58be560d2e43d16d7dda4fa10935e75ea1"
+  },
+  "common_index_source_hashes": {
+    "completion.json": "c3787f168e73de163ef9968a81ad7c28ffe3b464b72f63f9325acc0e9b0a9e8d",
+    "split_manifest.json": "6ec5edd508f0b59c622c082b7669b92c57e24a4e10608ab872824e070ccfc075",
+    "common_test.csv": "ababa93942e06c484f881c31c6a11c56c1c754f469343ab8d9a012508c1522ce"
+  },
+  "per_image_csv": {
+    "path": "<DEV_ROOT>/outputs/fusion_soc_test_20261027/evaluation/per_image.csv",
+    "rows": 24000,
+    "sha256": "10c8508115791e1708f463d84b76a33e3e133142f605634d6a3f9e9718905872"
+  },
+  "evaluator_sha256": "470f9364bde0ae3379cea8cca1e0d7e1a3a28a72b3831f98619016c1e44ece51",
+  "data_sha256": "4382d1f5e75a1f6f6333d47142ec05e3a6e21921bb1634c6108560106814cf01",
+  "no_model_execution": true,
+  "public_source": {
+    "path": "<DEV_ROOT>/outputs/fusion_soc_test_20261027/evaluation/evaluation.json",
+    "sha256": "adcf6376cb30be2d1ee7235068031925aa716d29b7f9706fb2d36032c610052b",
+    "availability": "LOCAL original; public aggregate report"
+  },
+  "checkpoint": {
+    "path": "<DEV_ROOT>/outputs/fusion_training_20261026/runs/soc/best.pt",
+    "sha256": "ae5a458fbc3c80c965219388c7006e58be560d2e43d16d7dda4fa10935e75ea1",
+    "epoch": 10
+  },
+  "scope": "Known16 assets, held-out24000 images, five correlated camera views; NOT unseen-target zero-shot or training-set accuracy.",
+  "timing_exception": "Separate evaluation of fixed SOC best10 before SO finishes. Original paired protocol, trainer and formal completion remain unchanged. No SOC or SO selection/tuning uses these results.",
+  "classification_accuracy_percent": null,
+  "hit_counts": {
+    "amodal": {
+      "hits": 20414,
+      "images": 24000
+    },
+    "visible": {
+      "hits": 6315,
+      "images": 15235
+    },
+    "fully_occluded_amodal": {
+      "hits": 6160,
+      "images": 8755
+    }
+  },
+  "existing_gt_consistency": {
+    "visible_outside_amodal_pixels": 8566,
+    "affected_images": 4321,
+    "max_pixels_per_image": 107,
+    "total_visible_pixels": 21105391,
+    "fraction_of_visible_percent": 0.04058678657031277,
+    "gt_modified": false,
+    "note": "Existing labels retained. Small aggregate pixel fraction does not prove zero effect on every IoU."
+  }
+}

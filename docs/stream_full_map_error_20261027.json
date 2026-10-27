@@ -1,0 +1,69 @@
+{
+  "status": "complete",
+  "overall": {
+    "similarity": {
+      "images": 80,
+      "weight": 96000.0,
+      "valid_cells": 96000,
+      "absolute_error_sum": 404.49197379496843,
+      "gt_sum": 4217.432769997336,
+      "raw_full_grid_gt_sum": 4217.432769997336,
+      "raw_full_grid_absolute_error_sum": 404.49197379496843,
+      "mae": 0.004213458060364254,
+      "mean_image_mae": 0.004213458060364254,
+      "relative_absolute_error_percent": 9.590952502491792,
+      "raw_full_grid_mae": 0.004213458060364254
+    },
+    "occlusion": {
+      "images": 80,
+      "weight": 35192.5,
+      "valid_cells": 39552,
+      "absolute_error_sum": 389.2908744265939,
+      "gt_sum": 3142.702457134762,
+      "raw_full_grid_gt_sum": 3163.5852691406817,
+      "raw_full_grid_absolute_error_sum": 11555.946325395826,
+      "mae": 0.01106175675006305,
+      "mean_image_mae": 0.011068755118259818,
+      "relative_absolute_error_percent": 12.3871374950817,
+      "raw_full_grid_mae": 0.12037444088953983
+    },
+    "complexity": {
+      "images": 80,
+      "weight": 65280.0,
+      "valid_cells": 65280,
+      "absolute_error_sum": 1731.1924656697322,
+      "gt_sum": 18536.12708132806,
+      "raw_full_grid_gt_sum": 18536.12708132806,
+      "raw_full_grid_absolute_error_sum": 13190.984196898027,
+      "mae": 0.02651949242753879,
+      "mean_image_mae": 0.026519492427538788,
+      "relative_absolute_error_percent": 9.339558679512987,
+      "raw_full_grid_mae": 0.13740608538435445
+    }
+  },
+  "definitions": {
+    "relative_absolute_error_percent": "100 * sum(weight * abs(pred-GT)) / sum(weight * GT), pooled across all80 images; lower is better; may exceed100; NOT accuracy or hit rate",
+    "mae": "sum(weight * abs(pred-GT)) / sum(weight)",
+    "domains": {
+      "similarity": "all1200 cells including background",
+      "occlusion": "all candidate-supported workspace cells; original fractional coverage weights; zero-coverage has undefined GT",
+      "complexity": "all valid cells including background; excludes48px border with undefined regional neighborhood; no foreground restriction"
+    },
+    "raw_full_grid_diagnostic": "Also records all1200 saved cells; O/C undefined positions are stored zero, so this is NOT primary performance",
+    "units": "S/O0..1 scores; C raw continuous regional score. Display0..6 is not a GT bound. No one-minus-error score."
+  },
+  "scope": "One unseen instance in a seen category, mixed with15 seen assets; simulation and synthetic reference masks; no unseen-category or real-sensor generalization claim",
+  "protocol_sha256": "4cec5e776befc3830f8bbe7d25fe9d59efecf5c5ba599715b14cf1cde6d02b3a",
+  "per_image_csv_sha256": "0d17543250d26b5a8f2cf34d8ef94889e18d61b571358507e07d2bbedef11db4",
+  "new_inference": false,
+  "training": false,
+  "github_published": false,
+  "public_source": {
+    "path": "<DEV_ROOT>/outputs/streams_full_map_error_20261027/evaluation.json",
+    "sha256": "43209dbecb0a5178a3118093b472c3a21bf2ee641574e260a879ff1cb07b4e7d",
+    "availability": "LOCAL original; public aggregate report"
+  },
+  "images": 80,
+  "no_accuracy_conversion": "100 minus relative absolute error is NOT accuracy, pixel agreement or target hit rate. No tolerance-based agreement criterion was adopted.",
+  "interpretation": "Different stream tasks and valid domains. Percent is ratio of sums across80 images, not mean of image-wise percentages; may exceed100."
+}

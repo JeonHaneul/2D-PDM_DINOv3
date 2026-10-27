@@ -1,0 +1,152 @@
+{
+  "status": "complete",
+  "images": 80,
+  "overall": {
+    "images": 80,
+    "hits": 0,
+    "visible_target_top1_percent": 0.0
+  },
+  "per_camera": {
+    "bottom": {
+      "images": 16,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "center": {
+      "images": 16,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "left": {
+      "images": 16,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "right": {
+      "images": 16,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "top": {
+      "images": 16,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    }
+  },
+  "per_layout": {
+    "external16/book_1__env0000": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/book_1__env0001": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/book_1__env0002": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/book_1__env0003": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/fruit_1__env0000": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/fruit_1__env0001": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/fruit_1__env0002": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/fruit_1__env0003": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/packaged_food_1__env0000": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/packaged_food_1__env0001": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/packaged_food_1__env0002": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/packaged_food_1__env0003": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/toy_1__env0000": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/toy_1__env0001": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/toy_1__env0002": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    },
+    "external16/toy_1__env0003": {
+      "images": 5,
+      "hits": 0,
+      "visible_target_top1_percent": 0.0
+    }
+  },
+  "peak_gt_categories": {
+    "book": 54,
+    "fruit": 2,
+    "packaged_food": 18,
+    "toy": 6
+  },
+  "visible_query_images": 80,
+  "fully_hidden_query_images": 0,
+  "definition": "First row-major argmax of raw bilinear640x480 probability, no ROI/workspace/GT masking; exact-query native visible GT hit.",
+  "interpretation": "Visible target peak diagnostic on one unseen instance in a seen category. Miss does not establish amodal miss; hidden-query portions unobserved. Not amodal IoU, grasp success, or full known16 test performance.",
+  "aggregation": "Equal image hit mean; 16 layouts x5 correlated camera views, not80 independent layouts.",
+  "amodal_iou_evaluated": false,
+  "no_model_execution": true,
+  "checkpoint": {
+    "path": "<DEV_ROOT>/outputs/fusion_training_20261026/runs/soc/best.pt",
+    "sha256": "ae5a458fbc3c80c965219388c7006e58be560d2e43d16d7dda4fa10935e75ea1",
+    "epoch": 10
+  },
+  "protocol_sha256": "4a1a96484605deefbbe4fdcb56d9253c191ae51594e087ab4e980ac8d3c9abf7",
+  "prediction_completion_sha256": "b17025971a1796d4a249dbbd678ea3752264c11117ef1b1d7bc381413f6c8aa0",
+  "prediction_sha256": "b8724db444f56d17166db5c47103bf8c30be54688722c7acd69d006165bf9db4",
+  "similarity_manifest_sha256": "3f4b0fec6bb3798ef2894fa2be900e63b31eeaef3db6d75f30b8070ce201eca1",
+  "common_stream_protocol_sha256": "cfd69597f6b7aa02ff57118dc7f840830e0cad7698de748c5b044e45c8d95a0e",
+  "per_image_csv": {
+    "path": "<DEV_ROOT>/outputs/fusion_external_check_20261027/evaluation/per_image.csv",
+    "sha256": "3f2448e062e8ecb231aa6197f076d856c75a5cb07422ad7f46ca8fddc4878cb7",
+    "rows": 80
+  },
+  "evaluator_sha256": "6b96835bb5fa6cf7395f6112b11a7875349443ae21e4da07a034138ef191bab0",
+  "public_source": {
+    "path": "<DEV_ROOT>/outputs/fusion_external_check_20261027/evaluation/evaluation.json",
+    "sha256": "c87b430e292406875daf3deeb91dd0db60ae85a249ac34fe6a91a6f9b9092e18",
+    "availability": "LOCAL original; public aggregate report"
+  }
+}
