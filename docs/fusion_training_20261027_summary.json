@@ -1,0 +1,114 @@
+{
+  "schema": "public_fusion_training_snapshot_v1",
+  "recorded_at_kst": "2026-10-27T16:43:01.515058+09:00",
+  "status": "SOC training stopped; SO training ongoing; whole-test evaluation pending",
+  "split": {
+    "train_images": 192000,
+    "validation_images": 24000,
+    "test_images": 24000
+  },
+  "frozen_stream_checkpoints": {
+    "similarity": {
+      "epoch": 20,
+      "sha256": "62685f03548f310af19079006015c638815b6ff9ce906295ef134c0bdbd5dea2"
+    },
+    "occlusion": {
+      "epoch": 12,
+      "sha256": "441e40b4b7fc9e3d40e4d3ec1f3fd54278b4252f2e3fc5ee4444bfcf2e03dd5a"
+    },
+    "complexity": {
+      "epoch": 19,
+      "sha256": "fb32dad4bfe2948477257a06105c56f2b1f0963467329aab2d09b70e3e643385"
+    }
+  },
+  "shared_scene_dino": true,
+  "frozen_policy": "All existing S/O/C parameters AND buffers eval/no_grad; pretrained DINO/SigLIP/MultiMAE fixed",
+  "architecture": "Concat F64 per stream -> Conv1x1 to64/GN8/GELU -> two Conv3x3 64/GN8/GELU -> Conv1x1 to1 logits",
+  "loss": "Unweighted BCEWithLogits mean over all pooled target cells; no Dice/GT smoothing",
+  "gt": "Existing amodal binary native640x480 /255, exact avg16 to30x40; no regenerated dataset",
+  "training": {
+    "seed": 0,
+    "batch_size": 16,
+    "precision": "float32",
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "optimizer": "AdamW",
+    "max_epochs": 20,
+    "minimum_epochs": 3,
+    "patience": 3,
+    "checkpoint_rule": "Independent strict minimum full validation BCE for each fusion head"
+  },
+  "variants": {
+    "soc": {
+      "epoch": 13,
+      "best_epoch": 10,
+      "best": 0.012314409569526712,
+      "stopped": true,
+      "updates": 156000,
+      "epochs": 13
+    },
+    "so": {
+      "epoch": 16,
+      "best_epoch": 15,
+      "best": 0.012817045819635192,
+      "stopped": false,
+      "updates": 192000,
+      "epochs": 16
+    }
+  },
+  "ongoing_status": {
+    "updated_unix": 1793086952.629478,
+    "phase": "train",
+    "epoch": 17,
+    "images": 165248,
+    "total_images": 192000,
+    "active_variants": [
+      "so"
+    ]
+  },
+  "selected_soc_checkpoint": {
+    "path": "<DEV_ROOT>/outputs/fusion_training_20261026/runs/soc/best.pt",
+    "sha256": "ae5a458fbc3c80c965219388c7006e58be560d2e43d16d7dda4fa10935e75ea1",
+    "epoch": 10,
+    "validation_loss": 0.012314409569526712
+  },
+  "qualitative_examples": [
+    "book_1_scene00001_env0000_center",
+    "fruit_1_scene00003_env0000_left",
+    "packaged_food_1_scene00017_env0000_right",
+    "toy_1_scene00001_env0000_top",
+    "toy_4_scene00007_env0000_bottom"
+  ],
+  "qualitative_prediction_seconds": 0.5618336941115558,
+  "formal_whole_test_completed": false,
+  "fusion_test_accuracy_percent": null,
+  "fusion_zero_shot_evaluated": false,
+  "interpretation": "Five selected examples are qualitative; validation BCE is not accuracy; no SOC versus SO test conclusion yet.",
+  "sources": {
+    "protocol.json": {
+      "path": "outputs/fusion_publication_20261027/source_evidence/protocol.json",
+      "sha256": "4b66d1613d66e8d11d3db5a529e8930de746688231980a07a632a5ca6f1aa4fe",
+      "availability": "LOCAL"
+    },
+    "status.json": {
+      "path": "outputs/fusion_publication_20261027/source_evidence/status.json",
+      "sha256": "b5de48de3265f4fcfe8c7522220861af9f9d34a937fa4210ca2e3316d3f81be2",
+      "availability": "LOCAL"
+    },
+    "runs/soc/history.json": {
+      "path": "outputs/fusion_publication_20261027/source_evidence/runs/soc/history.json",
+      "sha256": "34f555dd13c22628d568d4744dcf3452d3f70f299ac4424457fe9f320539a408",
+      "availability": "LOCAL"
+    },
+    "runs/so/history.json": {
+      "path": "outputs/fusion_publication_20261027/source_evidence/runs/so/history.json",
+      "sha256": "a587e33646d9a6601f374dcad2b424fb63b8ad97ae46d249d0203c4b02851052",
+      "availability": "LOCAL"
+    }
+  },
+  "example_provenance": {
+    "path": "outputs/fusion_examples_20261027/comparison_provenance.json",
+    "sha256": "2450400bf3c70a80462aae58497efbbd120ed853226f4761367c097bdb64cedc",
+    "availability": "LOCAL"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "schema": "framework_layout_20261026_v1",
+  "schema": "framework_layout_20261027_v1",
   "path_base": "repository root",
   "coordinate_system": {
     "canvas_wh": [
@@ -18,7 +18,7 @@
   "sample_id": "book_1_scene00001_env0000_center",
   "purpose": "Recommended composition for redrawing; not exact bounding boxes for every element of existing SVG",
   "guide": "framework_guide.md",
-  "asset_manifest": "img/framework_assets_20261026.json",
+  "asset_manifest": "img/framework_assets_20261027.json",
   "current_figure": "img/overall_architecture.svg",
   "nodes": [
     {
@@ -80,10 +80,10 @@
         405,
         830
       ],
-      "label": "Proposed fusion: not trained",
+      "label": "SOC best10; full test pending",
       "kind": "panel",
-      "status": "planned",
-      "border": "gold dashed"
+      "status": "implemented",
+      "border": "gold solid"
     },
     {
       "id": "rgb",
@@ -136,7 +136,9 @@
       "label": "DINOv3 RGB / target appearance",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "frozen"
+      "weights": "frozen during fusion training; includes previously learned stream parameters",
+      "shared_scene_forward_group": "scene_dino_2_5_8_11",
+      "note": "Logical consumer of one shared scene DINO forward; target reference preparation is separate."
     },
     {
       "id": "s_siglip",
@@ -149,7 +151,7 @@
       "label": "SigLIP reference image + text",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "frozen"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "s_query",
@@ -162,7 +164,7 @@
       "label": "Linear1152→768 ×4 + appearance",
       "kind": "query",
       "status": "implemented",
-      "weights": "trainable"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "s_matching",
@@ -175,7 +177,7 @@
       "label": "Matching1537→64 ×4; concat256→64",
       "kind": "module",
       "status": "implemented",
-      "weights": "trainable"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "o_dino",
@@ -188,7 +190,9 @@
       "label": "DINOv3 scene / full target RGB",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "frozen"
+      "weights": "frozen during fusion training; includes previously learned stream parameters",
+      "shared_scene_forward_group": "scene_dino_2_5_8_11",
+      "note": "Logical consumer of one shared scene DINO forward; target reference preparation is separate."
     },
     {
       "id": "o_depth",
@@ -201,7 +205,7 @@
       "label": "Depth + valid → ResNet18",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "trainable; weights=None at initialization"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "o_film",
@@ -214,7 +218,7 @@
       "label": "Geometry68 → MLP → global FiLM",
       "kind": "module",
       "status": "implemented",
-      "weights": "trainable MLP; deterministic geometry"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "o_matching",
@@ -227,7 +231,7 @@
       "label": "Matching1793→64 ×4; concat256→64",
       "kind": "module",
       "status": "implemented",
-      "weights": "trainable"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "c_dino",
@@ -240,7 +244,9 @@
       "label": "DINO layer11 → projection32",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "frozen DINO; trainable projection"
+      "weights": "frozen during fusion training; includes previously learned stream parameters",
+      "shared_scene_forward_group": "scene_dino_2_5_8_11",
+      "note": "Logical consumer of one shared scene DINO forward; target reference preparation is separate."
     },
     {
       "id": "c_rgb",
@@ -253,7 +259,7 @@
       "label": "RGB CNN →32",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "trainable"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "c_depth",
@@ -266,7 +272,7 @@
       "label": "MultiMAE depth → projection32",
       "kind": "encoder",
       "status": "implemented",
-      "weights": "frozen depth adapter/encoder; trainable projection"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "c_fusion",
@@ -279,7 +285,7 @@
       "label": "Concat96 → CNN dilation1/2/4 →64",
       "kind": "module",
       "status": "implemented",
-      "weights": "trainable"
+      "weights": "frozen during fusion training; includes previously learned stream parameters"
     },
     {
       "id": "concat",
@@ -291,7 +297,7 @@
       ],
       "label": "Concat64+64+64=192",
       "kind": "module",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "id": "fusion_head",
@@ -301,23 +307,31 @@
         225,
         93
       ],
-      "label": "Fusion CNN: details pending",
+      "label": "1x1:192→64 GN8 GELU; (3x3:64→64 GN8 GELU)x2; 1x1:64→1",
       "kind": "module",
-      "status": "planned",
-      "weights": "proposed trainable fusion only"
+      "status": "implemented",
+      "weights": "trainable fusion only"
     },
     {
       "id": "final_output",
       "box_xywh": [
-        1640,
+        1688,
         554,
-        225,
+        128,
         96
       ],
-      "label": "Target-location map: not yet predicted",
-      "kind": "placeholder",
-      "status": "planned",
-      "asset": null
+      "label": "Actual SOC best10 probability 1×30×40 (enlarged)",
+      "kind": "prediction",
+      "status": "implemented",
+      "asset": "img/fusion_20261027_book_1_scene00001_env0000_center_prediction.png",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ]
     },
     {
       "id": "amodal_gt",
@@ -611,8 +625,8 @@
       "source": "f_s",
       "target": "concat",
       "label": "64-channel feature; before map head",
-      "status": "planned",
-      "style": "dashed"
+      "status": "implemented",
+      "style": "solid"
     },
     {
       "source": "f_o",
@@ -625,8 +639,8 @@
       "source": "f_o",
       "target": "concat",
       "label": "64-channel feature; before map head",
-      "status": "planned",
-      "style": "dashed"
+      "status": "implemented",
+      "style": "solid"
     },
     {
       "source": "f_c",
@@ -639,28 +653,28 @@
       "source": "f_c",
       "target": "concat",
       "label": "64-channel feature; before map head",
-      "status": "planned",
-      "style": "dashed"
+      "status": "implemented",
+      "style": "solid"
     },
     {
       "source": "concat",
       "target": "fusion_head",
       "label": "192×30×40",
-      "status": "planned",
-      "style": "dashed"
+      "status": "implemented",
+      "style": "solid"
     },
     {
       "source": "fusion_head",
       "target": "final_output",
-      "label": "Final architecture / loss / resolution pending",
-      "status": "planned",
-      "style": "dashed"
+      "label": "logits → sigmoid 30×40 → bilinear display640×480",
+      "status": "implemented",
+      "style": "solid"
     },
     {
       "source": "amodal_gt",
       "target": "final_output",
-      "label": "Supervision only; not inference input",
-      "status": "planned",
+      "label": "avg16 occupancy → BCEWithLogits; supervision only",
+      "status": "implemented",
       "style": "dashed"
     }
   ],
@@ -683,15 +697,32 @@
       3.5
     ],
     "depth_near": "white",
-    "depth_far": "black"
+    "depth_far": "black",
+    "fusion": [
+      0,
+      1
+    ]
   },
   "constraints": [
     "All image assets in the framework use the same sample_id.",
     "All maps remain grayscale; panel colors only identify streams.",
-    "Features feed proposed concat; map outputs are separate supervision branches.",
-    "Fusion prediction does not exist. Do not put amodal GT in the prediction placeholder.",
+    "Features feed implemented concat; map outputs are separate supervision branches.",
     "DINO uses RGB. MultiMAE encodes observed depth. Complexity has no target input.",
-    "Shared DINO execution and attention/Transformer fusion are not implemented.",
-    "Reference thumbnail is display only; actual target preprocessing differs between S and O."
-  ]
+    "Reference thumbnail is display only; actual target preprocessing differs between S and O.",
+    "Actual fusion prediction and amodal GT are separate assets.",
+    "One shared scene DINO forward is implemented; no attention/Transformer fusion.",
+    "All encoders and S/O/C weights and buffers are frozen; only fusion CNN is trainable.",
+    "SOC best10 qualitative examples do not establish full-test accuracy or SO/SOC advantage."
+  ],
+  "training_snapshot": {
+    "date": "2026-10-27",
+    "soc_epochs": 13,
+    "soc_best_epoch": 10,
+    "soc_best_validation_bce": 0.012314409569526712,
+    "soc_stopped": true,
+    "so_status": "epoch17_in_progress",
+    "whole_test_complete": false,
+    "fusion_accuracy_percent": null
+  },
+  "shared_scene_dino_forward": true
 }

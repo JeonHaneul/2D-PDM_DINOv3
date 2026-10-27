@@ -1,0 +1,1511 @@
+{
+  "schema": "public_current_stream_external_evaluation_v1",
+  "date": "2026-10-27",
+  "status": "complete",
+  "models": {
+    "similarity": {
+      "epoch": 20,
+      "sha256": "62685f03548f310af19079006015c638815b6ff9ce906295ef134c0bdbd5dea2"
+    },
+    "occlusion": {
+      "epoch": 12,
+      "sha256": "441e40b4b7fc9e3d40e4d3ec1f3fd54278b4252f2e3fc5ee4444bfcf2e03dd5a"
+    },
+    "complexity": {
+      "epoch": 19,
+      "sha256": "fb32dad4bfe2948477257a06105c56f2b1f0963467329aab2d09b70e3e643385"
+    }
+  },
+  "scope": {
+    "query": "packaged_food_5 / World1",
+    "unseen_asset_count": 1,
+    "known_assets_per_layout": 15,
+    "layouts": 16,
+    "cameras": 5,
+    "images": 80,
+    "visible_query_images": 80,
+    "fully_hidden_query_images": 0,
+    "category": "seen packaged_food category; unseen instance in our head training",
+    "foundation_pretraining_unseen_claim": false,
+    "training_on_external_data": false,
+    "similarity_text": "a photo of a packaged food, a type of packaged food",
+    "reference": "Standalone synthetic center RGB/mask, not the scene target mask"
+  },
+  "common_roi": "Current C valid & foreground_center & O pooled_coverage>=.5; same ROI for all3streams",
+  "metric": {
+    "name": "top20_region_overlap_percent",
+    "k": "ceil(.2*N)",
+    "gt_ties": "credit for strictly greater GT + min(credit at GT cutoff, k-number strictly greater)",
+    "prediction_ties": "uniform fractional top-k selection using existing top_weights",
+    "constant_gt": "Undefined rank metric, report excluded denominator",
+    "aggregation": "Equal image means; five correlated views per physical scene; per camera and scene outputs"
+  },
+  "aggregation": "Equal image means; per-scene aggregates contain five correlated views, not five independent trials.",
+  "streams": {
+    "similarity": {
+      "overall": {
+        "images": 80,
+        "empty_roi_images": 0,
+        "constant_gt_images": 0,
+        "metric_valid_images": {
+          "top20_region_overlap_percent": 80,
+          "mae": 80,
+          "optimal_gt_mean": 80,
+          "selected_gt_mean": 80,
+          "top20_regret": 80,
+          "original_domain_mae": 80,
+          "visible_query_top1_hit_percent": 80
+        },
+        "top20_region_overlap_percent": 90.1586496293276,
+        "mae": 0.025736431647206313,
+        "optimal_gt_mean": 0.6532791312859715,
+        "selected_gt_mean": 0.6315629542319622,
+        "top20_regret": 0.021716177054009318,
+        "original_domain_mae": 0.004213458060364254,
+        "visible_query_top1_hit_percent": 2.5
+      },
+      "per_camera": {
+        "bottom": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 16
+          },
+          "top20_region_overlap_percent": 88.89890771552035,
+          "mae": 0.028363225064924946,
+          "optimal_gt_mean": 0.6633856523684092,
+          "selected_gt_mean": 0.6376095720270518,
+          "top20_regret": 0.02577608034135741,
+          "original_domain_mae": 0.0044451834402390545,
+          "visible_query_top1_hit_percent": 6.25
+        },
+        "center": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 16
+          },
+          "top20_region_overlap_percent": 92.00409521835215,
+          "mae": 0.024502849736915668,
+          "optimal_gt_mean": 0.6533450536236185,
+          "selected_gt_mean": 0.6352247078378318,
+          "top20_regret": 0.01812034578578672,
+          "original_domain_mae": 0.00452142521961006,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "left": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 16
+          },
+          "top20_region_overlap_percent": 90.03256508086017,
+          "mae": 0.024881681801289413,
+          "optimal_gt_mean": 0.6515894424263646,
+          "selected_gt_mean": 0.630735672345398,
+          "top20_regret": 0.020853770080966564,
+          "original_domain_mae": 0.004066419736379733,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "right": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 16
+          },
+          "top20_region_overlap_percent": 87.28485590609253,
+          "mae": 0.02723369252385753,
+          "optimal_gt_mean": 0.6457730245310361,
+          "selected_gt_mean": 0.619779141882205,
+          "top20_regret": 0.025993882648831224,
+          "original_domain_mae": 0.004144312143540975,
+          "visible_query_top1_hit_percent": 6.25
+        },
+        "top": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 16
+          },
+          "top20_region_overlap_percent": 92.57282422581285,
+          "mae": 0.02370070910904403,
+          "optimal_gt_mean": 0.652302483480429,
+          "selected_gt_mean": 0.6344656770673244,
+          "top20_regret": 0.017836806413104655,
+          "original_domain_mae": 0.00388994976205145,
+          "visible_query_top1_hit_percent": 0.0
+        }
+      },
+      "per_scene": {
+        "external16/book_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 86.14154662541759,
+          "mae": 0.02833820256204834,
+          "optimal_gt_mean": 0.7752283465088764,
+          "selected_gt_mean": 0.7426616867401568,
+          "top20_regret": 0.03256665976871953,
+          "original_domain_mae": 0.00442552288288166,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/book_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 90.63283356942979,
+          "mae": 0.022194943349263856,
+          "optimal_gt_mean": 0.7340782195569087,
+          "selected_gt_mean": 0.7212783689273916,
+          "top20_regret": 0.012799850629517051,
+          "original_domain_mae": 0.003248742339054987,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/book_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 89.86654016445286,
+          "mae": 0.03583888038956605,
+          "optimal_gt_mean": 0.7025915668482938,
+          "selected_gt_mean": 0.6704178920053764,
+          "top20_regret": 0.032173674842917485,
+          "original_domain_mae": 0.005454766298184112,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/book_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 86.57765567765568,
+          "mae": 0.024015585612630765,
+          "optimal_gt_mean": 0.7024586693934906,
+          "selected_gt_mean": 0.6734564440446895,
+          "top20_regret": 0.029002225348800925,
+          "original_domain_mae": 0.0033515990200074356,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/fruit_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 91.58667044530422,
+          "mae": 0.026445253962635668,
+          "optimal_gt_mean": 0.6618014727318583,
+          "selected_gt_mean": 0.6416549726148378,
+          "top20_regret": 0.020146500117020395,
+          "original_domain_mae": 0.0045254776808539374,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/fruit_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 85.50590603315854,
+          "mae": 0.015998018651346972,
+          "optimal_gt_mean": 0.4390367376308356,
+          "selected_gt_mean": 0.4175274964331178,
+          "top20_regret": 0.0215092411977178,
+          "original_domain_mae": 0.0022488487125350448,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/fruit_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 96.04193192428485,
+          "mae": 0.011925071731635505,
+          "optimal_gt_mean": 0.518816070831846,
+          "selected_gt_mean": 0.5156912466439826,
+          "top20_regret": 0.0031248241878635286,
+          "original_domain_mae": 0.0021884323199716925,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/fruit_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 93.8199715370019,
+          "mae": 0.02579614549916196,
+          "optimal_gt_mean": 0.6137384080943131,
+          "selected_gt_mean": 0.603261003979408,
+          "top20_regret": 0.01047740411490512,
+          "original_domain_mae": 0.004252249032740858,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/packaged_food_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 92.08886402222565,
+          "mae": 0.027724817781537292,
+          "optimal_gt_mean": 0.72762967216601,
+          "selected_gt_mean": 0.7086017480426335,
+          "top20_regret": 0.019027924123376595,
+          "original_domain_mae": 0.004580757680653225,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/packaged_food_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 86.64862019700729,
+          "mae": 0.02846499167080573,
+          "optimal_gt_mean": 0.7335114563795057,
+          "selected_gt_mean": 0.6963169721187761,
+          "top20_regret": 0.0371944842607296,
+          "original_domain_mae": 0.004618193882367928,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/packaged_food_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 94.23003941030507,
+          "mae": 0.018668479518099086,
+          "optimal_gt_mean": 0.433430702351978,
+          "selected_gt_mean": 0.42324071949535363,
+          "top20_regret": 0.010189982856624414,
+          "original_domain_mae": 0.0033159434345093166,
+          "visible_query_top1_hit_percent": 40.0
+        },
+        "external16/packaged_food_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 93.20103425985778,
+          "mae": 0.025850754874879672,
+          "optimal_gt_mean": 0.632135256429706,
+          "selected_gt_mean": 0.6210369484357422,
+          "top20_regret": 0.011098307993963807,
+          "original_domain_mae": 0.004498339498182112,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/toy_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 85.40999237223494,
+          "mae": 0.030267648277853547,
+          "optimal_gt_mean": 0.7275294890360137,
+          "selected_gt_mean": 0.6875999799272928,
+          "top20_regret": 0.0399295091087208,
+          "original_domain_mae": 0.005660753380046115,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/toy_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 94.91293020704785,
+          "mae": 0.024417406582492973,
+          "optimal_gt_mean": 0.5725224392264612,
+          "selected_gt_mean": 0.56771256424835,
+          "top20_regret": 0.004809874978111117,
+          "original_domain_mae": 0.004802692292111515,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/toy_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 91.73496873496875,
+          "mae": 0.03165709229099393,
+          "optimal_gt_mean": 0.6966583740427381,
+          "selected_gt_mean": 0.6711850092564712,
+          "top20_regret": 0.025473364786266873,
+          "original_domain_mae": 0.0047333626543477345,
+          "visible_query_top1_hit_percent": 0.0
+        },
+        "external16/toy_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 5
+          },
+          "top20_region_overlap_percent": 84.1388888888889,
+          "mae": 0.03417961360034973,
+          "optimal_gt_mean": 0.7812992193467088,
+          "selected_gt_mean": 0.7433642147978148,
+          "top20_regret": 0.037935004548894,
+          "original_domain_mae": 0.005509647857380403,
+          "visible_query_top1_hit_percent": 0.0
+        }
+      }
+    },
+    "occlusion": {
+      "overall": {
+        "images": 80,
+        "empty_roi_images": 0,
+        "constant_gt_images": 0,
+        "metric_valid_images": {
+          "top20_region_overlap_percent": 80,
+          "mae": 80,
+          "optimal_gt_mean": 80,
+          "selected_gt_mean": 80,
+          "top20_regret": 80,
+          "original_domain_mae": 80,
+          "visible_query_top1_hit_percent": 0
+        },
+        "top20_region_overlap_percent": 95.25317857086377,
+        "mae": 0.02754470888499213,
+        "optimal_gt_mean": 0.6046308059541703,
+        "selected_gt_mean": 0.603318471409804,
+        "top20_regret": 0.0013123345443662366,
+        "original_domain_mae": 0.011068755103042349,
+        "visible_query_top1_hit_percent": null
+      },
+      "per_camera": {
+        "bottom": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 96.1039162285901,
+          "mae": 0.028302909992131725,
+          "optimal_gt_mean": 0.6014081438726434,
+          "selected_gt_mean": 0.6002326124358763,
+          "top20_regret": 0.0011755314367670189,
+          "original_domain_mae": 0.011601751728449017,
+          "visible_query_top1_hit_percent": null
+        },
+        "center": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.61093492783885,
+          "mae": 0.02894317687792803,
+          "optimal_gt_mean": 0.5995634305850247,
+          "selected_gt_mean": 0.5976932342026724,
+          "top20_regret": 0.0018701963823522447,
+          "original_domain_mae": 0.010929797572316602,
+          "visible_query_top1_hit_percent": null
+        },
+        "left": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.59771817271368,
+          "mae": 0.027093418127358986,
+          "optimal_gt_mean": 0.6104492231945875,
+          "selected_gt_mean": 0.6092094168412122,
+          "top20_regret": 0.0012398063533752314,
+          "original_domain_mae": 0.011123647273052484,
+          "visible_query_top1_hit_percent": null
+        },
+        "right": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.96132734579865,
+          "mae": 0.02710602155013459,
+          "optimal_gt_mean": 0.604028196803341,
+          "selected_gt_mean": 0.6026456890541363,
+          "top20_regret": 0.0013825077492047207,
+          "original_domain_mae": 0.010863956325920299,
+          "visible_query_top1_hit_percent": null
+        },
+        "top": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 95.99199617937758,
+          "mae": 0.026278017877407342,
+          "optimal_gt_mean": 0.607705035315255,
+          "selected_gt_mean": 0.6068114045151229,
+          "top20_regret": 0.000893630800131967,
+          "original_domain_mae": 0.010824622615473345,
+          "visible_query_top1_hit_percent": null
+        }
+      },
+      "per_scene": {
+        "external16/book_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.47724318692062,
+          "mae": 0.019954541373019705,
+          "optimal_gt_mean": 0.36827438979290594,
+          "selected_gt_mean": 0.3666380135865279,
+          "top20_regret": 0.0016363762063780207,
+          "original_domain_mae": 0.00730628315359354,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/book_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 96.48156070847952,
+          "mae": 0.03155386030951766,
+          "optimal_gt_mean": 0.6894468002669519,
+          "selected_gt_mean": 0.6882743255489558,
+          "top20_regret": 0.0011724747179959528,
+          "original_domain_mae": 0.010411831736564636,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/book_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 97.38565103460739,
+          "mae": 0.030555393951908684,
+          "optimal_gt_mean": 0.8708709171313931,
+          "selected_gt_mean": 0.8703592181872513,
+          "top20_regret": 0.0005116989441418696,
+          "original_domain_mae": 0.011197412386536598,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/book_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 95.36886446886447,
+          "mae": 0.03895057200141038,
+          "optimal_gt_mean": 0.8746277560338432,
+          "selected_gt_mean": 0.8720470713047318,
+          "top20_regret": 0.002580684729111482,
+          "original_domain_mae": 0.012305588647723197,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.83789234168741,
+          "mae": 0.02092380276367463,
+          "optimal_gt_mean": 0.3122318812374618,
+          "selected_gt_mean": 0.311164314172974,
+          "top20_regret": 0.00106756706448774,
+          "original_domain_mae": 0.008965663611888885,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 95.40261666401821,
+          "mae": 0.03256635889555809,
+          "optimal_gt_mean": 0.8156563244366571,
+          "selected_gt_mean": 0.8146981696912284,
+          "top20_regret": 0.0009581547454287964,
+          "original_domain_mae": 0.012419374659657478,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 96.15397674221205,
+          "mae": 0.032966847593588186,
+          "optimal_gt_mean": 0.4973206247007712,
+          "selected_gt_mean": 0.4964041315815352,
+          "top20_regret": 0.0009164931192360614,
+          "original_domain_mae": 0.014102819189429284,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.04249475681614,
+          "mae": 0.025247141016572265,
+          "optimal_gt_mean": 0.7147096710678602,
+          "selected_gt_mean": 0.7121455887714649,
+          "top20_regret": 0.002564082296395309,
+          "original_domain_mae": 0.010713938437402249,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.55098523434687,
+          "mae": 0.02929084136250949,
+          "optimal_gt_mean": 0.7872983857435415,
+          "selected_gt_mean": 0.7855172982511942,
+          "top20_regret": 0.0017810874923472441,
+          "original_domain_mae": 0.012379303760826587,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 95.22069328520942,
+          "mae": 0.02950517553118004,
+          "optimal_gt_mean": 0.5927209439573633,
+          "selected_gt_mean": 0.5915163714412065,
+          "top20_regret": 0.0012045725161567323,
+          "original_domain_mae": 0.011644195578992367,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 91.34711588222025,
+          "mae": 0.024689380941294563,
+          "optimal_gt_mean": 0.4640968949082106,
+          "selected_gt_mean": 0.46198183345231436,
+          "top20_regret": 0.0021150614558963165,
+          "original_domain_mae": 0.011014255695044994,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 96.06679594914888,
+          "mae": 0.03384381684968997,
+          "optimal_gt_mean": 0.6350847852192827,
+          "selected_gt_mean": 0.634168739239349,
+          "top20_regret": 0.0009160459799336218,
+          "original_domain_mae": 0.014466208778321743,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 97.5267558528428,
+          "mae": 0.02623481352675444,
+          "optimal_gt_mean": 0.36662249311991874,
+          "selected_gt_mean": 0.3663112815012274,
+          "top20_regret": 0.0003112116186913871,
+          "original_domain_mae": 0.012914044223725796,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.3246949129302,
+          "mae": 0.02346090777327236,
+          "optimal_gt_mean": 0.4130400456129548,
+          "selected_gt_mean": 0.41197290544841375,
+          "top20_regret": 0.0010671401645410473,
+          "original_domain_mae": 0.011451026424765587,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 95.22462722462724,
+          "mae": 0.02251187304240837,
+          "optimal_gt_mean": 0.8526103265503956,
+          "selected_gt_mean": 0.8514188411603929,
+          "top20_regret": 0.0011914853900026,
+          "original_domain_mae": 0.00851800125092268,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 95.6388888888889,
+          "mae": 0.01846001522751529,
+          "optimal_gt_mean": 0.41948065548721286,
+          "selected_gt_mean": 0.4184774392180973,
+          "top20_regret": 0.0010032162691156032,
+          "original_domain_mae": 0.007290134113281966,
+          "visible_query_top1_hit_percent": null
+        }
+      }
+    },
+    "complexity": {
+      "overall": {
+        "images": 80,
+        "empty_roi_images": 0,
+        "constant_gt_images": 0,
+        "metric_valid_images": {
+          "top20_region_overlap_percent": 80,
+          "mae": 80,
+          "optimal_gt_mean": 80,
+          "selected_gt_mean": 80,
+          "top20_regret": 80,
+          "original_domain_mae": 80,
+          "visible_query_top1_hit_percent": 0
+        },
+        "top20_region_overlap_percent": 90.84907180351351,
+        "mae": 0.10136382186964672,
+        "optimal_gt_mean": 2.5175797325590685,
+        "selected_gt_mean": 2.495945578007116,
+        "top20_regret": 0.02163415455195239,
+        "original_domain_mae": 0.10136382186964672,
+        "visible_query_top1_hit_percent": null
+      },
+      "per_camera": {
+        "bottom": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 91.15713652731155,
+          "mae": 0.10628528450227578,
+          "optimal_gt_mean": 2.5428304224378078,
+          "selected_gt_mean": 2.5197074740759593,
+          "top20_regret": 0.023122948361848944,
+          "original_domain_mae": 0.10628528450227578,
+          "visible_query_top1_hit_percent": null
+        },
+        "center": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 91.53293370320746,
+          "mae": 0.08841923130352172,
+          "optimal_gt_mean": 2.3907721236274737,
+          "selected_gt_mean": 2.3733163531593715,
+          "top20_regret": 0.017455770468102455,
+          "original_domain_mae": 0.08841923130352172,
+          "visible_query_top1_hit_percent": null
+        },
+        "left": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 90.69931439637158,
+          "mae": 0.10014014000982172,
+          "optimal_gt_mean": 2.5438916421392936,
+          "selected_gt_mean": 2.5193567829300387,
+          "top20_regret": 0.024534859209254814,
+          "original_domain_mae": 0.10014014000982172,
+          "visible_query_top1_hit_percent": null
+        },
+        "right": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 90.75862199256554,
+          "mae": 0.10753403141404658,
+          "optimal_gt_mean": 2.6160309069658836,
+          "selected_gt_mean": 2.592683775889947,
+          "top20_regret": 0.023347131075937097,
+          "original_domain_mae": 0.10753403141404658,
+          "visible_query_top1_hit_percent": null
+        },
+        "top": {
+          "images": 16,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 16,
+            "mae": 16,
+            "optimal_gt_mean": 16,
+            "selected_gt_mean": 16,
+            "top20_regret": 16,
+            "original_domain_mae": 16,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 90.09735239811141,
+          "mae": 0.10444042211856783,
+          "optimal_gt_mean": 2.4943735676248826,
+          "selected_gt_mean": 2.4746635039802642,
+          "top20_regret": 0.019710063644618636,
+          "original_domain_mae": 0.10444042211856783,
+          "visible_query_top1_hit_percent": null
+        }
+      },
+      "per_scene": {
+        "external16/book_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 87.82056653024395,
+          "mae": 0.11257562721022545,
+          "optimal_gt_mean": 2.9578199342435987,
+          "selected_gt_mean": 2.9296918301117088,
+          "top20_regret": 0.028128104131889486,
+          "original_domain_mae": 0.11257562721022545,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/book_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 86.35764968356736,
+          "mae": 0.14712432162157157,
+          "optimal_gt_mean": 2.959511724083506,
+          "selected_gt_mean": 2.9166936442684808,
+          "top20_regret": 0.04281807981502537,
+          "original_domain_mae": 0.14712432162157157,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/book_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 92.82822806541972,
+          "mae": 0.08496304749670155,
+          "optimal_gt_mean": 2.1321393660794774,
+          "selected_gt_mean": 2.1232650583083577,
+          "top20_regret": 0.008874307771119838,
+          "original_domain_mae": 0.08496304749670155,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/book_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 86.68021978021979,
+          "mae": 0.12322782072517546,
+          "optimal_gt_mean": 2.6158756073936003,
+          "selected_gt_mean": 2.570231933095953,
+          "top20_regret": 0.04564367429764724,
+          "original_domain_mae": 0.12322782072517546,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.8065830437747,
+          "mae": 0.1075741400381109,
+          "optimal_gt_mean": 2.9131246505092423,
+          "selected_gt_mean": 2.9039085977128716,
+          "top20_regret": 0.009216052796370545,
+          "original_domain_mae": 0.1075741400381109,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 93.45187774776208,
+          "mae": 0.10143743006284353,
+          "optimal_gt_mean": 2.965070892942489,
+          "selected_gt_mean": 2.9457014713757643,
+          "top20_regret": 0.01936942156672421,
+          "original_domain_mae": 0.10143743006284353,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.86546133604956,
+          "mae": 0.10760424614366397,
+          "optimal_gt_mean": 2.9096329531046505,
+          "selected_gt_mean": 2.8966402307718133,
+          "top20_regret": 0.01299272233283677,
+          "original_domain_mae": 0.10760424614366397,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/fruit_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 94.07426595425946,
+          "mae": 0.08264575310446357,
+          "optimal_gt_mean": 2.4479915649526234,
+          "selected_gt_mean": 2.4409257220468015,
+          "top20_regret": 0.007065842905822528,
+          "original_domain_mae": 0.08264575310446357,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 88.06795673200597,
+          "mae": 0.09895616541025343,
+          "optimal_gt_mean": 2.0670072079328112,
+          "selected_gt_mean": 2.0406492638450415,
+          "top20_regret": 0.02635794408776957,
+          "original_domain_mae": 0.09895616541025343,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 89.24430408301376,
+          "mae": 0.11452973119068073,
+          "optimal_gt_mean": 2.493168219791085,
+          "selected_gt_mean": 2.458896552884441,
+          "top20_regret": 0.03427166690664354,
+          "original_domain_mae": 0.11452973119068073,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 88.78641914695046,
+          "mae": 0.07230277017748507,
+          "optimal_gt_mean": 1.6865308272423252,
+          "selected_gt_mean": 1.6690600192827412,
+          "top20_regret": 0.017470807959584313,
+          "original_domain_mae": 0.07230277017748507,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/packaged_food_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 93.03339797457444,
+          "mae": 0.10725705526093128,
+          "optimal_gt_mean": 2.513041982074874,
+          "selected_gt_mean": 2.5013224159225103,
+          "top20_regret": 0.011719566152363381,
+          "original_domain_mae": 0.10725705526093128,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0000": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 88.07979815760136,
+          "mae": 0.09707523196063224,
+          "optimal_gt_mean": 2.2447598646511837,
+          "selected_gt_mean": 2.2203108050924216,
+          "top20_regret": 0.02444905955876253,
+          "original_domain_mae": 0.09707523196063224,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0001": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 90.6595365418895,
+          "mae": 0.07050294663590326,
+          "optimal_gt_mean": 1.7403170290199896,
+          "selected_gt_mean": 1.7276405288573895,
+          "top20_regret": 0.012676500162600312,
+          "original_domain_mae": 0.07050294663590326,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0002": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 92.52332852332852,
+          "mae": 0.1034213121012328,
+          "optimal_gt_mean": 3.042300937043869,
+          "selected_gt_mean": 3.015788058662369,
+          "top20_regret": 0.02651287838150056,
+          "original_domain_mae": 0.1034213121012328,
+          "visible_query_top1_hit_percent": null
+        },
+        "external16/toy_1__env0003": {
+          "images": 5,
+          "empty_roi_images": 0,
+          "constant_gt_images": 0,
+          "metric_valid_images": {
+            "top20_region_overlap_percent": 5,
+            "mae": 5,
+            "optimal_gt_mean": 5,
+            "selected_gt_mean": 5,
+            "top20_regret": 5,
+            "original_domain_mae": 5,
+            "visible_query_top1_hit_percent": 0
+          },
+          "top20_region_overlap_percent": 92.30555555555556,
+          "mae": 0.09062355077447279,
+          "optimal_gt_mean": 2.5929829598797687,
+          "selected_gt_mean": 2.5744031158751914,
+          "top20_regret": 0.018579844004578037,
+          "original_domain_mae": 0.09062355077447279,
+          "visible_query_top1_hit_percent": null
+        }
+      }
+    }
+  },
+  "original_domain_mae": "S all pooled cells; O pooled coverage-weighted; C valid & foreground_center. Not native pixel MAE.",
+  "similarity_exact_query": {
+    "definition": "S only: bilinear640x480 raw prediction argmax (no ROI/GT masking), first maximum; hit native GT exact-query255. Additional diagnostic, not the shared rank metric. O/C are not query-localization maps.",
+    "hits": 2,
+    "images": 80,
+    "percent": 2.5,
+    "other_same_category_peak_images": 78,
+    "pooled_gt_bilinear_peak_hits": 64,
+    "pooled_gt_bilinear_peak_percent": 80.0,
+    "caution": "GT reproduction diagnostic is not a model performance upper bound; low target hit cannot be explained by grid resolution alone. Cause not established."
+  },
+  "gt": {
+    "similarity": "Current physical-ID taxonomy: exact query1, same category.8, fruit.5, book/toy.2, background0; exact avg16",
+    "occlusion": "Unchanged production full adaptive containment grid; corrected occluded ratio>=0.7; N_occ/N_all; production PNG quantization and coverage-aware avg16. GT candidate/calibration/source details recorded in occlusion manifest.",
+    "complexity": "Current r48 regional GT; closest16 visible pixels/object, feather16; not legacy count GT"
+  },
+  "interpretation": [
+    "Top20 overlap is not pixel accuracy or exact target discovery rate.",
+    "The common ROI does not make the three GT tasks equally difficult; it omits background outside the ROI.",
+    "Current C common-ROI score numerically equals the previous C-only ROI score for these80 frames; definitions remain distinct.",
+    "Five views of one layout are correlated; this is not80 independent scene trials.",
+    "No claim of broad unseen-category, fully-hidden query, real-sensor or final fusion search performance.",
+    "Fusion qualitative figures use different, known-asset held-out scenes; they do not visualize this external80 evaluation."
+  ],
+  "sources": {
+    "protocol.json": {
+      "path": "outputs/streams_external_check_20261027/protocol.json",
+      "sha256": "cfd69597f6b7aa02ff57118dc7f840830e0cad7698de748c5b044e45c8d95a0e",
+      "availability": "LOCAL"
+    },
+    "prediction_complete.json": {
+      "path": "outputs/streams_external_check_20261027/prediction_complete.json",
+      "sha256": "3516b130bc9beca8f8161b93cb90bc277e0f62c80aadeaa22c7bda8e20a390e9",
+      "availability": "LOCAL"
+    },
+    "evaluation/evaluation.json": {
+      "path": "outputs/streams_external_check_20261027/evaluation/evaluation.json",
+      "sha256": "5a650d67f6ad74f703d220ca3e9458d818bf0b6e30cfc8dc8d89d87d6b6d1147",
+      "availability": "LOCAL"
+    },
+    "evaluation/per_image.csv": {
+      "path": "outputs/streams_external_check_20261027/evaluation/per_image.csv",
+      "sha256": "ddd3b8d5e6dc71ac76a51733fbcc4c55280d86a47be2e1d58d1225fec3528b72",
+      "availability": "LOCAL"
+    },
+    "similarity_peak_diagnostic.json": {
+      "path": "outputs/streams_external_check_20261027/similarity_peak_diagnostic.json",
+      "sha256": "676ba890e2f2d4db140394a75160ba487aae6632e0befc98429821a315023a92",
+      "availability": "LOCAL"
+    },
+    "similarity_manifest.json": {
+      "path": "outputs/streams_external_check_20261027/similarity_manifest.json",
+      "sha256": "3f4b0fec6bb3798ef2894fa2be900e63b31eeaef3db6d75f30b8070ce201eca1",
+      "availability": "LOCAL"
+    },
+    "occlusion_manifest.json": {
+      "path": "outputs/streams_external_check_20261027/occlusion_manifest.json",
+      "sha256": "82ac1a489999695809cd6981062450039b49e687f57d2df12440120203d250ef",
+      "availability": "LOCAL"
+    }
+  }
+}

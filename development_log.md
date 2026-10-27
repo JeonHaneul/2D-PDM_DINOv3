@@ -1,12 +1,34 @@
 # Development Log
 
 <!-- navigation:start -->
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Development Log** · [연구 문맥](agent.md)
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · **Development Log** · [연구 문맥](agent.md)
 <!-- navigation:end -->
 
 Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를 시간순으로 기록함. 각 Phase는 단순 모델 목록이 아니라 **왜 문제가 되었는지 → 무엇만 바꿨는지 → 결과가 무엇을 뜻하는지 → 다음 Step은 무엇인지**를 설명함.
 
-> 최신 완료: 2026-10-24 04:18 KST 새 S/O/C 개별 학습·test 평가 완료. 10-26은 결과·논문 그림 공개 정리일임. Step 4 fusion은 미승인·미학습임. Phase 1–42의 count 모델과 외부 평가 결과는 당시 이력으로 보존함.
+> 최신: 2026-10-27 현재 S20/O12/C19 외부 1종 평가·[SOC best 10 실제 예측](fusion_stream.md)을 공개함. SOC 학습은 종료됐고 SO 학습·전체 fusion test 평가는 진행 중임. Phase 1–42와 10-26 이전의 미실행 문구는 당시 이력임.
+
+## 2026-10-26–27 — Fusion 학습과 현재 모델의 외부 물체 평가
+
+**목적과 방법.** 개별 학습을 끝낸 S20/O12/C19를 모두 고정하고, head 이전 64채널 특징을 concat하여 192채널로 만든 뒤 작은 CNN만 amodal GT로 학습함. 공통 RGB-D·scene DINO 1회 공유, 기존 split·seed 0·batch 16 FP32를 유지함. Complexity 추가 효과를 확인할 SO 비교 head도 같은 입력 순서로 학습하되, 각 head의 best·조기종료를 별도로 관리함. 10-26 22:31 KST에 승인된 본학습을 시작했으며 이전 fusion 미승인 문구는 시작 전 이력임.
+
+**현재 결과.** SOC는 13 epochs에서 종료됐고 best 10의 validation BCE 0.01231440957을 선택함. SO 학습과 전체 test는 진행 중이므로 최종 accuracy %나 SOC–SO 개선율은 아직 없음. 기존에 사전 선정한 test 5장면에 실제 SOC best 10을 적용하여 아래 비교 그림을 생성함. 그림은 기존 16종의 새 test 장면이며 아래 외부 80장과 다른 자료임. [Fusion](fusion_stream.md)·[진행 snapshot](docs/fusion_training_20261027_summary.json)에 구조·선택 규칙·시점·근거를 정리함.
+
+![세 stream과 실제 fusion 예측](img/stream_fusion_gt_prediction_comparison_20261027.png)
+
+**별도 외부 평가.** Head 학습에서 제외한 packaged_food_5 한 종류와 기존 15종으로 구성된 16 layouts × 5뷰 = 80장에 현재 모델을 추가 학습 없이 적용함. 같은 category의 새 instance이며 모든 영상에서 target이 일부 보임. S/O GT는 현재 생성 규칙으로 계산하고 C는 현재 r48 GT를 사용함. 공통 30×40 영역에서 GT 상위 20%와 예측 상위 20%의 일치율을 계산함.
+
+| 모델 | 공통 상위 20% 영역 일치율 | 원래 stream 영역 MAE |
+|---|---:|---:|
+| S20 | 90.15865% | 0.00421346 |
+| O12 | 95.25318% | 0.01106876 |
+| C19 | 90.84907% | 0.10136382 |
+
+**해석과 실패.** 위 %는 pixel accuracy·정확한 target 발견률이 아님. S의 원시 최고점은 exact target 2/80=2.50%, 다른 포장식품 78/80이었음. Same-category GT도 .8이어서 높은 영역 선택과 낮은 exact target 적중이 동시에 가능함. Pooled GT 자체를 bilinear로 확대해 고른 최고점은 64/80=80%에서 target에 있었으므로, 해상도만으로 2.5%를 설명할 수 없음. 이 GT 결과는 모델 성능 상한이 아니며 원인·해결은 미확정임. 결과에 맞춘 prompt·threshold·모델 변경은 없음.
+
+공통 영역은 `C valid∩foreground_center∩O pooled coverage≥.5`이며 GT 동점은 동등한 정답으로, 예측 동점은 분수 선택으로 계산함. 각 80장 모두 유효하며 빈 영역/상수 GT는 0장이고 영상별 동일 가중 평균임. 같은 layout의 5뷰는 서로 관련된 관측임. 각 MAE의 원래 영역은 S 전체 격자 / O coverage 가중 / C 전경으로 다르며, 수치 크기로 stream의 우열을 정하지 않음. 반올림 전 수치·분모·camera/scene별 결과·원본 hash는 [외부 평가 JSON](docs/stream_external_evaluation_20261027.json)에 보존함.
+
+**한계와 다음 Step.** 외부 1종의 seen-category 조건이며 다양한 새 category·완전 가림 target·실센서·fusion zero-shot·실제 탐색 성과는 미검증임. SO 및 전체 test 완료 후 동일 평가로 Complexity의 fusion 기여를 판단함. S의 exact target 약점과 stream 영역 선택은 구분하여 유지함. 이번 GitHub 갱신은 완료된 평가·실제 예시·진행 상태의 게시이며 새 학습·GT 수정·재수집은 없음.
 
 ## 전체 연구 흐름
 
@@ -2210,5 +2232,5 @@ LOCAL 구현 근거는 `experiments/complexity_depth_pretrain_20261001/{model,mu
 ---
 
 <!-- navigation:start -->
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Development Log** · [연구 문맥](agent.md)
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · **Development Log** · [연구 문맥](agent.md)
 <!-- navigation:end -->

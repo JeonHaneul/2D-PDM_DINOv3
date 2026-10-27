@@ -1,0 +1,234 @@
+{
+  "schema": "fusion_framework_assets_20261027_v1",
+  "path_base": "repository root",
+  "previous_stream_assets": "img/framework_assets_20261026.json",
+  "samples": [
+    {
+      "sample_id": "book_1_scene00001_env0000_center",
+      "prediction": "img/fusion_20261027_book_1_scene00001_env0000_center_prediction.png",
+      "gt": "img/fusion_20261026_book_1_scene00001_env0000_center_gt.png",
+      "gt_sha256": "68e1c70b1bed1d649db5eb5048b742e2e051335364570843ebd589500de8184e",
+      "comparison": "img/fusion_20261027_book_1_scene00001_env0000_center_comparison.png",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ],
+      "prediction_min": 6.353187842478292e-08,
+      "prediction_max": 0.9999990463256836
+    },
+    {
+      "sample_id": "fruit_1_scene00003_env0000_left",
+      "prediction": "img/fusion_20261027_fruit_1_scene00003_env0000_left_prediction.png",
+      "gt": "img/fusion_20261026_fruit_1_scene00003_env0000_left_gt.png",
+      "gt_sha256": "53174f4a99dd9fe675b3b1778439586068f801aa465ce4e70f71144dbdc97e57",
+      "comparison": "img/fusion_20261027_fruit_1_scene00003_env0000_left_comparison.png",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ],
+      "prediction_min": 1.6034401584263946e-10,
+      "prediction_max": 0.7948012351989746
+    },
+    {
+      "sample_id": "packaged_food_1_scene00017_env0000_right",
+      "prediction": "img/fusion_20261027_packaged_food_1_scene00017_env0000_right_prediction.png",
+      "gt": "img/fusion_20261026_packaged_food_1_scene00017_env0000_right_gt.png",
+      "gt_sha256": "b150ecc4e2c790e9d03d898b1c6ce3714b8c2bed750b9724f9d0dea100b8ffa4",
+      "comparison": "img/fusion_20261027_packaged_food_1_scene00017_env0000_right_comparison.png",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ],
+      "prediction_min": 3.6725800178771806e-10,
+      "prediction_max": 0.9941033720970154
+    },
+    {
+      "sample_id": "toy_1_scene00001_env0000_top",
+      "prediction": "img/fusion_20261027_toy_1_scene00001_env0000_top_prediction.png",
+      "gt": "img/fusion_20261026_toy_1_scene00001_env0000_top_gt.png",
+      "gt_sha256": "ce9f6f70a2514a4e8c26146ebe09ad88bcdbd2297055aac2e7ef488585ea86dc",
+      "comparison": "img/fusion_20261027_toy_1_scene00001_env0000_top_comparison.png",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ],
+      "prediction_min": 3.500425782565486e-10,
+      "prediction_max": 0.9911381602287292
+    },
+    {
+      "sample_id": "toy_4_scene00007_env0000_bottom",
+      "prediction": "img/fusion_20261027_toy_4_scene00007_env0000_bottom_prediction.png",
+      "gt": "img/fusion_20261026_toy_4_scene00007_env0000_bottom_gt.png",
+      "gt_sha256": "10b025bd167657dbf7d8f4ccd9dbd0de5e2b23e9b81bbb65424234a94a3bac6c",
+      "comparison": "img/fusion_20261027_toy_4_scene00007_env0000_bottom_comparison.png",
+      "source_grid_hw": [
+        30,
+        40
+      ],
+      "display_hw": [
+        480,
+        640
+      ],
+      "prediction_min": 5.052981921771504e-10,
+      "prediction_max": 0.4778144657611847
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "img/stream_fusion_gt_prediction_comparison_20261027.png",
+      "sha256": "5a3087ebedd697f19e1167b151acfe177a7454e8fca60775ed48fb72b5fa47b7",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/stream_fusion_gt_prediction_comparison.png",
+        "sha256": "5a3087ebedd697f19e1167b151acfe177a7454e8fca60775ed48fb72b5fa47b7",
+        "availability": "LOCAL"
+      },
+      "role": "Known-asset held-out test GT/prediction comparison; not external80"
+    },
+    {
+      "path": "img/stream_fusion_gt_prediction_comparison_20261027.pdf",
+      "sha256": "cc83cf45db9d72226f5172e7792a07be01b7dce07eda4b2b99862d51e29bb894",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/stream_fusion_gt_prediction_comparison.pdf",
+        "sha256": "cc83cf45db9d72226f5172e7792a07be01b7dce07eda4b2b99862d51e29bb894",
+        "availability": "LOCAL"
+      },
+      "role": "Known-asset held-out test GT/prediction comparison; not external80"
+    },
+    {
+      "path": "img/fusion_20261027_book_1_scene00001_env0000_center_comparison.png",
+      "sha256": "b5e2596927079ee4f308cfba10a6658fa4dfbc95c4cddc6e8f56564672dc1ea3",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/book_1_scene00001_env0000_center_comparison.png",
+        "sha256": "b5e2596927079ee4f308cfba10a6658fa4dfbc95c4cddc6e8f56564672dc1ea3",
+        "availability": "LOCAL"
+      },
+      "role": "Scene comparison"
+    },
+    {
+      "path": "img/fusion_20261027_book_1_scene00001_env0000_center_prediction.png",
+      "sha256": "5763a38a34192df266c596be4d40ba63180afb18425f78e64c446c6baa3a1f3c",
+      "role": "Actual SOC epoch10 prediction; no masks"
+    },
+    {
+      "path": "img/fusion_20261027_fruit_1_scene00003_env0000_left_comparison.png",
+      "sha256": "a820bbdc743d3b106c77cb1282cfe268095ff5b581524e4fdc1fa9b522970008",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/fruit_1_scene00003_env0000_left_comparison.png",
+        "sha256": "a820bbdc743d3b106c77cb1282cfe268095ff5b581524e4fdc1fa9b522970008",
+        "availability": "LOCAL"
+      },
+      "role": "Scene comparison"
+    },
+    {
+      "path": "img/fusion_20261027_fruit_1_scene00003_env0000_left_prediction.png",
+      "sha256": "3d5d91f58c6641cff3cd204dc3a5db5e43b6e3c32dba06fedb4a690cf81a58ad",
+      "role": "Actual SOC epoch10 prediction; no masks"
+    },
+    {
+      "path": "img/fusion_20261027_packaged_food_1_scene00017_env0000_right_comparison.png",
+      "sha256": "a8daa0e44e43ff7b80f38c86e3ddf4d564c54a9017f46dc90bb53714e8304df9",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/packaged_food_1_scene00017_env0000_right_comparison.png",
+        "sha256": "a8daa0e44e43ff7b80f38c86e3ddf4d564c54a9017f46dc90bb53714e8304df9",
+        "availability": "LOCAL"
+      },
+      "role": "Scene comparison"
+    },
+    {
+      "path": "img/fusion_20261027_packaged_food_1_scene00017_env0000_right_prediction.png",
+      "sha256": "74d7e891ebc897534e5304df1803044474be60232c33dcf8f689de7700c32095",
+      "role": "Actual SOC epoch10 prediction; no masks"
+    },
+    {
+      "path": "img/fusion_20261027_toy_1_scene00001_env0000_top_comparison.png",
+      "sha256": "89dbbc7cef9c1f724fd9fd650065e5239a29ecc666e9b89e4942b7d00686ec57",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/toy_1_scene00001_env0000_top_comparison.png",
+        "sha256": "89dbbc7cef9c1f724fd9fd650065e5239a29ecc666e9b89e4942b7d00686ec57",
+        "availability": "LOCAL"
+      },
+      "role": "Scene comparison"
+    },
+    {
+      "path": "img/fusion_20261027_toy_1_scene00001_env0000_top_prediction.png",
+      "sha256": "667674a519b540d0aef91c77c10e29c49ee7a5b34e0fe18a9282032b8d22ebe1",
+      "role": "Actual SOC epoch10 prediction; no masks"
+    },
+    {
+      "path": "img/fusion_20261027_toy_4_scene00007_env0000_bottom_comparison.png",
+      "sha256": "4e936f6360d224aae995194bb8ca7b0c189a50b2dac74c7dcd08838d2d50ef27",
+      "source": {
+        "path": "outputs/fusion_examples_20261027/toy_4_scene00007_env0000_bottom_comparison.png",
+        "sha256": "4e936f6360d224aae995194bb8ca7b0c189a50b2dac74c7dcd08838d2d50ef27",
+        "availability": "LOCAL"
+      },
+      "role": "Scene comparison"
+    },
+    {
+      "path": "img/fusion_20261027_toy_4_scene00007_env0000_bottom_prediction.png",
+      "sha256": "c56bf2efffb1c38d7550e218ccf4914e37730544293dba584b0f2d7a8bc9c6fc",
+      "role": "Actual SOC epoch10 prediction; no masks"
+    },
+    {
+      "path": "img/overall_architecture.png",
+      "sha256": "2f9283075ddfc26f77d7369e7c6bce1e1a4a77c1ca4a07a294c4890d7915afb2",
+      "role": "Current implemented SOC diagram"
+    },
+    {
+      "path": "img/overall_architecture.svg",
+      "sha256": "04e8cc8395669bc61560f749f30be37a109a8b68fa609f733bb1f89d7e029f68",
+      "role": "Current implemented SOC diagram"
+    },
+    {
+      "path": "img/overall_architecture.pdf",
+      "sha256": "c4914ac1995ebbffc8e954be5341f3b92fec6cea5bc7bda6bd99ecbacf90dd70",
+      "role": "Current implemented SOC diagram"
+    },
+    {
+      "path": "img/overall_architecture_pre_fusion_20261026.png",
+      "sha256": "20e9c19a84bd06bc274e2fb58cde0ccd031f3fdc449d7bbfe79e01ca7147d78e",
+      "role": "Archived pre-fusion diagram"
+    },
+    {
+      "path": "img/overall_architecture_pre_fusion_20261026.svg",
+      "sha256": "86fb5fd0d9c5dfeeae286825a409485f37592c384d0a8b89d814f615200d6ac3",
+      "role": "Archived pre-fusion diagram"
+    },
+    {
+      "path": "img/overall_architecture_pre_fusion_20261026.pdf",
+      "sha256": "60c3e289d633dfb4b4190cc1fbdcba5e3e8d075a1c62a71d33ca5beb8096ba69",
+      "role": "Archived pre-fusion diagram"
+    }
+  ],
+  "checkpoint": {
+    "path": "<DEV_ROOT>/outputs/fusion_training_20261026/runs/soc/best.pt",
+    "sha256": "ae5a458fbc3c80c965219388c7006e58be560d2e43d16d7dda4fa10935e75ea1",
+    "epoch": 10,
+    "validation_loss": 0.012314409569526712
+  },
+  "selection": "Same five first matching common-test rows as October26; fixed before inspecting predictions",
+  "scope": "Known16 assets in separate held-out scenes; not zero-shot external80",
+  "display": "Native GT640x480; predicted30x40 float bilinear then fixed0..1 grayscale; no GT/workspace masking on fusion",
+  "source_prediction": {
+    "path": "outputs/fusion_examples_20261027/prediction_complete.json",
+    "sha256": "9d77f3ed4d5d0bd31d5176f5bb623959b6948bd0857150d6e103acf6169824c9",
+    "availability": "LOCAL"
+  },
+  "full_test_evaluation_complete": false
+}

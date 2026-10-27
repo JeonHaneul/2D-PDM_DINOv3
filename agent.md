@@ -1,19 +1,78 @@
 # 2D-PDM 연구 문맥·가정·실험 통합 기록
 
 <!-- navigation:start -->
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-10-26 (Asia/Seoul) · 현재 완료: 새 데이터의 개별 S/O/C 학습·test 24,000장 평가(10-24 완료) · Step 4 fusion 미승인·미학습 · Phase 1–42와 10-15 이전 상태는 날짜별 이력임
+> 문서 기준일: 2026-10-27 (Asia/Seoul) · 현재 S/O/C 외부 1종 평가·SOC 학습 종료·실제 5장 예측 완료 · SO 학습·전체 fusion test 평가 진행 중 · 아래 날짜별 기록은 당시 상태임
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
-> 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
+> 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서, 통합 구조·진행 상태는 [Fusion](fusion_stream.md)에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
 
 이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–42 Development Log, Complexity의 가정·실험·후속 계획 보고서 14개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
-모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md` · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
+모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md`, [Fusion](fusion_stream.md) · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
+
+<a id="current-handoff-20261027"></a>
+## 2026-10-27 현재 인계 — 외부 물체 평가와 실제 SOC fusion 예측
+
+**최신 완료:** 현재 S20/O12/C19의 외부 물체 1종 평가, SOC(세 stream 결합) 학습 종료·best epoch 10 선택, 사전에 정한 test 5장면의 실제 fusion 예측과 각 stream GT/예측 비교임. **진행 중:** SO(두 stream 비교) 학습과 두 선택 모델의 전체 test 24,000장 평가임. 최종 fusion 성능 %·Complexity 추가 효과·실제 탐색 성공률은 아직 확정하지 않음. 아래 10-26의 fusion 미실행·현재 외부 평가 없음 문구는 이전 시점의 기록임.
+
+### 웹 GPT 읽기 순서와 공개 자료 색인
+
+| 순서 | 문서·자료 | 확인할 내용 |
+|---|---|---|
+| 1 | [README](README.md)와 이 절 | 최신 완료/진행 중/미검증 상태, 외부 %와 그림의 서로 다른 평가 자료 |
+| 2 | [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) | 각 stream의 실제 입력·GT·학습·출력·현재 외부 평가 |
+| 3 | [Fusion](fusion_stream.md) | 고정된 64채널 특징 3개를 concat하여 192채널로 만든 뒤 amodal GT로 학습한 실제 구조 |
+| 4 | [Framework 작성 지침](framework_guide.md) · [배치 JSON](framework_layout.json) | 그림 노드/화살표/위치, 학습 단계별 고정 범위, 실제 출력 이미지 사용법 |
+| 5 | [외부 평가 JSON](docs/stream_external_evaluation_20261027.json) | 공통 %의 정의·반올림 전 수치·분모·camera/layout 집계·S의 target 적중 약점 |
+| 6 | [Fusion 진행 요약 JSON](docs/fusion_training_20261027_summary.json) | 날짜가 고정된 학습 snapshot, 선택 모델·예시·전체 test 미완료 상태 |
+| 7 | [새 이미지 manifest](img/framework_assets_20261027.json) · [기존 stream 이미지 manifest](img/framework_assets_20261026.json) | 실제 PNG 경로·hash·sample ID·GT/예측 구분 |
+| 8 | [Development Log](development_log.md) | 방법을 적용한 이유·실험 조건·관찰 결과·한계·다음 Step |
+
+### 현재 외부 평가: 높은 영역 선택과 정확한 target 구별
+
+학습에서 제외한 `packaged_food_5`(`World1`) 한 종류와 기존 15개 물체로 구성된 16 layouts × 5 cameras = 80장에 현재 S20/O12/C19를 고정 적용함. 학습에서 본 category의 새 instance이며 모든 영상에서 해당 물체가 일부 보임. Zero-shot은 이 head 학습에 없는 물체를 추가 학습 없이 적용했다는 범위임. Foundation encoder의 사전학습 데이터에서도 미관측이라는 주장이 아님.
+
+| 지표 | S20 | O12 | C19 |
+|---|---:|---:|---:|
+| 공통 영역의 상위 20% 일치율 | 90.15865% | 95.25318% | 90.84907% |
+| 원래 stream 평가영역 MAE | 0.00421346 | 0.01106876 | 0.10136382 |
+| 정확한 query 가시 영역에 원시 지도 최고점 적중 | **2/80 = 2.50%** | 해당 과제 지표 아님 | 해당 과제 지표 아님 |
+
+공통 %는 30×40의 `C valid ∩ foreground_center ∩ O pooled coverage≥0.5`에서 영상마다 상위 20%(`ceil(.2N)`)를 고른 영역 일치율임. GT cutoff 동점은 동등한 정답으로 인정하고 예측 동점은 분수 가중함. 이번에는 각 80장 모두 유효하며 빈 영역·상수 GT 제외는 0장임. 영상별 동일 가중 평균이며 같은 layout의 5뷰를 독립 실험으로 세지 않음. Pixel accuracy·target 검출 성공률·서로 다른 GT 과제의 동등한 난이도를 의미하지 않음. 원래 MAE의 평가영역은 S 전체 격자 / O coverage 가중 / C 전경으로 서로 다름.
+
+S의 최고점은 78장에서 다른 포장식품에 있었음. 현재 S GT는 exact 1 / same-category .8 / fruit .5 / book·toy .2 / background 0이므로 높은 영역 일치율과 낮은 exact-target 적중이 양립할 수 있음. Pooled GT 자체를 bilinear로 확대해 최고점을 고른 경우 64/80=80%였음. 이 80%는 다른 모델의 성능 상한이 아니며, 모델의 2.5%를 해상도만으로 설명할 수 없음. Reference 무시·semantic 편중·학습 원인 등은 아직 확정하지 않음. 외부 query의 text는 기존 fallback `a photo of a packaged food, a type of packaged food`를 그대로 사용했고, 결과에 맞춘 prompt·threshold·가중치 변경은 없음.
+
+S GT는 원본 physical ID로 생성함. O GT는 실제 촬영 camera·drawer·target mesh와 전체 114,156개 adaptive pose, 기존 70% 가림 조건으로 새로 계산함. C는 현재 r48 지역 GT이며 이전 count GT가 아님. S/O는 GT 없이 예측을 저장한 뒤 평가하고 C는 동일 80장의 기존 C19 예측을 재사용함. 새 category·다양한 외부 물체·완전 가림 target·실센서·최종 fusion zero-shot 성능은 미검증임.
+
+### 현재 fusion과 그림의 의미
+
+단일 RGB-D에서 scene DINO를 1회 실행하여 고정 S/O/C가 필요한 layer를 공유함. Backbone뿐 아니라 각 stream의 학습 parameter와 O의 BN buffer도 고정함. Head 이전 `F_S/F_O/F_C:64×30×40`을 concat하여 192채널로 만든 뒤, Conv1×1 64/GN8/GELU → Conv3×3 64/GN8/GELU 두 층 → Conv1×1 1로 연결함. Sigmoid로 30×40 amodal 점수를 출력하고, 기존 640×480 binary amodal GT를 16×16 평균하여 BCEWithLogits로 감독함. Attention·명시적 stream gate·crop 재시도 루프는 없음.
+
+기존 train 192,000 / val 24,000 / test 24,000, seed 0·batch 16·FP32·AdamW를 사용함. SOC는 13 epochs 이후 validation 3회 미개선으로 종료했고, best 10의 validation BCE는 0.01231440957임. BCE는 정확도 %가 아님. SO 비교 모델은 별도 best·조기종료를 갖고 학습 중임. 두 모델의 전체 test 예측을 저장한 뒤 공식 평가하는 runner는 그대로 유지함.
+
+![동일 5장면의 실제 stream·fusion GT/예측](img/stream_fusion_gt_prediction_comparison_20261027.png)
+
+이 그림은 원래 16종 중 book_1/fruit_1/packaged_food_1/toy_1/toy_4의 별도 test 장면이며, 위 외부 물체 80장 결과의 시각화가 아님. 예측 품질을 보기 전에 정한 기존 5개 예시를 그대로 사용함. Fusion은 실제 SOC best 10 출력이며 GT로 합성한 그림이 아님. GT는 native 640×480, 예측은 30×40 float의 bilinear 확대임. S/O/Fusion 0–1·C 0–6의 고정 grayscale이며 영상별 정규화는 없음. O 표시만 기존 고정 camera workspace를 적용하고 Fusion은 GT/workspace mask를 곱하지 않음. 전체와 장면별 확대는 [6쪽 PDF](img/stream_fusion_gt_prediction_comparison_20261027.pdf)에 있음.
+
+### 실제 실행 근거와 재개 규칙
+
+아래 경로는 `<DEV_ROOT>` 기준 LOCAL이며 공개 Git clone의 이전 코드와 구분함. 공개 자료는 문서·선택 이미지·수치 JSON임. 최신 학습 소스·전체 데이터·checkpoint·원시 예측 배열을 공개한 것이 아님.
+
+| 역할 | LOCAL 경로 |
+|---|---|
+| 현재 S/O 외부 평가·공통 % | `experiments/streams_external_check_20261027/`, `outputs/streams_external_check_20261027/{protocol,completion,similarity_peak_diagnostic}.json`, `evaluation/` |
+| 현재 C19 clean/external 평가 | `experiments/complexity_external_check_20261027/`, `outputs/complexity_external_check_20261027/` |
+| Fusion 구현·고정 규약 | `experiments/fusion_training_20261026/`, `outputs/fusion_training_20261026/{protocol,model_spec}.json` |
+| Fusion 현재 진행·완료 판별 | 같은 output의 `status.json`, `history.json`, `runs/{soc,so}/best.pt`; 전체 `completion.json`의 존재·내용으로 완료 확인 |
+| 실제 5장면 fusion 예측·그림 | `experiments/fusion_examples_20261027/`, `outputs/fusion_examples_20261027/{prediction_complete,comparison_provenance}.json` |
+| 이번 공개 export·구조도 | `experiments/fusion_publication_20261027/`, `outputs/fusion_publication_20261027/` |
+
+실행 중인 fusion protocol의 Python source 40개를 수정하지 않음. GT·분할·기존 모델·학습 진행을 유지하고, 이번 게시를 새 학습 또는 성능 향상 실험으로 기록하지 않음. 다음 Step은 SO 및 전체 test 완료 근거를 확인하고, 동일 test의 SOC–SO 결과로 Complexity 추가 효과를 판단하는 것임. 현재 S의 외부 exact-target 구별 약점은 별도 기록으로 유지하며 원인 진단·재학습을 완료했다고 쓰지 않음.
 
 <a id="current-handoff-20261026"></a>
-## 2026-10-26 현재 인계 — 개별 stream 학습 완료와 다음 단계 경계
+## 2026-10-26 이전 인계 — 개별 stream 완료 당시 기록
 
 **현재 완료한 것은 새 데이터에서의 Similarity·Occlusion·Complexity 개별 모델 학습과 고정 test 평가임.** 세 stream은 2026-10-24 04:18 KST에 모두 완료됨. 최종 fusion GT는 준비됐지만 **Step 4 fusion은 아직 미승인·미학습**임. 아래 역사 본문의 “새 지역 GT 미학습”, “GT 160장”, “마지막 학습 Phase 42”, “공통 155장/420장 보류”는 각각 당시 기록이며 현재 상태로 인용하지 않음. 완료 시점과 문서·그림 정리 시점(10-26)을 구분함.
 
@@ -7324,5 +7383,5 @@ Complexity를 이어갈 때는 위 세 문서 이후
 ---
 
 <!-- navigation:start -->
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · **연구 문맥**
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->

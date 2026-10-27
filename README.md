@@ -15,9 +15,10 @@
 |---|---|
 | [Similarity Stream](similarity_stream.md) | DINOv3·SigLIP, semantic adapter, MatchingBlock, GT·학습·zero-shot 결과 |
 | [Occlusion Stream](occlusion_stream.md) | RGB-D·target geometry·FiLM, adaptive GT, full16·외부 target 평가 |
-| [Complexity Stream](complexity_stream.md) | 현재 지역 GT·RGB-D 점수 모델·전체 데이터 학습·test 결과 |
+| [Complexity Stream](complexity_stream.md) | 현재 지역 GT·RGB-D 점수 모델·전체 학습·외부 물체 평가 |
+| [Fusion](fusion_stream.md) | 고정된 세 stream의 특징 결합·amodal 학습·실제 예측·평가 진행 상태 |
 | [Framework 작성 지침](framework_guide.md) | 웹 GPT용 읽기 순서·노드/화살표·배치 좌표·독립 GT/예측 이미지 |
-| [Development Log](development_log.md) | Phase 1–42부터 새 데이터 수집·GT 보완·세 stream 전체 학습까지의 가정·사진·결과·판단 |
+| [Development Log](development_log.md) | Phase 1–42부터 새 데이터·GT·개별 학습·외부 평가·fusion까지의 가정·사진·결과·판단 |
 | [연구 문맥·근거 색인](agent.md) | 다른 agent와 외부 독자를 위한 문맥·상세 보고서·작업 지침 |
 
 각 문서의 위·아래 이동 링크로 전체 개요와 다른 문서를 오갈 수 있음. 모든 문서는 저장소 최상위에 둠. Stream별 그림은 기존 `img/similarity/`, `img/occlusion/`, `img/complexity/` 경로를 유지하고, 공통 전체 구조도는 `img/overall_architecture.png`에 둠.
@@ -28,21 +29,35 @@
 
 | Stream | 목적 | 현재 확인한 범위 |
 |---|---|---|
-| Similarity | Target과 외형·의미가 관련된 가시 영역 찾기 | DINOv3+SigLIP 새 seed0 모델의 전체 학습·test 완료; 이전 모델의 zero-shot 결과와 구분 |
-| Occlusion | 해당 target이 가려질 수 있는 위치 추론 | RGB-D·68-D geometry·global FiLM 새 모델의 전체 학습·coverage 내부 test 완료 |
-| Complexity | 단일 RGB-D에서 여러 물체가 가까이 있는 영역의 점수 예측 | 지역 GT의 DINOv3+RGB CNN+MultiMAE 모델 구현·전체 학습·test 완료 |
+| Similarity | Target과 외형·의미가 관련된 가시 영역 찾기 | S20 전체 test 및 외부1종 평가 완료; 높은 영역 선택과 정확한 target 적중을 구분 |
+| Occlusion | 해당 target이 가려질 수 있는 위치 추론 | O12 전체 test 및 외부1종의 동일 GT 정의 평가 완료 |
+| Complexity | 단일 RGB-D에서 여러 물체가 가까이 있는 영역의 점수 예측 | 지역 GT의 C19 전체 test 및 외부1종 포함 장면 평가 완료 |
 
-**2026-10-26 최신 상태:** `261013_data` 240,000장과 S/O/C/fusion GT 각각 240,000장이 준비됐고, 보류했던 fusion 420장도 보완해 현재 보류 0장임. 공통 train192,000/validation24,000/test24,000으로 세 stream을 각각 새 학습했으며 **2026-10-24 04:18 KST 세 모델의 학습·test를 완료함**. Seed0·원래16개 target·clean 관측의 결과임. 최종 fusion GT는 보임 여부와 무관한 amodal target mask 한 종류로 준비됨. **통합 forward·fusion 학습·실제 탐색 평가는 미실행**임.
+**2026-10-27 최신 상태:** 공통 train192,000/validation24,000/test24,000으로 학습한 S20/O12/C19를 고정하고, 단일 RGB-D의 특징을 공유하는 concat+CNN fusion을 구현·학습함. **SOC(세 stream 결합)는 13epoch에서 조기 종료됐고 validation 기준 best epoch10을 선택함.** SO(Complexity를 제외한 비교 모델)는 학습 중이며 전체 test 평가와 SOC–SO 성능 비교는 아직 미완료임. Amodal GT는 보임 여부와 무관한 target 전체 mask 한 종류임.
 
-웹 GPT는 [Framework 작성 지침](framework_guide.md)의 순서대로 읽으면 현재 모델과 사용 가능한 이미지까지 연결할 수 있음. 기존 본문의 160장 GT·Phase42 count·미학습 상태는 날짜가 명시된 과거 이력임. 최신 정량 근거는 [전체 학습 요약 JSON](docs/stream_training_20261022_summary.json), 전체 흐름은 [연구 문맥](agent.md)을 따름.
+현재 세 stream의 외부 물체1종 평가와 SOC 실제 test 예시5장을 추가 공개함. 아래 % 표는 외부 물체80장, fusion 그림은 기존16종의 별도 test5장으로 **서로 다른 자료**임. 웹 GPT는 [Framework 작성 지침](framework_guide.md)과 [최신 인계·색인](agent.md#current-handoff-20261027)을 우선 읽음.
+
+### 외부 물체 평가 — %의 의미와 범위
+
+`packaged_food_5` 한 종류를 기존15개 물체와 함께 배치한 16장면×5뷰=80장에 현재 모델을 추가 학습 없이 적용함. 학습에서 본 포장식품 category의 새 instance이며, 80장 모두 target이 일부 보임. 다섯 시점은 같은 장면에서 얻은 관측이므로 80개의 독립 장면 실험으로 세지 않음.
+
+| Stream / 선택 epoch | 공통 영역의 상위20% 일치율 | 정확한 새 target의 가시 영역에 최고점 적중 |
+|---|---:|---:|
+| Similarity / 20 | **90.16%** | **2.50% (2/80)** |
+| Occlusion / 12 | **95.25%** | 해당 과제의 지표가 아님 |
+| Complexity / 19 | **90.85%** | 해당 과제의 지표가 아님 |
+
+**상위20% 일치율**은 각 영상에서 GT 점수가 높은 위치들과 모델이 높은 점수를 준 위치들이 얼마나 겹치는지 나타냄. 예를 들어 동점 없이 20곳을 골라18곳이 GT 상위20곳에 포함되면90%임. 실제 평가는 공통 `C valid ∩ foreground_center ∩ O coverage≥0.5`의30×40 격자에서 수행하며, GT 동점은 동등한 정답으로, 예측 동점은 분수 가중으로 처리함. **Pixel accuracy나 target 발견률이 아니며, 세 GT 과제가 같은 난이도라는 뜻도 아님.**
+
+S의 최고점은 나머지78장에서 다른 포장식품 위에 있었음. 같은 category에도 높은 GT(.8)를 주므로 높은 영역 일치율과 낮은 정확한 target 적중률이 함께 나올 수 있음. GT 자체를 pooled→bilinear 확대해 최고점을 고르면64/80=80%였으므로 모델의2.5%를 격자 해상도만으로 설명할 수 없음. 이80%는 모델 성능 상한이 아니며 원인은 아직 확정하지 않음. 다양한 새 category·완전 가림 target·실센서·fusion 탐색 성능으로 확대하지 않음. 반올림 전 수치·분모·camera/scene별 결과는 [외부 평가 JSON](docs/stream_external_evaluation_20261027.json)을 따름.
 
 ### 전체 아키텍처
 
 ![2D-PDM 전체 tensor architecture](img/overall_architecture.png)
 
-그림은 **학습·test가 완료된 세 stream과 계획 중인 feature fusion**을 나타냄. 분홍·파랑·초록 패널은 S/O/C를 구분하고, `F`는 frozen 사전학습 encoder, `T`는 학습 모듈임. 오른쪽 금색 점선은 아직 구현·학습하지 않은 fusion임. 작은 S/O/C map은 같은 실제 test 장면의 예측이고, amodal 썸네일은 **최종 감독용 GT 예시**임. Feature 타일은 tensor의 개념 표현임. Tensor는 `channel × 세로 × 가로`이며 batch `B`를 생략함. [PDF](img/overall_architecture.pdf)와 [SVG](img/overall_architecture.svg)도 제공함.
+그림은 **개별 학습을 마친 세 stream과 실제 구현·학습한 SOC fusion**을 나타냄. S/O/C의 개별 학습 모듈도 fusion 단계에서는 모두 고정하고, 오른쪽 concat+CNN만 amodal GT로 학습함. 작은 지도는 같은 실제 test 장면의 예측이며, 최종 예측과 amodal GT를 구분함. Feature 타일은 tensor 개념 표현임. Tensor는 `channel × 세로 × 가로`이며 batch `B`를 생략함. [PDF](img/overall_architecture.pdf)·[SVG](img/overall_architecture.svg)를 제공하고 이전 계획 구조도는 날짜별 파일로 보존함.
 
-**① Scene 입력과 공통 backbone.** 현재 서랍의 RGB `3×480×640`을 DINOv3로 처리하면 각 위치가 768개 숫자로 표현된 `768×30×40` feature가 나옴. Similarity·Occlusion은 layer `2,5,8,11`의 feature를 사용하며, Complexity는 마지막 layer `11` 특징을 사용함. 그림의 각 DINO 블록은 같은 pretrained weight 규격이며 현재 모델은 stream별로 실행함. 동일 관측·가중치·전처리·정밀도를 맞춘 통합 구현에서 scene DINO 특징을 공유할 수 있음.
+**① Scene 입력과 공통 backbone.** 현재 서랍의 RGB `3×480×640`을 DINOv3로 처리하면 각 위치가 768개 숫자로 표현된 `768×30×40` feature가 나옴. Similarity·Occlusion은 layer `2,5,8,11`의 feature를 사용하며, Complexity는 마지막 layer `11` 특징을 사용함. 통합 runtime은 scene DINO를 한 번 실행해 세 stream이 필요한 layer를 공유함. 그림에서 stream별 DINO 경로는 특징의 논리적 사용을 나타냄. Target reference의 전처리는 S/O의 기존 방식대로 별도로 유지함.
 
 **② Similarity — 무엇을 찾을 것인가.** Target reference RGB와 mask에서 물체 영역을 잘라 DINO appearance `768-D`를 만들고, SigLIP은 reference 이미지와 이름·category를 `1152-D` 의미 조건으로 표현함. 학습 adapter가 이를 `768-D`로 변환하여 appearance에 더한 값이 검색 query임. 이 변환은 similarity-map GT를 통해 학습되며, DINO 자체의 weight는 고정됨. 각 scene 위치에서 **scene 768 + query 768 + cosine 1 = 1537채널**을 MatchingBlock이 64채널로 해석하고, 네 layer의 출력을 통합하여 `F_S`를 만듦.
 
@@ -50,9 +65,9 @@
 
 **④ Complexity — 지역 점수 예측.** RGB CNN, DINOv3 layer11의 학습 projection, 관측 depth를 처리한 frozen MultiMAE의 학습 projection이 각각32채널을 제공함. 이96채널을 concat하고 dilation1/2/4의 CNN으로 `F_C:64×30×40`을 만듦. `1×1 Conv + softplus` head가 지역 점수 `1×30×40`을 예측하며, valid 내부의 양수·0 GT 그룹을 균형 있게 반영한 Smooth L1로 학습함. 감독값은 r48·가까운16픽셀의 물체별 거리 기여 합에서 가장 큰 기여를 뺀 값에16px 배경 감소 계수를 곱한 GT임. Native GT의16×16 평균인 정밀 `pooled30×40`을 사용함. Scene ID·mask는 GT 생성용이고 추론에는 제공하지 않음. MultiMAE는 **실제로 관측한 depth를 인코딩**함.
 
-**⑤ Feature fusion과 최종 위치 map — 계획 단계.** 세 모델은 같은 `30×40` 위치에서 각각64채널의 학습 특징을 출력함. Head 이전 `F_S/F_O/F_C`를 같은 위치끼리 concat하면 `192×30×40`이 됨. 세1채널 예측 map은 stream별 감독·검사용 출력이며 이 계획의 fusion 입력과 구분함. 첫 통합안은 기존 stream을 고정하고 concat+CNN head만 amodal GT로 학습하는 방식임. Attention/Transformer의 필요성과 구체 head·loss·출력 해상도는 아직 비교·확정하지 않음. 같은 단일 관측에서 S는 RGB, O/C는 RGB-D를 사용하며 반복 crop/재분할 루프는 포함하지 않음.
+**⑤ Feature fusion과 최종 위치 map.** 고정된 세 모델의 head 이전 `F_S/F_O/F_C:64×30×40`을 concat하여192채널로 만듦. `1×1 Conv64 → 3×3 Conv64 두 층 → 1×1 Conv1`을 적용하며 중간 층은 GroupNorm8·GELU를 사용함. `1×30×40` logit을 native amodal GT의16×16 평균과 BCEWithLogits로 학습하고, sigmoid는 추론·표시에 적용함. 세1채널 map을 합치는 구조가 아니며 attention·명시적 stream별 가중치 gate는 없음. CNN은 결합 특징의 관계를 학습하지만 환경별 기여도 변화의 실증은 별도 분석이 필요함.
 
-세 stream의 개별 학습·test와 최종 GT 생성은 완료됐으나, 단일 통합 forward·공유 DINO cache·fusion/decoder/DRL의 학습·평가는 수행하지 않음. 현재 결과를 통합 모델의 성능이나 새 물체·실센서 성능으로 확대하지 않음. 이전 Phase42는 count GT 모델의 이력임.
+SOC best10의 실제 예측은 생성했고 SO 비교 학습·전체 test 평가는 진행 중임. 단일 RGB-D 추론에 crop/재분할 반복은 없으며, 실제 탐색 행동·실센서·fusion zero-shot 성능은 미검증임. 상세 설정과 완료 범위는 [Fusion](fusion_stream.md)을 따름.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
@@ -72,7 +87,7 @@
 | Empty depth / workspace | 빈 서랍 depth와 고정 camera의 관심 영역 | Occlusion의 GT·학습 영역·표시 후처리에 사용. 현재 Complexity에는 불필요 |
 | Scene segmentation / target mesh | Pixel label / 시뮬레이션 형상 | Stream별 GT 생성에 사용. 지역 GT는 원본 가시 instance ID에서 계산하며 추론 입력과 구분 |
 | GT map | 정의한 규칙에 따른 감독값 | Loss 계산·평가 |
-| Prediction map | 관측 입력에서 계산한 예측값 | Stream별 GT 평가. 계획한 fusion에는 head 이전의 `F_S/F_O/F_C`를 전달 |
+| Prediction map | 관측 입력에서 계산한 예측값 | Stream별 GT 평가. 현재 fusion에는 head 이전의 `F_S/F_O/F_C`를 전달 |
 
 **GT(Ground Truth)는 이 연구에서 정의한 학습 목표**임. Simulation 정보로 GT를 생성하더라도 추론에는 각 stream이 요구하는 관측 입력만 사용함. GT 예측 오차와 GT 정의 자체의 타당성은 별도로 검증함.
 
@@ -167,7 +182,7 @@ Similarity는 appearance와 projected semantics를 **더해 query를 생성**하
 
 ### Stream 출력과 Fusion
 
-각 stream의 **중간 feature `F`**와 **감독용 prediction map**을 구분함. 아래 S/O/C 모두 현재 학습된 모델의 출력 규격임. Fusion에는 head 이전의 64-channel 표현을 전달할 계획임.
+각 stream의 **중간 feature `F`**와 **감독용 prediction map**을 구분함. 아래 S/O/C 모두 현재 학습된 모델의 출력 규격임. Fusion에는 head 이전의 64-channel 표현을 전달하며 fusion 단계에서 세 stream을 모두 고정함.
 
 | 출력 | Shape | 의미 |
 |---|---|---|
@@ -187,14 +202,16 @@ F_O, P_O = OcclusionStream(scene_RGB, observed_depth, target_RGB, target_mask)
 F_C, P_C = ComplexityStream(scene_RGB, observed_depth)
 # Each F: B × 64 × 30 × 40; each P: B × 1 × 30 × 40
 
-# Proposed; not implemented or trained
+# Implemented: frozen stream features, separately trained fusion head
 Z = Concat(F_S, F_O, F_C)                # B × 192 × 30 × 40
-P_amodal = FusionCNN(Z)                 # final architecture/loss/resolution pending
+P_amodal = Sigmoid(FusionCNN(Z))        # B × 1 × 30 × 40; SOC best epoch10
 ```
 
-**표시와 평가.** 공개 GT 이미지는 native640×480, 예측 원본은30×40임. 예측을 bilinear로 확대해 원본 RGB와 나란히 표시함. S/O는0–1, C는0–6 고정 grayscale이며 C의6은 표시 상한임. O 그림은 기존 고정 camera workspace mask를 확대 예측에 곱해 서랍 밖을0으로 표시함. Target 정답이나 GT coverage를 이용해 그림을 자르지 않음. Raw 예측·coverage 가중 평가 수치는 그대로 보존함.
+**표시와 평가.** 공개 GT 이미지는 native640×480, 예측 원본은30×40임. 예측을 bilinear로 확대해 원본 RGB와 나란히 표시함. S/O/Fusion은0–1, C는0–6 고정 grayscale이며 C의6은 표시 상한임. O 그림은 기존 고정 camera workspace mask를 확대 예측에 곱해 서랍 밖을0으로 표시함. Target 정답이나 GT coverage를 이용해 그림을 자르지 않음. Raw 예측·coverage 가중 평가 수치는 그대로 보존함.
 
-![동일 test 장면의 세 stream GT와 예측](img/stream_gt_prediction_comparison_20261026.png)
+![동일 test 장면의 세 stream 및 fusion GT와 실제 예측](img/stream_fusion_gt_prediction_comparison_20261027.png)
+
+5개 target·5개 camera의 사전에 고정한 test 예시임. Fusion은 실제 SOC epoch10 출력이며 amodal GT를 예측처럼 표시하지 않음. 작은 물체에서 경계·위치 차이가 남으며 이5장으로 전체 성능을 확정하지 않음. [장면별 확대 PDF](img/stream_fusion_gt_prediction_comparison_20261027.pdf)를 제공함.
 
 5개 장면은 기존 driver가 지정한 target/view별 첫 test 행이며, 결과가 좋은 장면으로 다시 선정하지 않음. 각 GT·예측을 따로 사용할 수 있는 경로·그림 위치는 [Framework 작성 지침](framework_guide.md), 파일 목록·hash는 [이미지 manifest](img/framework_assets_20261026.json)에 정리함.
 
@@ -233,12 +250,12 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 | 구성 | 현재 완료 | 남은 범위 |
 |---|---|---|
 | 데이터·GT | 원래16target, 5뷰, 240,000관측 및 S/O/C/amodal GT 전량 준비; 보류0 | 새 물체·실센서 조건 |
-| 개별 stream | Frozen pretrained encoder + 새 학습 모듈, 공통 split의 train/validation/test 완료 | 현재 checkpoint의 외부 target·조건 변화 검증 |
-| 최종 감독값 | 보임 여부와 무관한 amodal target mask | Fusion head의 loss·해상도 설계 |
-| Three-stream fusion | 특징 규격64×3=192와 concat+CNN 기준안 정리 | 통합 forward, 공유특징·지연, fusion 학습·비교 |
+| 개별 stream | 공통 split의 학습/test 및 현재 checkpoint의 외부1종80장 평가 완료 | 여러 새 target·category·관측 조건 |
+| 최종 감독값 | 단일 amodal target mask·avg16 BCE 학습 적용 | 완전 가림 상태의 추론 한계·효용 |
+| Three-stream fusion | 통합 forward·scene DINO 공유·SOC best10 선택·실제5장 예측 | SO 학습과 전체 test·SOC–SO 비교 완료 |
 | 탐색 정책 | Target 검색을 위한 세 단서의 표현 | S+O 대비 S+O+C 효용, DRL·실환경 평가 |
 
-이전 Similarity의 unseen-target 정성 동작과 Occlusion의 external target 정량 결과는 해당 이전 checkpoint의 완료 이력으로 유지함. 새 full-data 모델의 zero-shot 검증으로 옮겨 쓰지 않음. Phase38 미채택, GT 관계 회귀 공개 철회, SAM2 자동 영역 비교 미실행도 유지함.
+이전 Similarity의 unseen-target 정성 동작과 Occlusion의 external target 정량 결과는 해당 이전 checkpoint의 완료 이력으로 유지함. 이번 현재 S20/O12/C19 외부80장 평가와 서로 다른 checkpoint·GT 기록으로 구분함. Phase38 미채택, GT 관계 회귀 공개 철회, SAM2 자동 영역 비교 미실행도 유지함.
 
 ### Core Files
 
@@ -254,8 +271,8 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 | 현재 지역 Complexity | `<DEV_ROOT>/experiments/complexity_regional_validation_20261016/model.py` | LOCAL; DINO+RGB+MultiMAE,64feature,1채널softplus |
 | Frozen depth 특징 | `<DEV_ROOT>/experiments/complexity_depth_pretrain_20261001/multimae_depth.py` | LOCAL; 현재 관측 depth 인코딩에 재사용 |
 | 현재 세 stream 학습 | `<DEV_ROOT>/experiments/stream_training_20261022/` | LOCAL; 공통CSV adapter·fresh 모델·validation선택·GT없는 test추론 |
-| 현재 수치 근거 | `docs/stream_training_20261022_summary.json` | PUBLIC; 원본 완료/평가 기록을 추출한 요약·hash |
-| 그림 작성 입력 | `framework_guide.md`, `img/framework_assets_20261026.json` | PUBLIC; 독립 PNG·의미·배치 좌표·연결 규칙 |
+| 현재 수치 근거 | `docs/stream_training_20261022_summary.json`, `docs/stream_external_evaluation_20261027.json`, `docs/fusion_training_20261027_summary.json` | PUBLIC; 개별test·외부80장·fusion진행 상태를 구분한 원본 요약·hash |
+| 그림 작성 입력 | `framework_guide.md`, `img/framework_assets_20261026.json`, `img/framework_assets_20261027.json` | PUBLIC; 독립 PNG·의미·배치 좌표·연결 규칙 |
 
 공개 `complexity_cues.py`, `complexity_model.py`, `run_complexity_pilot.py`, `inference_complexity.py`의 density pilot 구조를 현재 지역 점수 모델로 대체 해석하지 않음. 최신 그림의 C는 지역 모델이며, 과거 count/density 수치와 분리함.
 
@@ -268,16 +285,18 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 - [x] 지역 Complexity의 새1채널 모델·loss 구현과 소규모RGB/RGB-D 비교
 - [x] 공통 split의 세 stream 새 학습·validation 선택·test24,000장 평가
 - [x] 웹 GPT용 독립GT/예측 이미지·상세 문맥·framework 배치 지침 공개
-- [ ] 결과 검토·사용자 승인 후 동일 관측의 통합 forward와 concat+CNN fusion 구현
-- [ ] DINO 특징 공유 시 수치 정합·전체 지연 확인
-- [ ] 최종 amodal head의 loss·해상도 선정, S+O 대비 S+O+C 기여 확인
+- [x] 현재 S20/O12/C19의 외부1종80장 평가·%지표와 정확한target적중의 구분
+- [x] 동일 관측 통합 forward·DINO 공유 정합 확인·concat+CNN fusion 구현
+- [x] Amodal avg16 BCE 적용·SOC 학습 종료 및 best10 실제 예시 생성
+- [ ] SO 비교 학습·전체 test 평가 완료와 S+O 대비 S+O+C 기여 확인
+- [ ] 배포 조건의 전체 지연·실제 탐색 효용 검증
 - [ ] 필요성이 확인될 때 attention/Transformer와 기준안 비교
 - [ ] 현재 모델의 여러 새 target·실제 RGB-D 조건·탐색 효용 검증
 
-Fusion 학습은 아직 승인·실행하지 않음. 다음 단계의 설계 항목과 완료된 개별 모델 결과는 구분해 기록함.
+Fusion 학습은 사용자 승인 후 실행했으며 SOC 선택 모델의 실제 예측까지 생성함. SO 비교·전체 test 결과는 완료 근거가 생긴 뒤 갱신함.
 
 ---
 
 <!-- navigation:start -->
-**전체 개요** · [Framework 작성 지침](framework_guide.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md)
+**전체 개요** · [Framework 작성 지침](framework_guide.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md)
 <!-- navigation:end -->
