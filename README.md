@@ -33,9 +33,29 @@
 | Occlusion | 해당 target이 가려질 수 있는 위치 추론 | O12 전체 test 및 외부1종의 동일 GT 정의 평가 완료 |
 | Complexity | 단일 RGB-D에서 여러 물체가 가까이 있는 영역의 점수 예측 | 지역 GT의 C19 전체 test 및 외부1종 포함 장면 평가 완료 |
 
-**2026-10-27 최신 상태:** 공통 train192,000/validation24,000/test24,000으로 학습한 S20/O12/C19를 고정하고, 단일 RGB-D의 특징을 공유하는 concat+CNN fusion을 구현·학습함. **SOC(세 stream 결합)는13epoch에서 종료됐고 validation 기준 best10의 test24,000장 평가까지 완료함.** SO(Complexity를 제외한 비교 모델)는17:56:50 KST snapshot에서epoch18 학습 중이며 SOC–SO 성능 비교는 미완료임. Amodal GT는 보임 여부와 무관한 target 전체 mask 한 종류임.
+**2026-10-27 최신 상태:** 공통 train192,000/validation24,000/test24,000으로 학습한 S20/O12/C19를 고정하고, 단일 RGB-D의 특징을 공유하는 concat+CNN fusion을 구현·학습함. **SOC(세 stream 결합)는13epoch에서 종료됐고 validation 기준 best10의 test24,000장 평가까지 완료함.** SO(Complexity를 제외한 비교 모델)도 이후20epoch·best20으로종료됐고두head의공동test각24,000장완료기록을확인함. 이번제거탐색의네정책에는SO가포함되지않으며Complexity추가효과의SOC–SO해석과구분함. Amodal GT는 보임 여부와 무관한 target 전체 mask 한 종류임.
 
 현재 세 stream의 외부 물체1종 평가·전체 유효영역 오차, SOC의 기존16종 test24,000장·외부80장 visible 진단을 공개함. Fusion 그림은 미리 선택한 기존16종 test5장의 실제 예측이며, 외부80장 자료와 구분함. 웹 GPT는 [최신 인계·색인](agent.md#current-handoff-20261027)과 [Framework 작성 지침](framework_guide.md)을 우선 읽음.
+
+<a id="closed-loop-search-20261027"></a>
+### 동일 장면·5개 camera의 제거 탐색
+
+기존 16개 물체의 별도 test 32장면을 5개 고정 camera에서 각각 독립적으로 평가하여 정책당 160회·총 640회 제거 탐색을 완료함. 한 episode의 입력은 해당 camera의 단일 RGB-D이며, 5뷰를 합친 입력이 아님. 네 정책 모두 155/160=96.875% 성공했고, 성공한 155조건의 집합도 정확히 동일함.
+
+| 정책 | 성공/160 | 성공률 | 평균 제거 | 중앙값 | 초기 선택 성공 |
+|---|---:|---:|---:|---:|---:|
+| Fusion | 155 | 96.875% | **2.1290** | 2 | 36 |
+| Similarity | 155 | 96.875% | **3.9355** | 3 | 36 |
+| Occlusion | 155 | 96.875% | **7.7226** | 8 | 5 |
+| Complexity | 155 | 96.875% | **6.0516** | 6 | 9 |
+
+성공한 동일 155조건의 평균 제거 횟수는 Fusion 2.1290회로 Similarity 3.9355회보다 45.90% 적음. Fusion 평균은 5/5 camera에서 세 단독 stream보다 작음. S보다 적게/같게/많게 제거한 조건은 84/58/13임. 이 평균은 target 회수 동작을 제외하며 실패 회차를 성공으로 바꾸지 않음.
+
+정책별 실패 5회는 모두 같은 원본 장면 `book_3_scene00005_env0031`의 5뷰임. 원본 pose·실제 mesh에서 책의 최고 높이 6.271mm가 서랍 바닥 윗면 10mm보다 낮고, 원본 5뷰의 target 가시 픽셀이 모두 0임. 원본 32장면을 교체하거나 제외하지 않았으며 이를 모델 실패로만 귀속하지 않음. 매몰 조건이 없는 31장면의 155/155 성공은 별도 설명용이며 전체 32장면 분모를 대체하지 않음.
+
+![동일장면의모델별제거횟수비교](img/search_20261027_matched_scene_overview.png)
+
+각step의실제scene·예측·선택물체·가시율을한그림에정렬한3개전체비교는 [제거탐색보고서](closed_loop_search.md)에있음. Simulator ID/가시율을행동조건에사용한기존16종평가이며실제파지/zero-shot성공률과구분함.
 
 ### Fusion 전체 test — 85.06%의 의미
 
@@ -93,7 +113,7 @@ S의 최고점은 나머지78장에서 다른 포장식품 위에 있었음. 같
 
 **⑤ Feature fusion과 최종 위치 map.** 고정된 세 모델의 head 이전 `F_S/F_O/F_C:64×30×40`을 concat하여192채널로 만듦. `1×1 Conv64 → 3×3 Conv64 두 층 → 1×1 Conv1`을 적용하며 중간 층은 GroupNorm8·GELU를 사용함. `1×30×40` logit을 native amodal GT의16×16 평균과 BCEWithLogits로 학습하고, sigmoid는 추론·표시에 적용함. 세1채널 map을 합치는 구조가 아니며 attention·명시적 stream별 가중치 gate는 없음. CNN은 결합 특징의 관계를 학습하지만 환경별 기여도 변화의 실증은 별도 분석이 필요함.
 
-SOC best10의 전체 test 평가는 완료했고 SO 비교 학습·test·추가효과 비교는 진행 중임. 단일 RGB-D 추론에 crop/재분할 반복은 없으며, 실제 탐색 행동·실센서·외부 target amodal 성능은 미검증임. 외부80장 visible 진단의0/80 결과와 위 기존16종 결과를 구분함. 상세 설정과 완료 범위는 [Fusion](fusion_stream.md)을 따름.
+SOC/SO의공동학습·test완료기록을확인했으며추가효과해석은이번네정책제거비교와별개임. 단일RGB-D모델추론에crop/재분할반복은없고, 기존16종32scene의고정제거규칙평가를완료함. 실제robot파지·실센서·외부target의amodal/제거탐색성능은미검증임. 외부80장 visible 진단의0/80 결과와 위 기존16종 결과를 구분함. 상세 설정과 완료 범위는 [Fusion](fusion_stream.md)을 따름.
 
 각 stream 문서는 **목적·입출력 → 전체 구조 → 내부 모듈 → GT와 학습 → 핵심 설계 과정 → FAQ** 순서로 구성함. 단계별 가정·실패·비교 결과는 [Development Log](development_log.md), 실행 문맥과 상세 근거 색인은 [agent.md](agent.md)에 보존함.
 
@@ -317,7 +337,8 @@ Complexity에서 GT 상위20% 위치의 평균 점수는2.653252, 모델이 선�
 - [x] 확정 SOC best10의 전체 test24,000장 평가·지표별 분모 공개
 - [x] SOC 외부80장 visible 최고점 진단·stream 전체유효영역 상대오차 공개
 - [ ] SO 비교 학습·test 평가 완료와 S+O 대비 S+O+C 기여 확인
-- [ ] 배포 조건의 전체 지연·실제 탐색 효용 검증
+- [x] 기존16종·32scene·5camera에서고정모델4정책의시뮬레이션제거탐색비교
+- [ ] 배포조건전체지연·실제robot탐색효용검증
 - [ ] 필요성이 확인될 때 attention/Transformer와 기준안 비교
 - [ ] 현재 모델의 여러 새 target·실제 RGB-D 조건·탐색 효용 검증
 

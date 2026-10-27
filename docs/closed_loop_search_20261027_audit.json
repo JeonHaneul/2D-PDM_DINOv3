@@ -1,0 +1,273 @@
+{
+  "status": "pass",
+  "completed_episodes_audited": 640,
+  "step_logs": 4011,
+  "candidate_native_checks": 5461,
+  "ineligible_skips": 1470,
+  "removal_transitions": 3371,
+  "floor_initial_pair_checks": 32,
+  "physics_errors": [],
+  "failures": [
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "bottom",
+      "variant": "complexity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "bottom",
+      "variant": "fusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "bottom",
+      "variant": "occlusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "bottom",
+      "variant": "similarity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "center",
+      "variant": "complexity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "center",
+      "variant": "fusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "center",
+      "variant": "occlusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "center",
+      "variant": "similarity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "left",
+      "variant": "complexity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "left",
+      "variant": "fusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "left",
+      "variant": "occlusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "left",
+      "variant": "similarity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "right",
+      "variant": "complexity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 14
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "right",
+      "variant": "fusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 14
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "right",
+      "variant": "occlusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 14
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "right",
+      "variant": "similarity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 14
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "top",
+      "variant": "complexity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "top",
+      "variant": "fusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "top",
+      "variant": "occlusion",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera": "top",
+      "variant": "similarity",
+      "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+      "removals": 15
+    }
+  ],
+  "four_policy_common_success": {
+    "episodes": 155,
+    "mean_removals": {
+      "fusion": 2.129032258064516,
+      "similarity": 3.935483870967742,
+      "occlusion": 7.72258064516129,
+      "complexity": 6.051612903225807
+    }
+  },
+  "fusion_vs_baseline": {
+    "similarity": {
+      "paired_conditions": 160,
+      "fusion_only_success": 0,
+      "baseline_only_success": 0,
+      "both_success": 155,
+      "mean_fusion_minus_baseline_removals": -1.8064516129032258,
+      "fusion_fewer": 84,
+      "equal": 58,
+      "fusion_more": 13
+    },
+    "occlusion": {
+      "paired_conditions": 160,
+      "fusion_only_success": 0,
+      "baseline_only_success": 0,
+      "both_success": 155,
+      "mean_fusion_minus_baseline_removals": -5.593548387096774,
+      "fusion_fewer": 139,
+      "equal": 13,
+      "fusion_more": 3
+    },
+    "complexity": {
+      "paired_conditions": 160,
+      "fusion_only_success": 0,
+      "baseline_only_success": 0,
+      "both_success": 155,
+      "mean_fusion_minus_baseline_removals": -3.92258064516129,
+      "fusion_fewer": 120,
+      "equal": 24,
+      "fusion_more": 11
+    }
+  },
+  "source_nonburied_subset_descriptive_only": {
+    "layouts": 31,
+    "excluded_source_flagged_layouts": [
+      "book_3_scene00005_env0031"
+    ],
+    "primary_32_unchanged": true,
+    "metrics": {
+      "fusion": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.129032258064516
+      },
+      "similarity": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.935483870967742
+      },
+      "occlusion": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.72258064516129
+      },
+      "complexity": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.051612903225807
+      }
+    }
+  },
+  "failure_counts_by_layout": {
+    "book_3_scene00005_env0031": 20
+  },
+  "primary_overall": {
+    "fusion": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 2.129032258064516,
+      "median_removals_success_only": 2,
+      "zero_removal_successes": 36,
+      "max_successful_removals": 6
+    },
+    "similarity": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 3.935483870967742,
+      "median_removals_success_only": 3,
+      "zero_removal_successes": 36,
+      "max_successful_removals": 12
+    },
+    "occlusion": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 7.72258064516129,
+      "median_removals_success_only": 8,
+      "zero_removal_successes": 5,
+      "max_successful_removals": 14
+    },
+    "complexity": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 6.051612903225807,
+      "median_removals_success_only": 6,
+      "zero_removal_successes": 9,
+      "max_successful_removals": 15
+    }
+  },
+  "source_model_selection_locks_verified": true,
+  "scope": "Saved-data CPU audit; no inference or physics. Correlated views and oracle eligibility; not robotic grasp success."
+}

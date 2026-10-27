@@ -4,6 +4,18 @@
 
 **목적:** 웹 GPT와 외부 독자가 이 저장소만 읽고 현재 세 stream의 구조, 실제 출력, 학습 과정과 실제 구현·학습된 fusion을 정확한 논문 그림으로 표현할 수 있도록 정리함. 아래 설명·좌표·공개 이미지를 함께 사용함. 그림을 새로 그리는 작업이며 추가 학습을 의미하지 않음.
 
+## 0. 최신 제거 탐색 그림과 연결 위치
+
+고정32scene·5독립camera·4정책640회를완료했음. Fusion/S/O/C는각155/160성공이고성공한동일155조건평균방해물제거2.1290/3.9355/7.7226/6.0516회임. 실패는원본부터target책전체가서랍바닥아래인같은scene의5뷰임. 전체분모32장면을유지함.
+
+새그림은 [제거탐색](closed_loop_search.md),수치는`docs/closed_loop_search_20261027.json`,패널좌표/선택물체/가시율/출처hash는`img/closed_loop_search_assets_20261027.json`를사용함. 첫scene그림은F/S/O/C제거1/11/12/2회,둘째0/0/7/15회,셋째6/3/6/10회임. 세번째는Fusion이S보다느린사례임. 세조건은사후편차최대예시이며전체평균을대체하지않음.
+
+**Framework배치:** 기존amodal출력오른쪽또는구조도아래에`Simulator evaluation: peak per visible object → visibility≥50% → remove/retrieve`를신경망과분리해배치함. 제거후`600physics steps(5s) → new single RGB-D → frozen model`피드백화살표를붙임. ID/단독projection은simulator행동조건입력으로표시하고neuralstream입력으로연결하지않음. 단일RGB-Dforward내crop/재분할반복과물리행동후재관측을구분함. 이행동선택은새로학습한policyhead/DRL이아닌고정규칙임.
+
+**그림읽기:** 열4개는독립정책이고행r은방해물r개제거후의관측임. 매셀왼쪽RGB/오른쪽실제grayscale예측, 빨강방해물/초록target선택, 종료뒤회색은추가관측없음임. r0의원본RGB는동일하지만선택윤곽이정책별로다르고r1이후scene은제거경로때문에달라짐. F/S/O0–1,C0–6표시상한으로고정함. O는실제raw지도이며옆흰반응을사후workspace로지우지않았고배경은행동선택에서제외함. `rgb_panel_xywh`/`map_panel_xywh`로각셀을구조도에배치할수있음.
+
+이후SOC/SO공동학습·각test24,000장완료marker를확인했음. 기존17:56:50의SO epoch18은당시snapshot이며이번4정책제거실험의SO포함을뜻하지않음. C추가기여해석·외부amodal/외부물체제거탐색·실센서·실제파지는별도범위임.
+
 ## 1. 먼저 읽을 자료와 현재 상태
 
 1. [README](README.md): 연구 목표, 전체 구조, feature와 map의 차이.
@@ -20,8 +32,8 @@
 | 분할 | Train192,000 / validation24,000 / test24,000. 같은 `(target,scene)`의 env·camera는 같은 split |
 | 개별 모델 | 새 seed0 학습 완료. S20/O12/C20 epochs, best S20/O12/C19. 완료 시각 2026-10-24 04:18 KST |
 | 추론·평가 | 선택한 checkpoint로 test24,000장의 GT 없는 예측을 먼저 저장한 뒤 GT 평가 완료 |
-| 통합 | 공유 scene DINO·전체stream 고정·concat+CNN. SOC는13epoch 종료·best10, 원래16종 test24,000장 평가 완료: amodal mIoU50.920985%, 최고점 amodal 적중85.058333%. SO는17:56:50 KST에epoch18 학습 중이며 SOC–SO 공동 비교는 미완료 |
-| 일반화 | S/O/C 외부1종80장 평가와 SOC의 같은외부80장 visible 최고점 진단 완료: SOC0/80. 외부amodal 평가는 미실행. 기존5장 그림·원래16종 test24,000장·외부80장은 구분하며 실센서·탐색 성공률은 미검증 |
+| 통합 | 공유 scene DINO·전체stream 고정·concat+CNN. SOC는13epoch 종료·best10, 원래16종 test24,000장 평가 완료: amodal mIoU50.920985%, 최고점 amodal 적중85.058333%. SO도이후20epoch·best20및공동test완료marker확인. SOC–SO추가효과해석과이번4정책제거실험구분 |
+| 일반화 | S/O/C 외부1종80장 평가와 SOC의 같은외부80장 visible 최고점 진단 완료: SOC0/80. 외부amodal 평가는 미실행. 기존5장 그림·원래16종 test24,000장·외부80장은 구분하며 기존16종32scene고정제거탐색은완료하고실센서·외부target탐색은미검증 |
 
 이 연구의 zero-shot 탐색은 최종 목표임. 현재 외부80장의 stream별 점수 지도 평가를 통합 탐색 성공률로 해석하지 않음. [Fusion 현재 상태](fusion_stream.md), [외부 평가 요약](docs/stream_external_evaluation_20261027.json), [Fusion 학습 요약](docs/fusion_training_20261027_summary.json)을 함께 읽음. 10-26 그림의 점선 fusion은 당시 계획 이력이며 최신 전체 구조도는 실제 구현을 나타냄.
 
@@ -40,7 +52,8 @@ flowchart LR
     V --> F["승인·실행: 세 stream 고정<br/>feature concat + CNN 학습"]
     G -.->|"amodal GT로 감독"| F
     F --> Q["SOC best10 고정 test24,000장 평가<br/>amodal mIoU50.92% · peak85.06%"]
-    Q -.-> Z["남은 평가: SO 비교 · 외부amodal<br/>탐색 효용"]
+    Q --> R["동일32scene·5camera·4정책<br/>고정제거탐색640회완료"]
+    R -.-> Z["남은범위: SOC-SO추가효과해석<br/>외부amodal·외부탐색·실제robot"]
 ```
 
 원본 `261013_data`의 각 scene에는 RGB/depth/seg 및 물체 pose·camera 정보가 있음. 색상만으로 모든 scene의 물체를 통합 식별하지 않으며 원본 instance ID와 해당 scene의 metadata로 GT를 생성함. Target reference는 더미 속 target 위치를 알려 주는 정답이 아니라, 찾을 물체를 별도로 촬영한 자료임. 현재 stream 추론에는 scene segmentation·pose·mesh·amodal GT를 넣지 않음.
@@ -54,7 +67,7 @@ flowchart LR
 | Complexity | 가시 instance별 가까운 최대16픽셀의 거리 기여를 반경48px에서 계산함. 물체별 기여의 합에서 가장 큰 하나를 제외하고, 물체 밖에서는16px 이내에서 부드럽게 감소시킴 | `P_C`의 감독 가지 옆. 정수 count·확률이 아닌 연속 지역 점수 |
 | Fusion | 저장된 실제 target pose와 asset으로 복원한 **전체 target 투영 mask**. 가려진 부분도 흰색이며 배경은 검정 | 실제 fusion 출력의 감독 위치. GT와 실제 예측을 별도 이미지로 표시함 |
 
-예를 들어 target의 절반만 보이면 최종 fusion GT에는 보이는 절반과 가려진 절반을 모두 흰색으로 표시함. 전부 가려져도 전체 투영 영역이 흰색임. Visible mask로 바꾸어 학습하는 분기는 없음. Visible은 복원·검사용 보조 정보임. 실제 보이는 target을 우선 찾는 행동까지 amodal mask만으로 검증됐다는 뜻은 아니며, 그 효용은 후속 fusion·탐색 평가 대상임.
+예를 들어 target의 절반만 보이면 최종 fusion GT에는 보이는 절반과 가려진 절반을 모두 흰색으로 표시함. 전부 가려져도 전체 투영 영역이 흰색임. Visible mask로 바꾸어 학습하는 분기는 없음. Visible은 복원·검사용 보조 정보임. 실제 보이는 target을 우선 찾는 행동까지 amodal mask만으로 검증됐다는 뜻은 아니며, 해당효용의고정16종제거비교는새0절에제시하고외부조건/실제파지는후속범위임.
 
 Native GT는 모두640×480 grayscale임. S/C는 정밀 float GT의16×16 평균인30×40 배열로 학습하며, O는 PNG/255와 coverage를 읽어 patch 감독을 계산함. PNG의 표시 밝기와 원시 학습값을 혼동하지 않음. GT 생성과 모델 예측의 차이를 자세히 설명한 수식은 각 stream 본문을 따름.
 
@@ -134,7 +147,7 @@ F_C:64×30×40 ─┘                → (3×3 Conv64→64 / GroupNorm8 / GELU) 
 
 Fusion으로 들어가는 실제 화살표는 **각 map head 이전의64채널 feature에서 분기**함. `P_S/P_O/P_C`는 개별 감독·평가 출력이며 세 지도3채널 concat이 아님. SOC와 C를 제외한 SO(128채널) 두 head만 seed0 새 초기화하여 비교함. 모든 pretrained encoder와 학습된 S20/O12/C19의 전체 파라미터·buffer는 frozen/eval이며 fusion CNN만 AdamW로 학습함. Attention/Transformer는 사용하지 않음. Native 출력30×40을 bilinear640×480로 확대해 표시하며 그 과정에 GT mask를 적용하지 않음.
 
-현재 SOC는13epoch에서 조기 종료했고 선택된epoch10의 validation BCE는 **0.012314409569526712**임. BCE를 정확도%로 변환하지 않음. 고정 SOC best10의 원래16종 test24,000장 평가는 완료했고 아래6절에 결과·정의를 명시함. SO는2026-10-27 17:56:50 KST에epoch18 학습 중이므로 SOC–SO 비교와 C 추가효과는 미확정임. 원래 공동 runner의 전체test 완료와 별도 SOC 단독평가 완료를 구분하며 [학습 요약](docs/fusion_training_20261027_summary.json)을 따름.
+현재 SOC는13epoch에서 조기 종료했고 선택된epoch10의 validation BCE는 **0.012314409569526712**임. BCE를 정확도%로 변환하지 않음. 고정 SOC best10의 원래16종 test24,000장 평가는 완료했고 아래6절에 결과·정의를 명시함. SO는 이후 20epoch·best20으로 종료됐고 공동 test 완료 기록을 확인함. 17:56:50 KST의 epoch18은 이전 snapshot임. C 추가 효과 해석은 이번 SOC·단독 S/O/C 제거 비교와 별도로 구분함. 원래 공동 runner의 전체test 완료와 별도 SOC 단독평가 완료를 구분하며 [학습 요약](docs/fusion_training_20261027_summary.json)을 따름.
 
 ## 4. 그림으로 사용할 독립 이미지
 
@@ -215,7 +228,7 @@ Target reference mask의 의미와 크기68 계산은 노드로 표현해도 됨
 | Feature→map head의 짧은 가지 | 개별 stream 감독·test용 한 채널 출력 |
 | Feature→concat의 실선 | 실제 구현된 frozen F64×3→192 연결 |
 | GT→loss/출력의 점선 | 감독 관계. GT가 encoder나 추론 입력으로 들어간다는 뜻이 아님 |
-| 금색 실선 경계 | 실제 fusion CNN·출력. SOC 원래16종 test완료와 SO 비교미완료를 별도 주석으로 구분 |
+| 금색 실선 경계 | 실제 fusion CNN·출력. SOC 원래16종 test·고정 제거 탐색 완료와 SO 공동 test 완료·추가 효과 해석을 구분 |
 
 초기 그림의 오른쪽 작은 흰 target mask를 최종 예측처럼 옮기지 않음. Amodal GT와 실제 SOC best10 예측을 별도 위치에 놓고 caption에도 상태를 적음. 모든 map 자체는 grayscale로 유지하고 stream 구분 색상은 패널·화살표·제목에만 사용함.
 

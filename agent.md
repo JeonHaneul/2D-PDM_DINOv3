@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-10-27 (Asia/Seoul) · SOC best10의 원래16종 test24,000장 평가·외부80장 visible 최고점 진단·S/O/C 전체 유효영역 오차 집계 완료 · SO는 17:56:50 KST에 epoch18 학습 중 · 아래 날짜별 기록은 당시 상태임
+> 문서 기준일: 2026-10-27 (Asia/Seoul) · 기존16종32scene·5camera·4정책640회제거탐색완료·전체단계그림/수치공개 · 정적SOC test와외부진단도보존 · SOC/SO공동학습·각test완료기록확인 · 아래날짜별기록은당시상태임
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서, 통합 구조·진행 상태는 [Fusion](fusion_stream.md)에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
 
@@ -13,15 +13,36 @@
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md`, [Fusion](fusion_stream.md) · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
 <a id="current-handoff-20261027"></a>
-## 2026-10-27 현재 인계 — SOC 전체 test와 외부 물체 평가
+## 2026-10-27 현재 인계 — 반복 제거 탐색·SOC test·외부 물체 평가
 
-**최신 완료:** S20/O12/C19 외부1종 평가와 전체 유효영역 오차 집계, SOC 학습 종료·best epoch10 선택, 원래16종의 고정 test24,000장 평가, 외부80장 visible 최고점 진단, 기존5장면의 실제 fusion GT/예측 공개임. **진행 중:** 2026-10-27 17:56:50 KST의 LOCAL `status.json`에서 SO는 epoch18 학습 중이며 17epoch를 완료한 상태임. SOC–SO 전체 test 비교와 Complexity 추가 효과는 아직 확정하지 않음. 당일 초기 게시의 “fusion 전체 test 미완료”는 이후 고정 SOC 단독 평가 전의 snapshot이며, SO와의 공동 완료·외부 amodal 평가는 여전히 미완료임.
+**최신 완료:** 고정S20/O12/C19·SOC best10의동일32scene×5독립camera반복제거640회와독립감사,전체단계비교그림3개·수치/CSV공개임. 원래SOC test24,000장·외부80장진단은보존함. SO도이후20epoch·best20으로종료되고SOC/SO공동test각24,000장완료marker를확인함. 이번네정책탐색에는SO가포함되지않아C의증분기여와구분함. 17:56:50의SO epoch18은과거snapshot이며외부amodal/실센서/실제robot검증은미완료임.
+
+### 동일 scene·여러 camera의 제거 탐색 완료
+
+기존 16개 물체의 별도 test 32장면을 5개 고정 camera에서 각각 독립적으로 평가하여 정책당 160회·총 640회 제거 탐색을 완료함. 한 episode의 입력은 해당 camera의 단일 RGB-D이며, 5뷰를 합친 입력이 아님. 네 정책 모두 155/160=96.875% 성공했고, 성공한 155조건의 집합도 정확히 동일함.
+
+| 정책 | 성공/160 | 성공률 | 평균 제거 | 중앙값 | 초기 선택 성공 |
+|---|---:|---:|---:|---:|---:|
+| Fusion | 155 | 96.875% | **2.1290** | 2 | 36 |
+| Similarity | 155 | 96.875% | **3.9355** | 3 | 36 |
+| Occlusion | 155 | 96.875% | **7.7226** | 8 | 5 |
+| Complexity | 155 | 96.875% | **6.0516** | 6 | 9 |
+
+성공한 동일 155조건의 평균 제거 횟수는 Fusion 2.1290회로 Similarity 3.9355회보다 45.90% 적음. Fusion 평균은 5/5 camera에서 세 단독 stream보다 작음. S보다 적게/같게/많게 제거한 조건은 84/58/13임. 이 평균은 target 회수 동작을 제외하며 실패 회차를 성공으로 바꾸지 않음.
+
+정책별 실패 5회는 모두 같은 원본 장면 `book_3_scene00005_env0031`의 5뷰임. 원본 pose·실제 mesh에서 책의 최고 높이 6.271mm가 서랍 바닥 윗면 10mm보다 낮고, 원본 5뷰의 target 가시 픽셀이 모두 0임. 원본 32장면을 교체하거나 제외하지 않았으며 이를 모델 실패로만 귀속하지 않음. 매몰 조건이 없는 31장면의 155/155 성공은 별도 설명용이며 전체 32장면 분모를 대체하지 않음.
+
+**웹GPT가따라야할구분.** 한step의모델입력은단일RGB-D임. 같은초기scene/camera에서네정책을독립reset하므로이후scene은제거선택에따라달라짐. 지도최대점수를보이는물체별로정렬하고simulator가가시율50%조건을확인함. ID/가시율은GT기반환경측행동조건이며실환경segmentation성능으로읽지않음. 0step은초기target선택이고평균은target회수동작을제외함. 96.875%는이탐색규칙의성공률이며85.06%정적amodal최고점적중과같은지표가아님.
+
+**그림·근거색인.** [제거탐색본문](closed_loop_search.md)은목적/규칙/카메라별수치/실패/사례별전체선택순서를제공함. [공개수치](docs/closed_loop_search_20261027.json)와640회CSV/160pairedCSV를전체평가근거로사용함. [그림manifest](img/closed_loop_search_assets_20261027.json)는3개사례총85관측의선택물체·가시율·rawscore·sourcehash와각RGB/map셀좌표를제공함. 세사례는사후편차최대조건이며대표샘플이아님. Framework의neural출력뒤별도simulator평가블록과제거→물리→재관측화살표를붙이고GT/가시율을stream입력에연결하지않음.
+
+**LOCAL 실행 근거.** `<DEV_ROOT>/experiments/closed_loop_search_20261027/`, `outputs/closed_loop_search_20261027/full/`의 `completion.json`, `report/`, `audit/{final,source_scene_quality}.json`, `physics_log_audit.json`, `episodes/`를 따름. 전체 4011관측·3371제거와 모든 로그는 LOCAL이며 공개 3그림/JSON을 그 전체 파일 공개로 확대하지 않음. 최종 84.73분과 이전 정적 바닥/GPU buffer 오류 수정 시간을 구분함. 코드/weights·전체 raw 자료를 추가 게시한 것이 아님.
 
 ### 웹 GPT 읽기 순서와 공개 자료 색인
 
 | 순서 | 문서·자료 | 확인할 내용 |
 |---|---|---|
-| 1 | [README](README.md)와 이 절 | 최신 완료/진행 중/미검증 상태, known16 test와 외부80장의 서로 다른 평가 범위 |
+| 1 | [README](README.md)와이절·[제거탐색](closed_loop_search.md) | 최신640회규칙/수치/원본문제, 정적known16 test·외부80장·제거성공률의차이 |
 | 2 | [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) | 각 stream의 실제 입력·GT·학습·출력·현재 외부 평가 |
 | 3 | [Fusion](fusion_stream.md) | 고정64채널 특징3개→concat192→CNN→amodal map의 실제 구조와 전체 test 결과 |
 | 4 | [Framework 작성 지침](framework_guide.md) · [배치 JSON](framework_layout.json) | 그림 노드/화살표/위치, 고정 범위, 실제 이미지와 정량 지표의 표시 규칙 |
@@ -78,7 +99,7 @@ S GT는 원본 physical ID로 생성함. O GT는 실제 촬영 camera·drawer·t
 
 단일 RGB-D에서 scene DINO를1회 실행하여 고정 S/O/C가 필요한 layer를 공유함. Backbone뿐 아니라 각 stream의 학습 parameter와 O의 BN buffer도 고정함. Head 이전 `F_S/F_O/F_C:64×30×40`을 concat하여192채널로 만든 뒤 Conv1×1 64/GN8/GELU → Conv3×3 64/GN8/GELU 두 층 → Conv1×1 1로 연결함. Sigmoid로30×40 amodal 점수를 출력하고 기존640×480 binary amodal GT를16×16 평균하여 BCEWithLogits로 감독함. Attention·명시적 stream gate·crop 재시도 루프는 없음.
 
-기존 train192,000/val24,000/test24,000, seed0·batch16·FP32·AdamW를 사용함. SOC는13epochs 이후 validation3회 미개선으로 종료했고 best10의 validation BCE는0.01231440957임. BCE는 정확도%가 아님. SO는 별도 best·조기종료를 갖고 학습 중임. 원래 두 모델 종료 후 전체 test를 평가하는 공동 runner는 유지했으며, 이번 고정 SOC 단독 평가의 시점 예외를 별도 protocol에 명시함. SOC 전체 test 완료를 공동 run 완료로 기록하지 않음.
+기존 train192,000/val24,000/test24,000, seed0·batch16·FP32·AdamW를 사용함. SOC는13epochs 이후 validation3회 미개선으로 종료했고 best10의 validation BCE는0.01231440957임. BCE는 정확도%가 아님. SO는별도best·조기종료를갖고이후20epoch·best20으로공동test까지완료했음. 아래17:56:50은과거진행snapshot임. 원래 두 모델 종료 후 전체 test를 평가하는 공동 runner는 유지했으며, 이번 고정 SOC 단독 평가의 시점 예외를 별도 protocol에 명시함. 당시 SOC 단독 선행 평가와 이후 공동 run 완료 기록을 구분함.
 
 ![동일 5장면의 실제 stream·fusion GT/예측](img/stream_fusion_gt_prediction_comparison_20261027.png)
 

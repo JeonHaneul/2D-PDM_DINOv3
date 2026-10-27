@@ -4,7 +4,10 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · **Occlusion** · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->
 
-> **현재 상태 — 2026-10-27 정리:** Native geometry68·raw target broadcast·global FiLM O12의 기존16종 test24,000장 평가와 외부 `packaged_food_5` 80장 평가를 완료함. 외부 공통 상위20% 영역 일치율은95.25318%이며 target 발견률이 아님. 이전 epoch-3 외부 결과와 구분함. 고정 `F_O`는 실제 SOC Fusion에 연결했으며 SOC의 전체 test 24,000장 평가를 완료함. SO 비교는 미완료임.
+> **2026-10-27 제거탐색평가추가:** 현재Occlusion단독정책은동일32scene×5camera에서155/160성공, 성공155조건평균방해물제거7.7226회임. 같은조건Fusion은2.1290회임. 실패는원본매몰scene하나의5뷰로동일하며target회수1행동은평균에서제외함. [전체단계비교·평가규칙](closed_loop_search.md)에서원시지도/시뮬레이터가시율조건과현재모델의역할을구분함.
+
+
+> **현재 상태 — 2026-10-27 정리:** Native geometry68·raw target broadcast·global FiLM O12의 기존16종 test24,000장 평가와 외부 `packaged_food_5` 80장 평가를 완료함. 외부 공통 상위20% 영역 일치율은95.25318%이며 target 발견률이 아님. 이전 epoch-3 외부 결과와 구분함. 고정 `F_O`는 실제 SOC Fusion에 연결했으며 SOC의 전체 test 24,000장 평가를 완료함. 이후 SO의 공동 학습·test 완료 기록을 확인했으며, 이번 네 정책 제거 비교와 C 추가 효과 해석을 구분함.
 
 ## 현재 모델의 외부 물체 평가와 Fusion 연결 — 2026-10-27
 
@@ -78,7 +81,7 @@ F_O → 1×1 Conv64→1 + sigmoid → P_O: 1×30×40
 
 개별 Occlusion 학습에서는 DINO만 frozen이며 depth ResNet18·geometry FiLM MLP·MatchingBlocks·feature fusion·map head를 새 학습함. ResNet의 세 depth scale을 DINO 네 경로에 `layer2/3/4/4`로 대응함. Target appearance는 **원본 전체 RGB의 일반 평균**으로 만들고, mask는 area/bbox/log-aspect/8×8 silhouette의 68-D geometry에 사용함. 현재 mode는 `raw_broadcast/global_film`이며 과거 local gate·exact-extent ablation을 섞지 않음. Scene GT segmentation·target pose·GT coverage는 forward 입력이 아님.
 
-현재 Fusion은 고정한 S20/O12/C19의 head 이전 `64×30×40` feature를 concat한 `192×30×40`을 별도 CNN에 입력함. **최종 1채널 예측 map의 concat이 아님.** 같은 scene RGB의 DINO layer2/5/8/11을 한 번 계산해 S/O에 공유하고 C에는 layer11을 제공하는 통합 forward를 구현함. 세 stream 전체와 backbone은 `eval/no_grad`로 고정하고 Fusion CNN만 학습함. SOC는 13 epochs 후 종료하여 best 10을 선택했고, 실제 5장 예시와 전체 test 24,000장 평가를 완료함. SO 비교 학습·평가는 미완료이며 상세는 [Fusion](fusion_stream.md)을 따름.
+현재 Fusion은 고정한 S20/O12/C19의 head 이전 `64×30×40` feature를 concat한 `192×30×40`을 별도 CNN에 입력함. **최종 1채널 예측 map의 concat이 아님.** 같은 scene RGB의 DINO layer2/5/8/11을 한 번 계산해 S/O에 공유하고 C에는 layer11을 제공하는 통합 forward를 구현함. 세 stream 전체와 backbone은 `eval/no_grad`로 고정하고 Fusion CNN만 학습함. SOC는 13 epochs 후 종료하여 best 10을 선택했고, 실제 5장 예시와 전체 test 24,000장 평가를 완료함. 이후 SO 공동 학습·test 완료 기록도 확인함. 기존 16종의 네 정책 제거 탐색을 추가 평가했으며 상세는 [Fusion](fusion_stream.md)을 따름.
 
 ### 전체 test 결과와 해석
 

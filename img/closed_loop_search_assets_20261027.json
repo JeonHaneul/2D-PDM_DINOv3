@@ -1,0 +1,3132 @@
+{
+  "schema": "closed_loop_search_figure_manifest_v1",
+  "purpose": "Measured post-hoc extreme trajectory comparisons, not representative sampling",
+  "source_completion_sha256": "d0150832d8a43118f3309f2ad44be5377172496daec1f7b119e4fb9edf0a062c",
+  "source_paired_csv_sha256": "37c6b5630a28d13b842e4be911787a94aaf8172e116540be288896e53232ce85",
+  "rows": "Decision r before action; r=0 initial; target found at r equals blocker removal count",
+  "columns": [
+    "fusion",
+    "similarity",
+    "occlusion",
+    "complexity"
+  ],
+  "observed_states": "Same exact initial inputs, independent physical removal trajectories after step0",
+  "map_display": {
+    "fusion": [
+      0,
+      1
+    ],
+    "similarity": [
+      0,
+      1
+    ],
+    "occlusion": [
+      0,
+      1
+    ],
+    "complexity": [
+      0,
+      6
+    ],
+    "per_image_normalization": false,
+    "complexity_6_is_display_cap_not_gt_upper_bound": true
+  },
+  "annotation": "Simulator-ID contours and selected point show executed decision, not learned segmentation. Underlying map unchanged.",
+  "panel_coordinate_origin": "top-left of native composite PNG, pixels",
+  "overview": {
+    "png": "img/search_20261027_matched_scene_overview.png",
+    "png_sha256": "6287c9580d10b5e62ff0581f4da0422f3f9bcf0d99fecb2e7b482d7cc307b3c9",
+    "size_px": [
+      1580,
+      780
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "similarity_gap",
+      "selection_rule": "Maximum similarity_minus_fusion among common-success155; ties layout_id/camera lexical",
+      "layout_id": "fruit_2_scene00044_env0057",
+      "target": "fruit_2",
+      "camera": "left",
+      "removals": {
+        "fusion": 1,
+        "similarity": 11,
+        "occlusion": 12,
+        "complexity": 2
+      },
+      "gap": 10,
+      "reference": {
+        "rgb": "261013_data/target/fruit_2/rgb/000000_center.png",
+        "rgb_sha256": "9411538c914194bef51743ffcbe4af1812564500bb824934d0071c250b053f7e",
+        "seg_sha256": "af26c96776c51f2d9bad2d816adf3a3592238252d334cda44e3599539d659225",
+        "mapping_sha256": "a3ae744ec2e70eb854aad81014590694b55682f33adf2bca214a62dad63217fd",
+        "display_crop_xyxy": [
+          204,
+          300,
+          259,
+          355
+        ],
+        "role": "Independent center target reference, display only"
+      },
+      "steps": [
+        {
+          "policy": "fusion",
+          "step": 0,
+          "action": "remove",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.39262813329696655,
+          "point_xy": [
+            311,
+            232
+          ],
+          "visibility_fraction": 0.8411806670233637,
+          "visible_pixels": 9433,
+          "alone_pixels": 11214,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/fusion/step_00",
+          "rgb_sha256": "fa70ddafc765ec684a20b9496f1940f3aaedf228fbc61cd492d7152d0f93fac3",
+          "prediction_sha256": "38e68b7cb19f7d9fe1a28f91141a836dea93d6fa977823dd08f97d75250a3c9f",
+          "labels_sha256": "f9f055e2041e4f32adfa1bb429d1d61b8108b7dfc32d1c4f7aa01c0c3cceaa13",
+          "log_sha256": "d9461bb1609f3234a7386a99b6a52654ddcf6777231b0c831a4850cbacf84126",
+          "rgb_panel_xywh": [
+            88,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 1,
+          "action": "found",
+          "object": "fruit_2",
+          "instance_id": 6,
+          "score": 0.9378472566604614,
+          "point_xy": [
+            312,
+            231
+          ],
+          "visibility_fraction": 0.6039215686274509,
+          "visible_pixels": 616,
+          "alone_pixels": 1020,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/fusion/step_01",
+          "rgb_sha256": "8d6cf1c3255ea0c184e26482f890dae6269e6a6d844185d4244925dbf7f2d127",
+          "prediction_sha256": "30ba4e894aafbdc3a64b248e67f134eb7f2abb599ffafbf3516f141c5feb02cf",
+          "labels_sha256": "a08d206d4f0fb0b07bec0c9f3dbe93805a271770bad3aacb00c00b23c71ce434",
+          "log_sha256": "d8ad098c321042352077a9788c3159de5d58a3d4ed544756125493013885a21b",
+          "rgb_panel_xywh": [
+            88,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 0,
+          "action": "remove",
+          "object": "fruit_4",
+          "instance_id": 8,
+          "score": 0.7962415814399719,
+          "point_xy": [
+            456,
+            327
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1360,
+          "alone_pixels": 1360,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_00",
+          "rgb_sha256": "fa70ddafc765ec684a20b9496f1940f3aaedf228fbc61cd492d7152d0f93fac3",
+          "prediction_sha256": "6d0bbdbf9eea6235a49a97686d95172811d6605dd5a1b4dd237ba838ec898078",
+          "labels_sha256": "f9f055e2041e4f32adfa1bb429d1d61b8108b7dfc32d1c4f7aa01c0c3cceaa13",
+          "log_sha256": "ba7b7641c2f7e0c92cca12190f54d6d15b4a71adb4282c6c7ab19795aeec62df",
+          "rgb_panel_xywh": [
+            588,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 1,
+          "action": "remove",
+          "object": "fruit_1",
+          "instance_id": 5,
+          "score": 0.794484555721283,
+          "point_xy": [
+            216,
+            87
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1669,
+          "alone_pixels": 1669,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_01",
+          "rgb_sha256": "c0da905429aced64a8195f7e02a3c728f26f3f3f3a150f31668a51c278fc2e03",
+          "prediction_sha256": "f16492cf9a85b64d7af5c661c93a8278a6f41deb7bf88943cf4def3fcb2d5bb1",
+          "labels_sha256": "25f9dcfebaac73a2d548f53912b5d3c54d0ac48d6d84d69d309174fc9ae0e236",
+          "log_sha256": "fa5829d8efdfcc006d2b5fa8baa50390d405f6bf152c1f27faf9d7f426056bee",
+          "rgb_panel_xywh": [
+            588,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 2,
+          "action": "remove",
+          "object": "fruit_3",
+          "instance_id": 7,
+          "score": 0.7864755988121033,
+          "point_xy": [
+            247,
+            392
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 880,
+          "alone_pixels": 880,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_02",
+          "rgb_sha256": "5c1f3bb3c9a4cdd489a8e1e4dba1d5595d62d7076b6ac3042e223e551dc2c2ff",
+          "prediction_sha256": "c8016637508db0e14a54d765c6b95ad58cfc75d40abf5fbca6c23c84cac4cf6e",
+          "labels_sha256": "3cfdef7eb58104950f461a6f7b1435c4dda6327ca4776bc59d0922577c2612a4",
+          "log_sha256": "d40fe045fd95377182a3952aa0e456d06851ca1976e216d7bf5ae1966317176e",
+          "rgb_panel_xywh": [
+            588,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 3,
+          "action": "remove",
+          "object": "packaged_food_2",
+          "instance_id": 10,
+          "score": 0.50334632396698,
+          "point_xy": [
+            391,
+            248
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2118,
+          "alone_pixels": 2118,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_03",
+          "rgb_sha256": "2017ba3aceef5acfabc130877e52fedb550efbf1169c124f8aad65a4a8c40884",
+          "prediction_sha256": "e8241df6134847994a25cd2783e6e129fa776bd4787f35696db2789d7f53100b",
+          "labels_sha256": "98f63102a9f20b08c3354b19aa72a7d9411324f3eb64ccefbfd1a5347ea813fd",
+          "log_sha256": "96ab0985936fdd68c8a852d4cbbb13f8bcadcfc44e0997b185ffc0982cd35d61",
+          "rgb_panel_xywh": [
+            588,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 4,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 0.5020738840103149,
+          "point_xy": [
+            327,
+            264
+          ],
+          "visibility_fraction": 0.9979597784902361,
+          "visible_pixels": 3424,
+          "alone_pixels": 3431,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_04",
+          "rgb_sha256": "a7ef1aa7023a6b5fefa38d67202fcbe0348ae9d04041ba0f073c791dcc74ba11",
+          "prediction_sha256": "a303729d0ef4ab9f915443ba04d2c1d91f7b39c31e6138f9a7eadb10bcb17816",
+          "labels_sha256": "69a1f75277af66bc817f62ce9e5a98e456446be2150bc87b49bd75c86d799a90",
+          "log_sha256": "1040fce96ff3abcb8f5fb1f70bdacf89a397795d646b1ecd95c7bb39d6e77c65",
+          "rgb_panel_xywh": [
+            588,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 5,
+          "action": "remove",
+          "object": "packaged_food_4",
+          "instance_id": 12,
+          "score": 0.49959415197372437,
+          "point_xy": [
+            344,
+            215
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2482,
+          "alone_pixels": 2482,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_05",
+          "rgb_sha256": "be3536b82913b2d6d158b54f7798eaffd81b7a3867d7847dd208163ea99b4ba9",
+          "prediction_sha256": "627b92ddde7a168f9abfdf1982bec2f3397572974bd302b92b59500e7df655af",
+          "labels_sha256": "b3a32a98aedff696a16679df5b314aea756a8bd3bc1b86e13508b5d0ad1e747c",
+          "log_sha256": "1c3e473ffda128d8f48969a118c6a6f294c95860ed378ad6f566852e2891764a",
+          "rgb_panel_xywh": [
+            588,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 6,
+          "action": "remove",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.49843719601631165,
+          "point_xy": [
+            471,
+            263
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1492,
+          "alone_pixels": 1492,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_06",
+          "rgb_sha256": "8769206edf2e94b71ac25ddf5d6d0db39874e663b5161f68a17f7580dd60dfca",
+          "prediction_sha256": "fa6bfa34b66f082b9264cc4c2c99bd99aeede918be88c22411f83176585ddcd7",
+          "labels_sha256": "f7a4f394a5925be5bbb15506bb3d3ee233b17d94f224f8e24da463a02c96b463",
+          "log_sha256": "ce427f64bbf322c8b16e1c55e18b66a55349ce57c7e6eb0a5bab9a76a25a1810",
+          "rgb_panel_xywh": [
+            588,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 7,
+          "action": "remove",
+          "object": "toy_2",
+          "instance_id": 14,
+          "score": 0.20694614946842194,
+          "point_xy": [
+            215,
+            376
+          ],
+          "visibility_fraction": 0.819327731092437,
+          "visible_pixels": 1755,
+          "alone_pixels": 2142,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 7,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_07",
+          "rgb_sha256": "e9b7890fab2e9bc6a44a3712dd4f519bd3bfb0e8eb2b254ec85d169149b2bb09",
+          "prediction_sha256": "1f3332dea78c35ca06dbcefa35110e36ebb012a0a3142796827047e1985b88c6",
+          "labels_sha256": "31ef0b6c00defd2bc4444810a4162a2a4d24ab8a1c812d221ce9799595547db4",
+          "log_sha256": "9782cb46fb59cb4f48d8e1c12f34c63530eb746406838596795593da465a3d0d",
+          "rgb_panel_xywh": [
+            588,
+            1954,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            1954,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 8,
+          "action": "remove",
+          "object": "toy_3",
+          "instance_id": 15,
+          "score": 0.20274607837200165,
+          "point_xy": [
+            280,
+            359
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2824,
+          "alone_pixels": 2824,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 8,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_08",
+          "rgb_sha256": "198e2eb9c76831883d00fa792f04e9a65e9754bd8c9a903f136779418012125d",
+          "prediction_sha256": "5dc01b0e3a52b9b6de6fdeb719362692859043506ba76157205932f6c212f4f6",
+          "labels_sha256": "f7526cfa7ba96c7f28a903f0ce7ae629234f03710988f8cdd8e3727cf6ef8a70",
+          "log_sha256": "0d84a14fa7b1fff3129d46945831ee7575731e05ec1e75d3ebe187f3c12de0ea",
+          "rgb_panel_xywh": [
+            588,
+            2198,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            2198,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 9,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 0.20214194059371948,
+          "point_xy": [
+            328,
+            295
+          ],
+          "visibility_fraction": 0.9087337840306962,
+          "visible_pixels": 9947,
+          "alone_pixels": 10946,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 9,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_09",
+          "rgb_sha256": "a402e688014b41bfc71d072de3987d4251ffd0d6402be569f4a06d74d75b38ee",
+          "prediction_sha256": "7350506fc0e43324e6ede5fa19d472af8076ba34e5799892c6aee6ae584a1b51",
+          "labels_sha256": "5ced6bf7f4a93b37a50fbb4f63f9154e2c14eb2413714225bb95955f11187859",
+          "log_sha256": "2257c323b2bd62df5ba3d4d2988226e8a775d1904af44c4aa1505fbbeea2cec8",
+          "rgb_panel_xywh": [
+            588,
+            2442,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            2442,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 10,
+          "action": "remove",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.20076406002044678,
+          "point_xy": [
+            343,
+            135
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 11662,
+          "alone_pixels": 11662,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 10,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_10",
+          "rgb_sha256": "0f06370e01dfba04dff2a347490e1cfad1717f35efc16b11dcc02af83c630bac",
+          "prediction_sha256": "95c928006042fc2f8925265cc254a774e640c23c5b0a761713969feb58eb9f60",
+          "labels_sha256": "180eb37df4e418d9332a3133f85bdbec2ab9388d50b0340136851f929cd51673",
+          "log_sha256": "03fa71662a7347d44c47131f78d0303efd093641f0ac1bc7094078cc8281e9a3",
+          "rgb_panel_xywh": [
+            588,
+            2686,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            2686,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 11,
+          "action": "found",
+          "object": "fruit_2",
+          "instance_id": 6,
+          "score": 0.9799386262893677,
+          "point_xy": [
+            312,
+            231
+          ],
+          "visibility_fraction": 0.9990196078431373,
+          "visible_pixels": 1019,
+          "alone_pixels": 1020,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 11,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/similarity/step_11",
+          "rgb_sha256": "ed4db735e4006071711f384a0f26408d2c49b62904f84f991864038cbef07dcd",
+          "prediction_sha256": "d063a862027784e4177e6d518682836fae9fe7df9a429b649362bac6e9a962ae",
+          "labels_sha256": "6ff4da10399332b9a53ec9ff4af11280ee9a041dbfa14f082e44e198e3d2357c",
+          "log_sha256": "c596f6ef285f246e2a5cb129b4c24e18d260e99d5c71e12627b089e538c570c3",
+          "rgb_panel_xywh": [
+            588,
+            2930,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            2930,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 0,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 0.38076862692832947,
+          "point_xy": [
+            312,
+            263
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 3427,
+          "alone_pixels": 3427,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_00",
+          "rgb_sha256": "fa70ddafc765ec684a20b9496f1940f3aaedf228fbc61cd492d7152d0f93fac3",
+          "prediction_sha256": "af6fcd2a9b97a47ebe6a021545cedc2c5c3b04564faf06463588fe19fef82691",
+          "labels_sha256": "f9f055e2041e4f32adfa1bb429d1d61b8108b7dfc32d1c4f7aa01c0c3cceaa13",
+          "log_sha256": "15f6008c5a8785f9203e4b38941e46849c97f05d5045dd3b56951230e7e22ce0",
+          "rgb_panel_xywh": [
+            1088,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 1,
+          "action": "remove",
+          "object": "packaged_food_4",
+          "instance_id": 12,
+          "score": 0.2911291718482971,
+          "point_xy": [
+            343,
+            215
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2482,
+          "alone_pixels": 2482,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_01",
+          "rgb_sha256": "c263613ee4ad96cd75030fb927e599c0f625702f3abfe0e902c61d211092d86a",
+          "prediction_sha256": "420709e01b73f5024cee2cdb6ae1d26092a0bb99b298102427bec889c9848a43",
+          "labels_sha256": "1143b608565ae56c1408c5bf19c31208e460fad137c2572a46ff93a642e01045",
+          "log_sha256": "10952bf6b021bde44fafe81749e2fa2f2d5d8e5a1ab37c2b4a589bd7daaa683d",
+          "rgb_panel_xywh": [
+            1088,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 2,
+          "action": "remove",
+          "object": "toy_2",
+          "instance_id": 14,
+          "score": 0.23433208465576172,
+          "point_xy": [
+            189,
+            391
+          ],
+          "visibility_fraction": 0.819327731092437,
+          "visible_pixels": 1755,
+          "alone_pixels": 2142,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_02",
+          "rgb_sha256": "18718319fd299f8af04315a5a9712948b3c38c7496875d5bcfb005edd5571055",
+          "prediction_sha256": "71053b9f7659c444ce819cd7b948cb3fe26c56bf146c8499f4a4c049ec307e41",
+          "labels_sha256": "fba49b32da4399a1ae70226af8f991e3e6a2f61cc9bbcc9027bdbb1eedb43bc0",
+          "log_sha256": "d7542bfd60dfa53d9c0e489f47676b90d3d27b5de18de43a630da5519999a195",
+          "rgb_panel_xywh": [
+            1088,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 3,
+          "action": "remove",
+          "object": "packaged_food_2",
+          "instance_id": 10,
+          "score": 0.18987150490283966,
+          "point_xy": [
+            391,
+            248
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2118,
+          "alone_pixels": 2118,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_03",
+          "rgb_sha256": "a96dc04653bb78eb29af03335d71eeeb465a488bbbf2ce08dea7375eb1e1951b",
+          "prediction_sha256": "653bb634871ef8d1bbf29bab3ab4aca6f74bc6cce37585326925de1bc5e9970b",
+          "labels_sha256": "537ae2ea80e3c0dcdc8988034dcabdedb70cf8a70b99bfaa200cb46fae0f9bb4",
+          "log_sha256": "46e60ab118dd47117c5d77d99602e7ab784e6bd298c2320146629e000cfe13bb",
+          "rgb_panel_xywh": [
+            1088,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 4,
+          "action": "remove",
+          "object": "fruit_1",
+          "instance_id": 5,
+          "score": 0.08681614696979523,
+          "point_xy": [
+            231,
+            87
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1669,
+          "alone_pixels": 1669,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_04",
+          "rgb_sha256": "e52a24022873138ff5cbbb539f9d34ea99a3751951fbcc6bc8cb3050412f5ba9",
+          "prediction_sha256": "6305fd3410a6d105072eebd64841f7ffa9079f0aa3365748739e7e16ccc8e684",
+          "labels_sha256": "bc157528a6e3ae55b0b4e6297c33626e8768ea8ff586dc2392e8dbec360a30bb",
+          "log_sha256": "81677e799a576fd12d95e0be7984dccf02627e09bebceb2dac726a50f8ff365c",
+          "rgb_panel_xywh": [
+            1088,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 5,
+          "action": "remove",
+          "object": "fruit_4",
+          "instance_id": 8,
+          "score": 0.01887405849993229,
+          "point_xy": [
+            471,
+            327
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1359,
+          "alone_pixels": 1359,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_05",
+          "rgb_sha256": "79ca57f88b3ede1fc2f27856d75e6749ccae39bd3129a15c2a472fb7b8a2caa7",
+          "prediction_sha256": "1119616cc69d83cc7712a52970ea264f9eda39e2196a062d558e6f145af932bf",
+          "labels_sha256": "2316cba9cf4bd92dff15b24ad37f9c1dfcb1ebbb0ae3f805a007c999497fdf37",
+          "log_sha256": "2f698a0a29a507f56a1fd5c845f701a268b1d0b9843e4ba985db214cd6b0cde4",
+          "rgb_panel_xywh": [
+            1088,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 6,
+          "action": "remove",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.00014572427608072758,
+          "point_xy": [
+            483,
+            263
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1492,
+          "alone_pixels": 1492,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_06",
+          "rgb_sha256": "57193839bff0eb64942a4383e91bc499d38d8f2dee561c48255faf1735679888",
+          "prediction_sha256": "25468d78be1055ad01fdb3db16a0f2d8f36833ee27eefc32ac659856864c75e7",
+          "labels_sha256": "d97ba30f37488c86136c23c63d12861ba17bfa19423a8a6cf1e1db5998ec6d74",
+          "log_sha256": "52ab000b7360829bfa5e87cbe9816115f39f304108aa20cd5e0f41761cea5414",
+          "rgb_panel_xywh": [
+            1088,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 7,
+          "action": "remove",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.00010157656652154401,
+          "point_xy": [
+            328,
+            216
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 11669,
+          "alone_pixels": 11669,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 7,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_07",
+          "rgb_sha256": "e1af2b5eb0fdea81aba4ecf65b009068e8dc5ba3aa0c211426bdd0866aec52da",
+          "prediction_sha256": "9a16c5157caa9c20ec0f3b2bf26efac380e244d0320fa9cd30b0f7e544549049",
+          "labels_sha256": "772127214293f292f2bf6810c2df894c90fd1fb5e937ceb9b7fec80c783316ba",
+          "log_sha256": "022d3904a1124373f04b0df2e460a9bde521cb87e19e6e8b9ab83ee50fcdbed9",
+          "rgb_panel_xywh": [
+            1088,
+            1954,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1954,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 8,
+          "action": "remove",
+          "object": "fruit_3",
+          "instance_id": 7,
+          "score": 2.81015991276945e-06,
+          "point_xy": [
+            260,
+            407
+          ],
+          "visibility_fraction": 0.9988636363636364,
+          "visible_pixels": 879,
+          "alone_pixels": 880,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 8,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_08",
+          "rgb_sha256": "3acaa13ad822689533dd41a24cef921a8aff39fbd1a18f341d11db682ffde68a",
+          "prediction_sha256": "ba91a3fa31dd911a54909c42f81e68ac09113b05c29511d1c662c6dff6a03c34",
+          "labels_sha256": "b2141051689dd63cfca99bce9506f6acc8e317f7ef54e084c258803f1801c546",
+          "log_sha256": "58eb51ea3ef6fc1fdf609be67039df8282231e8c3b91c22ec4530bb81326ea1e",
+          "rgb_panel_xywh": [
+            1088,
+            2198,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            2198,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 9,
+          "action": "remove",
+          "object": "toy_4",
+          "instance_id": 16,
+          "score": 3.382327520284889e-07,
+          "point_xy": [
+            232,
+            263
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 988,
+          "alone_pixels": 988,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 9,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_09",
+          "rgb_sha256": "d4dee6110bc8a6d6ab1fe10e32844242b949da2135e63337f10f7ef277d1b19c",
+          "prediction_sha256": "c5ce80dda8e5a73577160764aecbc8a325acedd422d1402a3423ff59369e61f4",
+          "labels_sha256": "45b6dd8898c6ffd2534c45872c4157fc07ef4295cedbb1f7079dbc47c5b95f04",
+          "log_sha256": "898a6332549f491fe81860f4a785c885b9da00c98860a3760f7ac19d6bbd5206",
+          "rgb_panel_xywh": [
+            1088,
+            2442,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            2442,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 10,
+          "action": "remove",
+          "object": "toy_1",
+          "instance_id": 13,
+          "score": 1.9280724927739357e-07,
+          "point_xy": [
+            344,
+            87
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1654,
+          "alone_pixels": 1654,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 10,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_10",
+          "rgb_sha256": "b7ad241a08a1e1ffd4a2ebcbcc3a0c508b6a585bd39da70e5a589cecd33ce57d",
+          "prediction_sha256": "f27c3ddf97345ca1fed0446d8a0c0710ee98208c436a93009ff6ee5d1f999b6e",
+          "labels_sha256": "8d7dccd8e309eea065f4d194b673a1ad5b2af35cf589ff4156a921e9c3025dc3",
+          "log_sha256": "4b8480e5e4791033d19491f7d8adbd72fc85d6b10ef6f219f67a32a234d25feb",
+          "rgb_panel_xywh": [
+            1088,
+            2686,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            2686,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 11,
+          "action": "remove",
+          "object": "toy_3",
+          "instance_id": 15,
+          "score": 8.397213946409465e-08,
+          "point_xy": [
+            290,
+            396
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2816,
+          "alone_pixels": 2816,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 11,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_11",
+          "rgb_sha256": "3579178bbb049b9f5eef2a131c9f81d82743d0bcc1935b2e902759c45c590288",
+          "prediction_sha256": "c538b6aa8f3c974ae84fc7c59f6916e21f5fc53600c5b672daf979538b86d738",
+          "labels_sha256": "1a22f594f71c821348b73610291604f53bc52e281146287029ca39e4f4093340",
+          "log_sha256": "6dbe8bf7a8a16a298a31b0be20bd0296d475cc616c182fdb5375801f3366a731",
+          "rgb_panel_xywh": [
+            1088,
+            2930,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            2930,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 12,
+          "action": "found",
+          "object": "fruit_2",
+          "instance_id": 6,
+          "score": 7.693105708028725e-09,
+          "point_xy": [
+            296,
+            232
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1017,
+          "alone_pixels": 1017,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 12,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/occlusion/step_12",
+          "rgb_sha256": "083c842240bf558c67ef7fcbf626ef5f77053a7dad814e19effdc06d5dc7cbd5",
+          "prediction_sha256": "6ef1ca3448664eb4b07ffb25341ad9877ccacf038a2d4db6561be25b84f3d930",
+          "labels_sha256": "f468f0fc514a1b010d85c72e1ad3755212c994edf51c2bfcb13a7fc6fa86d750",
+          "log_sha256": "9b6431498d5088d0bd45c80ef0e2024a851d105462ce5f64d1ddafcfafe00522",
+          "rgb_panel_xywh": [
+            1088,
+            3174,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            3174,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 0,
+          "action": "remove",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 3.4520599842071533,
+          "point_xy": [
+            344,
+            247
+          ],
+          "visibility_fraction": 0.8411806670233637,
+          "visible_pixels": 9433,
+          "alone_pixels": 11214,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/complexity/step_00",
+          "rgb_sha256": "fa70ddafc765ec684a20b9496f1940f3aaedf228fbc61cd492d7152d0f93fac3",
+          "prediction_sha256": "44cf5a48674c25fabe0d32283589e3df55428563398c7c0d2149008769496777",
+          "labels_sha256": "f9f055e2041e4f32adfa1bb429d1d61b8108b7dfc32d1c4f7aa01c0c3cceaa13",
+          "log_sha256": "cf4a6f27967cf5f556d79587c2ee5cb75bc429b4caf49fbdf22d933205dfba47",
+          "rgb_panel_xywh": [
+            1588,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 1,
+          "action": "remove",
+          "object": "book_1",
+          "instance_id": 1,
+          "score": 3.8288521766662598,
+          "point_xy": [
+            343,
+            232
+          ],
+          "visibility_fraction": 0.8098645151469022,
+          "visible_pixels": 10640,
+          "alone_pixels": 13138,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/complexity/step_01",
+          "rgb_sha256": "03e199da3c4e539344c39c0fe465b6d12e4e72dc7d2d7934ab80c420c66362a7",
+          "prediction_sha256": "43154518e5ceeecc0062af9a5db2c35f19ce4fdb8cd280c3779aa1b9ec20284c",
+          "labels_sha256": "a08d206d4f0fb0b07bec0c9f3dbe93805a271770bad3aacb00c00b23c71ce434",
+          "log_sha256": "9c935dde19bd336d9be55a7c39de6a86d7876d214f474b685a17bf0091625c8c",
+          "rgb_panel_xywh": [
+            1588,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 2,
+          "action": "found",
+          "object": "fruit_2",
+          "instance_id": 6,
+          "score": 3.1865949630737305,
+          "point_xy": [
+            327,
+            232
+          ],
+          "visibility_fraction": 0.5980392156862745,
+          "visible_pixels": 610,
+          "alone_pixels": 1020,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/fruit_2_scene00044_env0057/left/complexity/step_02",
+          "rgb_sha256": "d85d781fb01667c01dd9bec7115f5348c38fe7ba115886e2e9b06b125e6a62cc",
+          "prediction_sha256": "949a9fdad1b4abaa9806767bea2895ddadc47d771ebc4a9fa5adb9414dad0aa5",
+          "labels_sha256": "07094f3bd7fc1553dd03cba57a09a8423b159ea42e709e5543e87350987fab24",
+          "log_sha256": "11b541ecfe2afd8cc74d20cee2d7f2ec19f4baa0dcf83932afa818171a354a6b",
+          "rgb_panel_xywh": [
+            1588,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            734,
+            240,
+            180
+          ]
+        }
+      ],
+      "figure_size_px": [
+        2100,
+        3496
+      ],
+      "png": "img/search_20261027_similarity_gap_fruit_2_left.png",
+      "pdf": "img/search_20261027_similarity_gap_fruit_2_left.pdf",
+      "png_sha256": "3619bb737e90fc9fbe61ad4f33ee11fcb3000de1eb3dd2cacb4e5bf18843c13d",
+      "pdf_sha256": "ac1c23dd940877e634012cc19f255d9ad6340b6fadc581ca6400e2c12fa5a7aa"
+    },
+    {
+      "case_id": "complexity_gap",
+      "selection_rule": "Maximum complexity_minus_fusion among common-success155; ties layout_id/camera lexical",
+      "layout_id": "packaged_food_1_scene00027_env0008",
+      "target": "packaged_food_1",
+      "camera": "bottom",
+      "removals": {
+        "fusion": 0,
+        "similarity": 0,
+        "occlusion": 7,
+        "complexity": 15
+      },
+      "gap": 15,
+      "reference": {
+        "rgb": "261013_data/target/packaged_food_1/rgb/000000_center.png",
+        "rgb_sha256": "1ef15610d3653934b9943c7d45ca799abee8b98683c06051623b34155db1383a",
+        "seg_sha256": "d8e1e64a5e538bacb81e47d1eccfc304e9e2e905c13a3ab741fad147dc57e8f3",
+        "mapping_sha256": "0da75a47f7feaec8ba9d282e7193fced0c49f0cea954c388ccfbb6a462df9e5b",
+        "display_crop_xyxy": [
+          291,
+          201,
+          349,
+          279
+        ],
+        "role": "Independent center target reference, display only"
+      },
+      "steps": [
+        {
+          "policy": "fusion",
+          "step": 0,
+          "action": "found",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.995328426361084,
+          "point_xy": [
+            232,
+            280
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1652,
+          "alone_pixels": 1652,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/fusion/step_00",
+          "rgb_sha256": "0a6a65be3527a6b0fb8c0178870c0f96579314875292f722cf79540916a62aec",
+          "prediction_sha256": "b0ef189c4d2ce3611d7d0032bd1395992372bea82e3f9576ad34912e28f66f52",
+          "labels_sha256": "d240e458bd21797e6b37080f8532b0f6b4f7a35280b81aeb1d6b1b9225b7dff4",
+          "log_sha256": "9b10ebd880687cbc83387cfca7beed24eed301cd5c955ef3e06ce43a2db66454",
+          "rgb_panel_xywh": [
+            88,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 0,
+          "action": "found",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.9840728044509888,
+          "point_xy": [
+            247,
+            279
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1652,
+          "alone_pixels": 1652,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/similarity/step_00",
+          "rgb_sha256": "0a6a65be3527a6b0fb8c0178870c0f96579314875292f722cf79540916a62aec",
+          "prediction_sha256": "71e68b1e06778672bd180066c0201ee0a94776547b04db89c7aa814a48521cf7",
+          "labels_sha256": "d240e458bd21797e6b37080f8532b0f6b4f7a35280b81aeb1d6b1b9225b7dff4",
+          "log_sha256": "475879c03ef816e46f37840aed583c1884c522a4bafb2f38d92bc03a1c1100eb",
+          "rgb_panel_xywh": [
+            588,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 0,
+          "action": "remove",
+          "object": "book_4",
+          "instance_id": 4,
+          "score": 0.681479811668396,
+          "point_xy": [
+            344,
+            168
+          ],
+          "visibility_fraction": 0.8690725458800345,
+          "visible_pixels": 7056,
+          "alone_pixels": 8119,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_00",
+          "rgb_sha256": "0a6a65be3527a6b0fb8c0178870c0f96579314875292f722cf79540916a62aec",
+          "prediction_sha256": "480c2070e37a137b0baa9fbd474c6779296bc6be42b6c484b748c937529cf839",
+          "labels_sha256": "d240e458bd21797e6b37080f8532b0f6b4f7a35280b81aeb1d6b1b9225b7dff4",
+          "log_sha256": "f51803069a3632ff809212f5284bbc2ceb9ab06066219b4ee74ddccfad7dc75e",
+          "rgb_panel_xywh": [
+            1088,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 1,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 0.4054993987083435,
+          "point_xy": [
+            376,
+            231
+          ],
+          "visibility_fraction": 0.7199442119944212,
+          "visible_pixels": 2581,
+          "alone_pixels": 3585,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_01",
+          "rgb_sha256": "08584541e80bc235b2f57266b79878ec5a3efcd3dad582bcb5fd7c60c29442b1",
+          "prediction_sha256": "aa646a033685f25ba5783e29216b8d5814c61b782e327b22e8c03264c10e7916",
+          "labels_sha256": "a054c508b561c5a693774286463d143fd049bc0fd6d6ca8c9132ae557a968b17",
+          "log_sha256": "f3d7eeda819a765840f832b43ae7b43ca638afac3c9d081222dcd11f395872c8",
+          "rgb_panel_xywh": [
+            1088,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 2,
+          "action": "remove",
+          "object": "fruit_4",
+          "instance_id": 8,
+          "score": 0.3236771821975708,
+          "point_xy": [
+            360,
+            199
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1426,
+          "alone_pixels": 1426,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_02",
+          "rgb_sha256": "66cebc100b512b5d48dbdcd5efa47e61ecc575d78547371c6088b15aeb1500bb",
+          "prediction_sha256": "365b0620273d888f5f741ad306c783c0c90a86aeb73f6e59d2e1fb72cbe32286",
+          "labels_sha256": "f2062a6a322efb837d7888d224414bfe251074523eafb7cf4e86c065280bfb12",
+          "log_sha256": "b259a09a4596a3725800caf4403f0e113787af8b9667f28a1feb3ba84df52e4e",
+          "rgb_panel_xywh": [
+            1088,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 3,
+          "action": "remove",
+          "object": "toy_2",
+          "instance_id": 14,
+          "score": 0.1376371830701828,
+          "point_xy": [
+            359,
+            168
+          ],
+          "visibility_fraction": 0.9851965288412455,
+          "visible_pixels": 1930,
+          "alone_pixels": 1959,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_03",
+          "rgb_sha256": "243b359383ea0f8591d0957ebefca22fa1706597a464384268e7ce4c47936ee2",
+          "prediction_sha256": "43531e28c945721f34cd0a96e5381615646d8dc38063dde5976e3de1a8d39f0b",
+          "labels_sha256": "2490ca652cad28241deddb75eb77bb2a90763ebaa4686cc8f8c8588b4053e493",
+          "log_sha256": "02d7b6ac756fcbc10da90af233f91f999aa12bd03f81c300dded4a59d77e9714",
+          "rgb_panel_xywh": [
+            1088,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 4,
+          "action": "remove",
+          "object": "fruit_1",
+          "instance_id": 5,
+          "score": 0.10013175755739212,
+          "point_xy": [
+            279,
+            184
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1586,
+          "alone_pixels": 1586,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_04",
+          "rgb_sha256": "3f1053b4135c5ccf4416c57ab35d0d89a32575039bcaa34c26d0a509988b8f49",
+          "prediction_sha256": "06db1545ae2785f3312d38bc6cf934aacdec00d0e45f95f9bf4a32390f071aa8",
+          "labels_sha256": "2a20fc67d43321534921a8ee138b833b2d11f9b8b0c99123886126aa34e7adcd",
+          "log_sha256": "565fa92f91e21c474d4859a3f115f2046b8bc06b594fc5168a830b8c0554bc27",
+          "rgb_panel_xywh": [
+            1088,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 5,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 0.09651188552379608,
+          "point_xy": [
+            391,
+            232
+          ],
+          "visibility_fraction": 0.97414725253121,
+          "visible_pixels": 9910,
+          "alone_pixels": 10173,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_05",
+          "rgb_sha256": "e22660e99526d868bc103ba76e2878d8b172a7f62b7edb1c80e79a79a59db64b",
+          "prediction_sha256": "832e5c4c8373691d6bf2742733aba9b1125d807b3eaff169bf3c5003ef610a1b",
+          "labels_sha256": "ede3ddf6f5111b9b6105ba2bc33c5b34365869a59997b8186e3da88cf9f78a14",
+          "log_sha256": "88f47d6edebf59bd6f8782c0c63e76313c1aa764fbaf0cbbe6c6ada14408b71c",
+          "rgb_panel_xywh": [
+            1088,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 6,
+          "action": "remove",
+          "object": "packaged_food_2",
+          "instance_id": 10,
+          "score": 0.028855344280600548,
+          "point_xy": [
+            247,
+            183
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2173,
+          "alone_pixels": 2173,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_06",
+          "rgb_sha256": "3e22e486d7568a5b4953bae7ea2646fa6251ce553c5ebf554c6a3bf9b0f61ab3",
+          "prediction_sha256": "bac98adfcda7709110120c2ca2ccc3ad3fc240282c3a55c9b084cfe88f3b745c",
+          "labels_sha256": "fbf800ab96bdd208f63749aa54d7d38c2ea2d73a2bc81d44395431a7a3d2fea2",
+          "log_sha256": "77147c00bfb221a1cbc9e064f82e08cc603187bedae9c67d49b5e46cca0328b8",
+          "rgb_panel_xywh": [
+            1088,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 7,
+          "action": "found",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.0058181495405733585,
+          "point_xy": [
+            248,
+            279
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1655,
+          "alone_pixels": 1655,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 7,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/occlusion/step_07",
+          "rgb_sha256": "1f868142090abd4b2664b70d33d9fa9412f39ac9c084bac8fb105d975c3a172a",
+          "prediction_sha256": "24a943cae08bf4bc8586e43bdd8eaae5fdb04bbf5f2ece95991cbe6e5bea0d03",
+          "labels_sha256": "38b46dcb5c46f7763ddb128d5f5b8219b4e2f72ef8fac2a7e59ae26dbaee3b36",
+          "log_sha256": "ad9a3b83ad9190891685f5580148a3017ae43cd7fb7d76e2508f4a1be139c24f",
+          "rgb_panel_xywh": [
+            1088,
+            1954,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1954,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 0,
+          "action": "remove",
+          "object": "packaged_food_4",
+          "instance_id": 12,
+          "score": 3.9517877101898193,
+          "point_xy": [
+            360,
+            200
+          ],
+          "visibility_fraction": 0.5193081255028158,
+          "visible_pixels": 1291,
+          "alone_pixels": 2486,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_00",
+          "rgb_sha256": "0a6a65be3527a6b0fb8c0178870c0f96579314875292f722cf79540916a62aec",
+          "prediction_sha256": "2275074e36c862ef49fd67c4286346187dba26b39207059f97f42de7badb8216",
+          "labels_sha256": "d240e458bd21797e6b37080f8532b0f6b4f7a35280b81aeb1d6b1b9225b7dff4",
+          "log_sha256": "5dde6a7fb371f14dea67bd4750f6f8bf65042a6f6004227836a503d55a584e16",
+          "rgb_panel_xywh": [
+            1588,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 1,
+          "action": "remove",
+          "object": "fruit_4",
+          "instance_id": 8,
+          "score": 3.164415121078491,
+          "point_xy": [
+            367,
+            195
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1508,
+          "alone_pixels": 1508,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_01",
+          "rgb_sha256": "819a08df4671a95b8be3b5ee678596e5023739aad87d8c9a1663b34efd4e030f",
+          "prediction_sha256": "ad282ac4e2f8e0ba58f5e8edf107bfd6e1ea3daa36fadc17899fcb64ca39547f",
+          "labels_sha256": "4f3a4dc08bd4f953e276859bc4c9a6c8afd12ab79c2488b68114e167085c6485",
+          "log_sha256": "fcc1fe681ebe89ca98475cc0a6188c7017f599c0337dedc6f74c03e28d008f3f",
+          "rgb_panel_xywh": [
+            1588,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 2,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 3.3127918243408203,
+          "point_xy": [
+            360,
+            203
+          ],
+          "visibility_fraction": 0.7038711500423849,
+          "visible_pixels": 2491,
+          "alone_pixels": 3539,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_02",
+          "rgb_sha256": "919c4a35ae38e3ea725686807bb440963870823e94eaba5ddd41b3d91f5bf006",
+          "prediction_sha256": "4871bfc402746f3d1ec7faad5cd79139d7c80403258d89edd18f066c24c6231d",
+          "labels_sha256": "22c14bc92a49a4971a89c15463ff731b245b2181272d45ac90385cb8fefb3c7e",
+          "log_sha256": "df7476a94399f8cb7efa4b5f0b82ac0a7687f08c4ef5792da209f27aa03d39fe",
+          "rgb_panel_xywh": [
+            1588,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 3,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 2.853701591491699,
+          "point_xy": [
+            375,
+            183
+          ],
+          "visibility_fraction": 0.971613790393871,
+          "visible_pixels": 9892,
+          "alone_pixels": 10181,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_03",
+          "rgb_sha256": "cf5c83c3578cd63b38034fef5efa3e22a6cad57c2a75292a7a1251c7790ce747",
+          "prediction_sha256": "5aa36a77a421da3de614fa903e6db39424f49d2543c6be32f6f5ee5b27bf011f",
+          "labels_sha256": "3ab70f433bb245d237fa97471c083e6986efe7765e87ebdca1bd9264ee2febd4",
+          "log_sha256": "cf0c1c76cd0986b95bc2fba0e45378ff0ab2e39bf5b995264769de958998fbc3",
+          "rgb_panel_xywh": [
+            1588,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 4,
+          "action": "remove",
+          "object": "fruit_1",
+          "instance_id": 5,
+          "score": 2.5727391242980957,
+          "point_xy": [
+            279,
+            200
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1661,
+          "alone_pixels": 1661,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_04",
+          "rgb_sha256": "87577c18fdcfa66445f89e65ed86c56b74dde2e8087641634fc3a9c1e8ede54a",
+          "prediction_sha256": "4f0563357ad6783d573ddee10516af96c48b44fc62f43311bbe189e4b014852c",
+          "labels_sha256": "389148d4a6fd63422b8a7a50221eeb3c249f07caa3dfd9b598f5911c1cce6230",
+          "log_sha256": "fd349aa05dd301243fb1ea196990c60824f5586b0741dc8607802be3f10f538c",
+          "rgb_panel_xywh": [
+            1588,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 5,
+          "action": "remove",
+          "object": "book_4",
+          "instance_id": 4,
+          "score": 1.9672304391860962,
+          "point_xy": [
+            344,
+            199
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 8094,
+          "alone_pixels": 8094,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_05",
+          "rgb_sha256": "91ddc97f0456add90cf7fd1b0bace00b5de53716316bcf29d9d049610d3c84f7",
+          "prediction_sha256": "07ee175de7ec2f260abafd20ad7cb34b66ddcab7424afb08d82ad36ecb1d59b4",
+          "labels_sha256": "bcdd3e21a17b9aa36083575104b47a22499e6b6188038cb021407c7687843575",
+          "log_sha256": "f46bddfd55f51baab76687a04aadd85e6bea6948990f6602de8802146fb76843",
+          "rgb_panel_xywh": [
+            1588,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 6,
+          "action": "remove",
+          "object": "fruit_3",
+          "instance_id": 7,
+          "score": 1.8779429197311401,
+          "point_xy": [
+            471,
+            212
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 762,
+          "alone_pixels": 762,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_06",
+          "rgb_sha256": "89b0c60515cea3dbca1fc67be676d6f42d776d9b4f43186ee6869f33efc84e62",
+          "prediction_sha256": "4501ab334e24c0b0bab6f65d26c24abe3105b41ce23c415aed6e707b8831645a",
+          "labels_sha256": "3c02e4ff3bf8dfcb7ae89c1f6079f64d6d0630ac4ee5952be84df8b95ac1f61d",
+          "log_sha256": "441e6d3035a9e2cc9cc5b8206f9ea3f76d7e409c52995af4d7a991bc5a885802",
+          "rgb_panel_xywh": [
+            1588,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 7,
+          "action": "remove",
+          "object": "fruit_2",
+          "instance_id": 6,
+          "score": 1.6864440441131592,
+          "point_xy": [
+            375,
+            279
+          ],
+          "visibility_fraction": 0.9990108803165183,
+          "visible_pixels": 1010,
+          "alone_pixels": 1011,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 7,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_07",
+          "rgb_sha256": "bd0e1d302f48fa17306e2e9258838180a2a88e2459c250f5710279a7d824664d",
+          "prediction_sha256": "417fc035d172adafc7d2507cadac3a7f0a064571360980fb5a67b0f18d7901b0",
+          "labels_sha256": "3730f0db8c7889cd54c63b5c261163e1b5895557f54d03b3cb3904dccd378ee2",
+          "log_sha256": "396e35efddc37dd03ae51c80f8487379b8148f2c4b0c114bed497fbd97703c4a",
+          "rgb_panel_xywh": [
+            1588,
+            1954,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1954,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 8,
+          "action": "remove",
+          "object": "toy_3",
+          "instance_id": 15,
+          "score": 1.4503782987594604,
+          "point_xy": [
+            295,
+            279
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2928,
+          "alone_pixels": 2928,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 8,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_08",
+          "rgb_sha256": "5b058e6ece1b28bf36b9eaa0b72d9c397a3ead7d3920b3f88f70c3e30476085d",
+          "prediction_sha256": "cb571e564a81d08838de71193448bd8cb429acf43d24d1bee7dca69079d95fc1",
+          "labels_sha256": "97dbeb3445a7fa600cfacd2c2ac182a0d4c9f0113d3d988b014876e4a964d467",
+          "log_sha256": "c90a111c1eb491568ee2bc1cf3d3d86cc38a8c851296559858569c8b1a20d073",
+          "rgb_panel_xywh": [
+            1588,
+            2198,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2198,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 9,
+          "action": "remove",
+          "object": "toy_2",
+          "instance_id": 14,
+          "score": 1.248663306236267,
+          "point_xy": [
+            344,
+            183
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1962,
+          "alone_pixels": 1962,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 9,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_09",
+          "rgb_sha256": "5a6ee3f40b3d0f0561c5831fb570adda3e092b1706b1edbb7a0203c676baf101",
+          "prediction_sha256": "eecddbb380d0b09c29be917b818fb5fa02cb3ae01435f7972c5e1ed02c0e1a02",
+          "labels_sha256": "ee673cecf1555874b099da6e97e48a94e3ea30d234b8a9f37a68cba956565c28",
+          "log_sha256": "3386d42dea5a2d262bfc99c5c54f0b1881a99f687ae7e5e9c8cb62235d110b6f",
+          "rgb_panel_xywh": [
+            1588,
+            2442,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2442,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 10,
+          "action": "remove",
+          "object": "book_1",
+          "instance_id": 1,
+          "score": 1.0750044584274292,
+          "point_xy": [
+            232,
+            168
+          ],
+          "visibility_fraction": 0.8521864835561981,
+          "visible_pixels": 11790,
+          "alone_pixels": 13835,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 10,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_10",
+          "rgb_sha256": "b13d6aa8c15828bdf6490eb931c519c403c74491d451790be971b7550c2fdea0",
+          "prediction_sha256": "05b2a8f1c93edf46868336d3d445710654a4d582cf488db189261f5f6fc3a0fc",
+          "labels_sha256": "73dbf8b7300aeeabc15e2dbe4750ffd5e81bbaaabb2d0078d79e645993b0f013",
+          "log_sha256": "25c129e89b76bc59f47687ec61042461a90199d43d3f0b1d8b2dd60759cd8bfb",
+          "rgb_panel_xywh": [
+            1588,
+            2686,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2686,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 11,
+          "action": "remove",
+          "object": "toy_1",
+          "instance_id": 13,
+          "score": 1.0466889142990112,
+          "point_xy": [
+            442,
+            152
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1753,
+          "alone_pixels": 1753,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 11,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_11",
+          "rgb_sha256": "7c2722a47a477c4e217529d69891adabae8fbcbbb0165ad79050acb51c1de805",
+          "prediction_sha256": "fdd088d85446b173190f3923727c9f1ad343227bef2d92d757e0ac7f8c85cc2b",
+          "labels_sha256": "837d16d4afd897fe920b2c240cc3ccc19438e6603e7c39f99aab065f92144f7d",
+          "log_sha256": "ab59df6b7f40c7eb358c46d122a6c821695f289a69d04598e5a8bb1000c8c3b8",
+          "rgb_panel_xywh": [
+            1588,
+            2930,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2930,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 12,
+          "action": "remove",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.8588065505027771,
+          "point_xy": [
+            456,
+            232
+          ],
+          "visibility_fraction": 0.9614876345101001,
+          "visible_pixels": 10186,
+          "alone_pixels": 10594,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 12,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_12",
+          "rgb_sha256": "47e6d7f013a5f0dd52e569edd677d03a6691db47d76002ccf0680ebaab552f87",
+          "prediction_sha256": "a4bcf9a0e48d599d43b91be93d8bf3b1f1b71f7a37d4526b6c4bb0f858e429a9",
+          "labels_sha256": "a12b4495798793b8a37d8757fae4ba317a895a76fc0b7f0808fd853dcb844ff8",
+          "log_sha256": "21ca8e019c94a21780a585ad48b3e7b9b1da61e21010f94ae35048c792fe2784",
+          "rgb_panel_xywh": [
+            1588,
+            3174,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            3174,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 13,
+          "action": "remove",
+          "object": "toy_4",
+          "instance_id": 16,
+          "score": 0.05064691975712776,
+          "point_xy": [
+            483,
+            247
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1048,
+          "alone_pixels": 1048,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 13,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_13",
+          "rgb_sha256": "85156811ab10576a7c0d037b3336a89ff5f4dda558a39e0e2256398247983e72",
+          "prediction_sha256": "62fdf120327842242c1850d6a0c66af8e58e02b9bb96a2667a803445b1f5b964",
+          "labels_sha256": "477220a651e526ccff29a8f2f8abd79f1f9779d21816c59d24653b1e6670f884",
+          "log_sha256": "d651708dab9270ac761121879552042d94161f85d69c5140cd10beb100bd4b37",
+          "rgb_panel_xywh": [
+            1588,
+            3418,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            3418,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 14,
+          "action": "remove",
+          "object": "packaged_food_2",
+          "instance_id": 10,
+          "score": 0.07519248872995377,
+          "point_xy": [
+            260,
+            171
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2152,
+          "alone_pixels": 2152,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 14,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_14",
+          "rgb_sha256": "db9a94c5c8d652a3bd52278a247539683acde1450791d4d03fff9bff4cf7a505",
+          "prediction_sha256": "c0ccf6822454994f85733d12f4820158d8f3a2ab709d6b3e745b4dc44fe73235",
+          "labels_sha256": "466c626c691f9c6e189fd226cc319f133ebc80d765139a577aabb978ceec721b",
+          "log_sha256": "9c9558116c2d3c5754e4d753b2325d7f77a3bf14b431160f870e253acc3c1058",
+          "rgb_panel_xywh": [
+            1588,
+            3662,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            3662,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 15,
+          "action": "found",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.10015735030174255,
+          "point_xy": [
+            264,
+            301
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1762,
+          "alone_pixels": 1762,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 15,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/packaged_food_1_scene00027_env0008/bottom/complexity/step_15",
+          "rgb_sha256": "a6773cfe737cdfcad6847da9d7662b8612171d26e96bdfc9cc2be3b5ffb62f84",
+          "prediction_sha256": "6a553ebc397cae4274fbb144c1040c9768f37d77ba6487ccb5fcf2ac690e0319",
+          "labels_sha256": "df7faaf45367ae740521acb5cee97f404eb79002720255cb69647f8665486616",
+          "log_sha256": "a137769633bbb29e85180a053d1d469c97cf1b34e0dae8b6d22ea8e32e29bcec",
+          "rgb_panel_xywh": [
+            1588,
+            3906,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            3906,
+            240,
+            180
+          ]
+        }
+      ],
+      "figure_size_px": [
+        2100,
+        4228
+      ],
+      "png": "img/search_20261027_complexity_gap_packaged_food_1_bottom.png",
+      "pdf": "img/search_20261027_complexity_gap_packaged_food_1_bottom.pdf",
+      "png_sha256": "32a6f616838b1cf903cd1572a42b97c50a899fc54cefef6bb0b4005dc302865f",
+      "pdf_sha256": "9d76ab92eaeda6d3d5c365e8eec482ccb4944c54333ec87191147633a0690bd6"
+    },
+    {
+      "case_id": "fusion_slower",
+      "selection_rule": "Maximum fusion_minus_similarity among common-success155; ties layout_id/camera lexical",
+      "layout_id": "book_2_scene00009_env0026",
+      "target": "book_2",
+      "camera": "center",
+      "removals": {
+        "fusion": 6,
+        "similarity": 3,
+        "occlusion": 6,
+        "complexity": 10
+      },
+      "gap": 3,
+      "reference": {
+        "rgb": "261013_data/target/book_2/rgb/007626_center.png",
+        "rgb_sha256": "f138247a5a107f9d44fb98d773362a0abd81270ebb558649479523aaee1e128e",
+        "seg_sha256": "09e416a2843abc93a91179f8ee3fe52493bc10b18d246770604a17bbceae2e8b",
+        "mapping_sha256": "ee385e04446ee99dae4c3faeb28e182447663b23298652a63e619f1a23720fab",
+        "display_crop_xyxy": [
+          194,
+          161,
+          320,
+          309
+        ],
+        "role": "Independent center target reference, display only"
+      },
+      "steps": [
+        {
+          "policy": "fusion",
+          "step": 0,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 0.999923825263977,
+          "point_xy": [
+            311,
+            216
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 12892,
+          "alone_pixels": 12892,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_00",
+          "rgb_sha256": "ba96fb1db61434c80564a2c0b2cab8263ea8dd4aadbaf4a5393dd093f1838e4f",
+          "prediction_sha256": "b0d27c7d277e234538564f5ae26d5ccb64370464f8a4e6be999408b48076507e",
+          "labels_sha256": "a37d0117e3bda2158c23420a4fd388d3426456997be034c31d977c940f540e45",
+          "log_sha256": "a56e1740eba5cd2bb173c57fe0f91a10bd29e7208fb66c14636256b56ca9bae4",
+          "rgb_panel_xywh": [
+            88,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 1,
+          "action": "remove",
+          "object": "toy_3",
+          "instance_id": 15,
+          "score": 0.9999814629554749,
+          "point_xy": [
+            289,
+            184
+          ],
+          "visibility_fraction": 0.9788007268322229,
+          "visible_pixels": 3232,
+          "alone_pixels": 3302,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_01",
+          "rgb_sha256": "69df8a98fa1c361bbc53effd0828ba56ecd8bcbf79cf3eba25f3532430598a85",
+          "prediction_sha256": "f1ee0109b7a3d19f179c547fab9665c201e16b97a032d08e5aee050366332d7d",
+          "labels_sha256": "53e33d5690300db71a8378499229280050c402dbe4e90c65101b827e08a1ecb8",
+          "log_sha256": "a159155c98af037220413e12a34bbcc4b38d6c43201203a1949faec2b078f853",
+          "rgb_panel_xywh": [
+            88,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 2,
+          "action": "remove",
+          "object": "packaged_food_4",
+          "instance_id": 12,
+          "score": 0.9998466372489929,
+          "point_xy": [
+            280,
+            207
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2833,
+          "alone_pixels": 2833,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_02",
+          "rgb_sha256": "3d02da4810c2ecbf68c0e2d5c6e37a6d4ef3e69a64f8521517569d048b68c5d2",
+          "prediction_sha256": "0dc10f5c44761068cf593b85b3e75feef4e6d5f21e9c4af5c99610be96f77dbd",
+          "labels_sha256": "4d61644d548a9adce204b71573241665d93b61202db81a9aa8e2296ecd74cef5",
+          "log_sha256": "233c08dd6160089c09c3cea634b849dbdc7298ab6e9b962e78e3f09a015a47f9",
+          "rgb_panel_xywh": [
+            88,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 3,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 0.9998923540115356,
+          "point_xy": [
+            280,
+            224
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 3890,
+          "alone_pixels": 3890,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_03",
+          "rgb_sha256": "17064c607ea9b8f2a6478b600a32033e04cbc46bd7013578492a0e678e48d7f1",
+          "prediction_sha256": "5bc3b46389031fd0c2aa01ad835ea5daa05a0177a16fd1312c2f76fbe42f5e65",
+          "labels_sha256": "8cb99c07a3df5fbc949e58ff603270fc4b5ad17dae5247de1779308343d6e786",
+          "log_sha256": "944fa9200a50186846cfc074417698f5255b9c95934b9623265931ba83de57e6",
+          "rgb_panel_xywh": [
+            88,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 4,
+          "action": "remove",
+          "object": "book_1",
+          "instance_id": 1,
+          "score": 0.9996793270111084,
+          "point_xy": [
+            307,
+            263
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 16770,
+          "alone_pixels": 16770,
+          "skipped": 2,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_04",
+          "rgb_sha256": "8a6a41de74d84b37a6f5011ab34aec4d60da7ff525ce88c43f732da3df69c1da",
+          "prediction_sha256": "2754516c54751c7220123a57ea119bc6139b674be770747e92c569f27e7ae616",
+          "labels_sha256": "1b25513afe17a32c6fcef6ab36556f9f336588e3d409bb8f08853e9297374d9e",
+          "log_sha256": "7ddf251fd9755788159a419dce1bc8cf149ae1854aa6149f8d2a20a8a0fe8be9",
+          "rgb_panel_xywh": [
+            88,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 5,
+          "action": "remove",
+          "object": "book_4",
+          "instance_id": 4,
+          "score": 0.9986168146133423,
+          "point_xy": [
+            300,
+            263
+          ],
+          "visibility_fraction": 0.9998071545656156,
+          "visible_pixels": 10369,
+          "alone_pixels": 10371,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_05",
+          "rgb_sha256": "630c7ec26dd854b840fea61fdcb2444535bc0ec7dae2cc8a0dcbfc4c517afa4f",
+          "prediction_sha256": "fd4e8903ee867a3ef3e80752c4179e031f2a6f5906c5b3bcd2ae9f6521a396a9",
+          "labels_sha256": "a9de46a10a258c3cf669de20f5b6b30210e6b72c0d0bd584f2b47c23288a421c",
+          "log_sha256": "664c03eb14c0f4cb7bc047e2dddc0ca9820280edea1637f4de40c85fe8ae3b21",
+          "rgb_panel_xywh": [
+            88,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "fusion",
+          "step": 6,
+          "action": "found",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.9999979734420776,
+          "point_xy": [
+            280,
+            232
+          ],
+          "visibility_fraction": 0.9548680328522446,
+          "visible_pixels": 11975,
+          "alone_pixels": 12541,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/fusion/step_06",
+          "rgb_sha256": "f3d4241220fc57ccd8b95d222199896adad364ba5a9bffc27876fd374ed831e1",
+          "prediction_sha256": "c395d2a54aa9b76b9c50d9b0511647114798f425352e5baa6f60cb54a6c1a8aa",
+          "labels_sha256": "a3d292cbd9386743a7d19216b0bc6dadeb33abc465b5db2702169f31e92ffc9f",
+          "log_sha256": "969bdc82cb6b21ca6e451889a46773179f3068f01c8c3266d5bc998aa97fcd0e",
+          "rgb_panel_xywh": [
+            88,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            332,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 0,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 0.8547269105911255,
+          "point_xy": [
+            292,
+            184
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 12892,
+          "alone_pixels": 12892,
+          "skipped": 2,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/similarity/step_00",
+          "rgb_sha256": "ba96fb1db61434c80564a2c0b2cab8263ea8dd4aadbaf4a5393dd093f1838e4f",
+          "prediction_sha256": "0f3fa7341a824bcf6be64e162a7ca2c080cc0e45d7734140ab9c66e832f2ec72",
+          "labels_sha256": "a37d0117e3bda2158c23420a4fd388d3426456997be034c31d977c940f540e45",
+          "log_sha256": "c3ef24181d7babe2287247f6bf9f199ae9fe4e13ffd1c3d3fdabbf209eea1048",
+          "rgb_panel_xywh": [
+            588,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 1,
+          "action": "remove",
+          "object": "book_1",
+          "instance_id": 1,
+          "score": 0.8166444301605225,
+          "point_xy": [
+            308,
+            263
+          ],
+          "visibility_fraction": 0.8617852244946634,
+          "visible_pixels": 14453,
+          "alone_pixels": 16771,
+          "skipped": 2,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/similarity/step_01",
+          "rgb_sha256": "8840b153104c6529e6d5a1177e708336b80d113df72e7a996c41e35bb0d25c34",
+          "prediction_sha256": "676670ac3fe0865826c6a3457a4d4d4169150d051054ceade5421b227070d91d",
+          "labels_sha256": "53e33d5690300db71a8378499229280050c402dbe4e90c65101b827e08a1ecb8",
+          "log_sha256": "1335b89b3c28a2fc0947ef5a6b184aa48a4a72d0bf85e9b971ca5a6e777facf7",
+          "rgb_panel_xywh": [
+            588,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 2,
+          "action": "remove",
+          "object": "book_4",
+          "instance_id": 4,
+          "score": 0.8264340162277222,
+          "point_xy": [
+            301,
+            263
+          ],
+          "visibility_fraction": 0.7527265707943249,
+          "visible_pixels": 7799,
+          "alone_pixels": 10361,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/similarity/step_02",
+          "rgb_sha256": "229e3824939bfe948ed5cae71eddd17f82f18b667e77fa863931efdc6fb161ad",
+          "prediction_sha256": "c8153e7fa1a705b792910a72b8b23fbca3647f7204bee5f67924cd64d5c83fb4",
+          "labels_sha256": "06712c2ca4ec47c4c059d886ee90743f234686e93d6da73fbc38a169e1cf31d0",
+          "log_sha256": "f33d367f268d574a45f137a07fa05de347bed66cd2a04ba743243733d19dafb7",
+          "rgb_panel_xywh": [
+            588,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "similarity",
+          "step": 3,
+          "action": "found",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.9995565414428711,
+          "point_xy": [
+            328,
+            247
+          ],
+          "visibility_fraction": 0.5258159763785811,
+          "visible_pixels": 6589,
+          "alone_pixels": 12531,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/similarity/step_03",
+          "rgb_sha256": "b9b5f2c921001795dd572e8a0c4c6c7c5fa3afcbe487cc5f2a9adde7ca6f7035",
+          "prediction_sha256": "424da250b8c9f0dc0cb7b428965dbbe8934ead152569f44d437ce96af19090b1",
+          "labels_sha256": "348b1a1d8a5fd42184cfb197362ec90b92d0a6e1dd4ec2e9df47a16c27737c20",
+          "log_sha256": "06bfcf135bf7787aaaec2bea37909cffd0faf41cc767f63d7b2ee90724e0283f",
+          "rgb_panel_xywh": [
+            588,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            832,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 0,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 0.6488593816757202,
+          "point_xy": [
+            327,
+            232
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 12892,
+          "alone_pixels": 12892,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_00",
+          "rgb_sha256": "ba96fb1db61434c80564a2c0b2cab8263ea8dd4aadbaf4a5393dd093f1838e4f",
+          "prediction_sha256": "f391f3c58ec6a458fd35ea6c36c0f48c5df8c42d1815fb3d76e860e2f138e53f",
+          "labels_sha256": "a37d0117e3bda2158c23420a4fd388d3426456997be034c31d977c940f540e45",
+          "log_sha256": "2b9bb4f2452c6b5291d8e3ecadc42a2cbef1a35e6badf69ebbbf51372e6c465f",
+          "rgb_panel_xywh": [
+            1088,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 1,
+          "action": "remove",
+          "object": "book_1",
+          "instance_id": 1,
+          "score": 0.5272271633148193,
+          "point_xy": [
+            327,
+            231
+          ],
+          "visibility_fraction": 0.8620237314411783,
+          "visible_pixels": 14457,
+          "alone_pixels": 16771,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_01",
+          "rgb_sha256": "e61c7171d858cc24ce09dc3fde09d7e51772a34382a18652fad13a21befde269",
+          "prediction_sha256": "23f543731c28a64149553f55bf1f9bcf027bf35a058e2be51b8bb3210d7058cd",
+          "labels_sha256": "aa2106de7eb13d3d57e42f6b60fabb47f7c5b254a55cb8b2b7d884a069f6b677",
+          "log_sha256": "ae731b593c9d32f787e33ad00a991e183d67db7a824498e05ab8a65001eceed7",
+          "rgb_panel_xywh": [
+            1088,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 2,
+          "action": "remove",
+          "object": "toy_3",
+          "instance_id": 15,
+          "score": 0.27918776869773865,
+          "point_xy": [
+            296,
+            216
+          ],
+          "visibility_fraction": 0.987756351392715,
+          "visible_pixels": 3227,
+          "alone_pixels": 3267,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_02",
+          "rgb_sha256": "dc0b1c5c86673d7153f385a2533dd3e5341f4a21d8b32cca6ad2da27762cc3a6",
+          "prediction_sha256": "86b32b10b1efb2c70c85941be946ca11d657b14c425a8d8e90e9adde950d363a",
+          "labels_sha256": "ebc5aa13ee7fc38cf619516c7323ee44e6ef7f6a5e63891abe734ec122556c9b",
+          "log_sha256": "cc3945411bd1209aa93090921832d939c29776f6c3920dad02061b7bd7390183",
+          "rgb_panel_xywh": [
+            1088,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 3,
+          "action": "remove",
+          "object": "book_4",
+          "instance_id": 4,
+          "score": 0.2383599728345871,
+          "point_xy": [
+            301,
+            216
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 10361,
+          "alone_pixels": 10361,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_03",
+          "rgb_sha256": "6d60d65e6fa42abb8dde0c11c8616ddb414eebdf3e8559f283b971bfa03a3107",
+          "prediction_sha256": "70da9cf8f36223fb6b3129ec1f737c0cd551ed1b2c8129fcea0d51359b42e1d0",
+          "labels_sha256": "bbff461b32b19b378940a6c0ef89426e1ff707f2676a2f57edfb62bfd80bd59a",
+          "log_sha256": "9ffa08617f344975c78a767eec18dc06044ca88b440b95c693055d18c8fa0164",
+          "rgb_panel_xywh": [
+            1088,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 4,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 0.06905587762594223,
+          "point_xy": [
+            279,
+            263
+          ],
+          "visibility_fraction": 0.6846707818930041,
+          "visible_pixels": 2662,
+          "alone_pixels": 3888,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_04",
+          "rgb_sha256": "0b8551d301608d0fff0378f9a8f0dacf54085c88b5c93dbf60cda4ce6914aeb1",
+          "prediction_sha256": "9689cbeaf58e6bdfb3b6665fba01cd0154dc0ba6e8aef5bb1af9fa6106bc8f7e",
+          "labels_sha256": "4db595cb9d7ab9419a51a3e8bd4c6d2da39276e51587164c2789010187aceccf",
+          "log_sha256": "2f38e0372c9af866e96ca207ebb8bdd7faffe0b94f4b55958bb65ad7c4d5175e",
+          "rgb_panel_xywh": [
+            1088,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 5,
+          "action": "remove",
+          "object": "fruit_1",
+          "instance_id": 5,
+          "score": 0.04871919006109238,
+          "point_xy": [
+            296,
+            152
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1933,
+          "alone_pixels": 1933,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_05",
+          "rgb_sha256": "852b2518bb33fd6d8fd889b5202baccee09aab27087e4739636fc45d8d6548f3",
+          "prediction_sha256": "7a5fc0deef2d80a9242a7e976db090c497d516aea40427e2f58fdbcb86b3ba31",
+          "labels_sha256": "163bb138ad0be09530b7138c5b65dd6605f3e39fe94b70bcbf22ade2efb6f2b0",
+          "log_sha256": "12a13122b887fd738c8f9c8f8804745a8adf22ff55d4b220a353e370465e1fde",
+          "rgb_panel_xywh": [
+            1088,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "occlusion",
+          "step": 6,
+          "action": "found",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.04839833825826645,
+          "point_xy": [
+            295,
+            167
+          ],
+          "visibility_fraction": 0.887329559046328,
+          "visible_pixels": 11128,
+          "alone_pixels": 12541,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/occlusion/step_06",
+          "rgb_sha256": "dfcfab2b43d5c40726ffa2881c3f0083894cdd0e5e3ba156257abc3fdfff3503",
+          "prediction_sha256": "feabd7241160ac750a5d8eba07902bd7ff8a058f6f78f0918c27c96b01b30352",
+          "labels_sha256": "7ca1330b98183d7c3ce40b88b7a7ba4fa7dbe993c4677231db53dd42ef4b126d",
+          "log_sha256": "1a9838d851b9d580f4661f7853f735f7c21b13e6996298c69380b9ae98f28888",
+          "rgb_panel_xywh": [
+            1088,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1332,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 0,
+          "action": "remove",
+          "object": "book_3",
+          "instance_id": 3,
+          "score": 4.525180816650391,
+          "point_xy": [
+            292,
+            183
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 12892,
+          "alone_pixels": 12892,
+          "skipped": 2,
+          "selected_is_target": false,
+          "removals_before": 0,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_00",
+          "rgb_sha256": "ba96fb1db61434c80564a2c0b2cab8263ea8dd4aadbaf4a5393dd093f1838e4f",
+          "prediction_sha256": "a3d1a4387ca2fcd9ff5c6c54b28c897d30a5e7d4eb754267eefa641b38beecf2",
+          "labels_sha256": "a37d0117e3bda2158c23420a4fd388d3426456997be034c31d977c940f540e45",
+          "log_sha256": "f0a11b807a418c3586cfb26f47faadfb1ff6342ed834a336dc1317cfdaa7754b",
+          "rgb_panel_xywh": [
+            1588,
+            246,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            246,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 1,
+          "action": "remove",
+          "object": "toy_1",
+          "instance_id": 13,
+          "score": 4.063121318817139,
+          "point_xy": [
+            266,
+            183
+          ],
+          "visibility_fraction": 0.7620578778135049,
+          "visible_pixels": 1185,
+          "alone_pixels": 1555,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 1,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_01",
+          "rgb_sha256": "73a41a80cd8bddc2ac2bc7a3f679127a6788b6be0e27f15dc7eecaabe9aad5de",
+          "prediction_sha256": "38dbc407e65995f34ecf45cc65f9d68f19292168bb38ebcc5cdf651c494f8b05",
+          "labels_sha256": "aa2106de7eb13d3d57e42f6b60fabb47f7c5b254a55cb8b2b7d884a069f6b677",
+          "log_sha256": "37d13c7f764c6b8dd01b926522ceb135012c448f9d68cabf52b49efa8afee851",
+          "rgb_panel_xywh": [
+            1588,
+            490,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            490,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 2,
+          "action": "remove",
+          "object": "fruit_1",
+          "instance_id": 5,
+          "score": 3.6271371841430664,
+          "point_xy": [
+            295,
+            167
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1933,
+          "alone_pixels": 1933,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 2,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_02",
+          "rgb_sha256": "01f474a916b756653f633d62d8faa659c082bb468d37e8a91a901564f117defa",
+          "prediction_sha256": "13e59ecd76346ee705dbd7e072403a00e2f7391aa9ae700d2785391b3b1728de",
+          "labels_sha256": "c2a584fe7574b189237d452def238b6c82fd7d9ad133e92f814e5702c2b6e3a1",
+          "log_sha256": "3972f8086e8f1e8c9dc00fb3e04cc0d3c4ca36e770d50de401301d441415201f",
+          "rgb_panel_xywh": [
+            1588,
+            734,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            734,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 3,
+          "action": "remove",
+          "object": "toy_3",
+          "instance_id": 15,
+          "score": 3.4168660640716553,
+          "point_xy": [
+            295,
+            241
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 3294,
+          "alone_pixels": 3294,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 3,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_03",
+          "rgb_sha256": "d9f3473521bfc8f22a030b719a904b6bd4b081e486cbca0c59eb6435496382fb",
+          "prediction_sha256": "45ed7dc8fe2b05d6a7d03ae5f0218f6d2ed6762137449f65a430d84493cde972",
+          "labels_sha256": "adee481a2eaa5b8068bb141f3d45069adeb8761ece4af4abea2c88aa68eb2796",
+          "log_sha256": "c204c1668411bd413ba8ea17bd6a82d1e94c2a503bfd278acf67c18e3b9ce344",
+          "rgb_panel_xywh": [
+            1588,
+            978,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            978,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 4,
+          "action": "remove",
+          "object": "packaged_food_3",
+          "instance_id": 11,
+          "score": 2.866008758544922,
+          "point_xy": [
+            293,
+            229
+          ],
+          "visibility_fraction": 0.9251226439452621,
+          "visible_pixels": 3583,
+          "alone_pixels": 3873,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 4,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_04",
+          "rgb_sha256": "8a6e73d4b1e2bf887238d5c19e376f6ae0b039522a8b955720b407182a3ec1aa",
+          "prediction_sha256": "f3c892f722d5793b8525ed97d242ac836397cedf9556a7abab603e6c4efa69d2",
+          "labels_sha256": "48255853b3c79b8d2ce6e16f2d1a617452c5112c401d76b3d525b6addaa82a46",
+          "log_sha256": "2818b73b3114c70d84f080232858f403063ddf896b70249245a530f61d91224d",
+          "rgb_panel_xywh": [
+            1588,
+            1222,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1222,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 5,
+          "action": "remove",
+          "object": "packaged_food_4",
+          "instance_id": 12,
+          "score": 2.106130361557007,
+          "point_xy": [
+            287,
+            228
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 2716,
+          "alone_pixels": 2716,
+          "skipped": 2,
+          "selected_is_target": false,
+          "removals_before": 5,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_05",
+          "rgb_sha256": "d63aaa1098f466b485d4457a88d88527a1ad6a11a5603b6851f703749e3037c7",
+          "prediction_sha256": "bc99041e319394f6a70aa563bd7a13ecc41556b5d1bbb9426bbc7e90b7cc6c3d",
+          "labels_sha256": "a3d04d7406dced6867d534cc657856927483ef0cca633c7600994d97d9a113e9",
+          "log_sha256": "9b14ba0c6ee9ac357af92caf6193df76a9589975d4cfa5576107a8111771b21f",
+          "rgb_panel_xywh": [
+            1588,
+            1466,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1466,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 6,
+          "action": "remove",
+          "object": "book_1",
+          "instance_id": 1,
+          "score": 1.81125807762146,
+          "point_xy": [
+            300,
+            168
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 16773,
+          "alone_pixels": 16773,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 6,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_06",
+          "rgb_sha256": "05413f985785302272ded3a00a9fd966e7ca66037de029ea553456803c03f164",
+          "prediction_sha256": "01b0d5bd6e7c109822eff0e3f14fed5be7d961435b51c22b550f2b728d020c5a",
+          "labels_sha256": "cf1e7581b2dce8399be2cfa561668cdfa595a29f303fa6419a34ca3ec8d82706",
+          "log_sha256": "148d46d026e09b4b9954cece523fae717b53c42e184bd3c2c4ca8d066a885b4c",
+          "rgb_panel_xywh": [
+            1588,
+            1710,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1710,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 7,
+          "action": "remove",
+          "object": "fruit_2",
+          "instance_id": 6,
+          "score": 1.5596330165863037,
+          "point_xy": [
+            264,
+            167
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1108,
+          "alone_pixels": 1108,
+          "skipped": 1,
+          "selected_is_target": false,
+          "removals_before": 7,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_07",
+          "rgb_sha256": "f107daf54980f92a54fed2183e67c77bc2294e1b089c9c0effefc041445cb945",
+          "prediction_sha256": "a115c922d26f01174f7d7500f3545569fb26ee2f3e7f48f797f9cedf125edd16",
+          "labels_sha256": "644225b3b6ced46ba33616f557fe05414e29102e762c9a52e8bd1629a6770ed8",
+          "log_sha256": "f480ca6012385baff61837598305434b23ab954e09211a26a0aad5809e1c846e",
+          "rgb_panel_xywh": [
+            1588,
+            1954,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            1954,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 8,
+          "action": "remove",
+          "object": "book_4",
+          "instance_id": 4,
+          "score": 1.3759702444076538,
+          "point_xy": [
+            311,
+            167
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 10369,
+          "alone_pixels": 10369,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 8,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_08",
+          "rgb_sha256": "178521a0c72c1bd7d9c5318884bca49c7d317c1ac453444f2334a19ca6277718",
+          "prediction_sha256": "5090a4628e66a3be5740964fe3f13bd0cc661327cab8705e4b7619370f298c9e",
+          "labels_sha256": "cfef88420ac5b98931c6ecabfdfe613cca1b4ee82d37b42af2fef3143d4474c8",
+          "log_sha256": "33bef9f22570be5db69b07e3cbafefaf51d9d59f00fba652cf0ad647e0a41f1d",
+          "rgb_panel_xywh": [
+            1588,
+            2198,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2198,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 9,
+          "action": "remove",
+          "object": "packaged_food_1",
+          "instance_id": 9,
+          "score": 0.8294268250465393,
+          "point_xy": [
+            200,
+            250
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 1809,
+          "alone_pixels": 1809,
+          "skipped": 0,
+          "selected_is_target": false,
+          "removals_before": 9,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_09",
+          "rgb_sha256": "16e9ada550b9dbf8128e04cfa6fc9058455bd0165be4edc1b40a9db7dc47dd3f",
+          "prediction_sha256": "67ab93cc5f6ccce8867180333d2b4ecc12aace9b3f0a4adfac1e2de982899986",
+          "labels_sha256": "cf39640863f532637c09255b1562d8694e9a2041fd215c470108743316c75f98",
+          "log_sha256": "9fd193909194844120917c5451df26a4f32868e8b042ea6162a8cce1d5f83852",
+          "rgb_panel_xywh": [
+            1588,
+            2442,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2442,
+            240,
+            180
+          ]
+        },
+        {
+          "policy": "complexity",
+          "step": 10,
+          "action": "found",
+          "object": "book_2",
+          "instance_id": 2,
+          "score": 0.6437798738479614,
+          "point_xy": [
+            343,
+            167
+          ],
+          "visibility_fraction": 1.0,
+          "visible_pixels": 12541,
+          "alone_pixels": 12541,
+          "skipped": 0,
+          "selected_is_target": true,
+          "removals_before": 10,
+          "source_step": "outputs/closed_loop_search_20261027/full/episodes/book_2_scene00009_env0026/center/complexity/step_10",
+          "rgb_sha256": "cd401dde10369ffeb6169d3ccc850d185c9e4f921294da6703c13b4c912cf10f",
+          "prediction_sha256": "1c242c631cb72b7c9ef83deab0c67301532faafa83e702f7823f617960a7768b",
+          "labels_sha256": "6c921fbfbe63f2e88303218bf37bb8580c1584a78f05e0bfb35f18ed0e226536",
+          "log_sha256": "b9098d5811dcc3612247d33887f4c4a302dedf95e3b19534eba9c8b0ca07953b",
+          "rgb_panel_xywh": [
+            1588,
+            2686,
+            240,
+            180
+          ],
+          "map_panel_xywh": [
+            1832,
+            2686,
+            240,
+            180
+          ]
+        }
+      ],
+      "figure_size_px": [
+        2100,
+        3008
+      ],
+      "png": "img/search_20261027_fusion_slower_book_2_center.png",
+      "pdf": "img/search_20261027_fusion_slower_book_2_center.pdf",
+      "png_sha256": "f4eb207b5d9b3a607cbddafb3add295926f565151b84eeb9cd5dbdc7da973be0",
+      "pdf_sha256": "0569ac5c56c89166cb7f86268dc8314ab6f8c436577ad8c917554e0102b6c687"
+    }
+  ]
+}

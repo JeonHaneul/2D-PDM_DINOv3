@@ -717,7 +717,11 @@
     "Any 85.06% badge must include SOC best10, known16 held-out test n=24,000, and amodal peak hit; never label it generic accuracy or external success.",
     "External 80-image visible peak 0/80 is a different diagnostic; external amodal IoU and amodal peak remain unevaluated.",
     "Stream full valid-domain error percentages are 100*sum(w*abs(pred-GT))/sum(w*GT), not accuracy; do not report 100-minus-error.",
-    "Top 20% is a retained evaluation fraction, not a validated optimal or required fraction."
+    "Top 20% is a retained evaluation fraction, not a validated optimal or required fraction.",
+    "Closed-loop search:32 physical test scenes x5 independent fixed cameras x4 policies=640 episodes; single RGB-D per policy step.",
+    "Search success96.875% uses oracle simulator object binding and visibility eligibility; it is not pixel accuracy, external zero-shot or real robot grasp success.",
+    "Trajectory examples are post-hoc extreme cases, include Fusion slower than Similarity, and do not replace overall640-episode statistics.",
+    "After first removal, policy-specific observed scenes differ; blank trajectory cells are finished episodes, not reused predictions."
   ],
   "training_snapshot": {
     "date": "2026-10-27",
@@ -772,5 +776,61 @@
     "png": "img/overall_architecture_pre_full_test_20261027.png",
     "svg": "img/overall_architecture_pre_full_test_20261027.svg",
     "pdf": "img/overall_architecture_pre_full_test_20261027.pdf"
+  },
+  "closed_loop_evaluation": {
+    "status": "complete",
+    "source": "docs/closed_loop_search_20261027.json",
+    "asset_manifest": "img/closed_loop_search_assets_20261027.json",
+    "guide": "closed_loop_search.md",
+    "placement": "Outside neural backbone/fusion blocks; right of amodal output or below main architecture",
+    "nodes": [
+      "per-visible-object peak score",
+      "simulator visibility>=50%",
+      "remove blocker or retrieve selected target",
+      "600 actual physics steps /5s",
+      "new single RGB-D"
+    ],
+    "loop": "model output -> simulator action rule -> physical transition -> observed RGB-D -> same frozen model",
+    "oracle_only": [
+      "physical object IDs",
+      "isolated same-pose projection"
+    ],
+    "never_connect_to_model_input": [
+      "scene GT instance IDs",
+      "scene GT segmentation",
+      "ground-truth target pose"
+    ],
+    "independent_policy_columns": [
+      "fusion",
+      "similarity",
+      "occlusion",
+      "complexity"
+    ],
+    "step_semantics": "Decision r before action; r=0 initial; target found at r equals blocker removal count",
+    "posthoc_examples": true,
+    "primary_physical_scenes": 32,
+    "policy_episodes": 160,
+    "total_episodes": 640
+  },
+  "subsequent_shared_training_completion": {
+    "status": "complete",
+    "completed_kst": "2026-10-27T20:50:52.022527+09:00",
+    "source": "<DEV_ROOT>/outputs/fusion_training_20261026/completion.json",
+    "sha256": "69a8315f2e1585e70894fa467177e7989d938c2a1873b1f87c5bd2fe049cbac3",
+    "variants": {
+      "soc": {
+        "status": "complete",
+        "epochs": 13,
+        "best_epoch": 10,
+        "test_images": 24000
+      },
+      "so": {
+        "status": "complete",
+        "epochs": 20,
+        "best_epoch": 20,
+        "test_images": 24000
+      }
+    },
+    "interpretation": "Shared training/test completion checked; SO is not one of the four search policies. Incremental Complexity contribution is a separate SOC-versus-SO analysis."
   }
 }

@@ -4,7 +4,27 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · **Fusion** · [Framework Guide](framework_guide.md) · [Development Log](development_log.md) · [연구 문맥](agent.md#current-handoff-20261027)
 <!-- navigation:end -->
 
-> 2026-10-27 최신 결과: SOC는13epoch에서 종료됐고 validation으로 선택한 best10의 **기존16종 test24,000장 평가를 완료함. Amodal 최고점 적중률85.06%, 마스크 mIoU50.92%이며 실제 보이는 부분 최고점 적중률은41.45%임.** 서로 다른 지표이며 일반적인 pixel accuracy나 zero-shot 정확도가 아님. SO는17:56:50 KST snapshot에서epoch18 학습 중이고 SOC/SO 비교는 미완료임. [학습·진행 요약](docs/fusion_training_20261027_summary.json) · [SOC test 결과](docs/fusion_test_evaluation_20261027.json)
+> 2026-10-27 최신 결과: SOC는13epoch에서 종료됐고 validation으로 선택한 best10의 **기존16종 test24,000장 평가를 완료함. Amodal 최고점 적중률85.06%, 마스크 mIoU50.92%이며 실제 보이는 부분 최고점 적중률은41.45%임.** 서로 다른 지표이며 일반적인 pixel accuracy나 zero-shot 정확도가 아님. 이후SOC/SO공동학습·각test24,000장완료기록을확인함. 아래표의17:56:50상태는이전snapshot이며SOC–SO추가효과해석은이번네정책제거비교와구분함. [학습·진행 요약](docs/fusion_training_20261027_summary.json) · [SOC test 결과](docs/fusion_test_evaluation_20261027.json)
+
+<a id="closed-loop-search-20261027"></a>
+## 동일 scene의 반복 제거 평가 완료
+
+기존 16개 물체의 별도 test 32장면을 5개 고정 camera에서 각각 독립적으로 평가하여 정책당 160회·총 640회 제거 탐색을 완료함. 한 episode의 입력은 해당 camera의 단일 RGB-D이며, 5뷰를 합친 입력이 아님. 네 정책 모두 155/160=96.875% 성공했고, 성공한 155조건의 집합도 정확히 동일함.
+
+| 정책 | 성공/160 | 성공률 | 평균 제거 | 중앙값 | 초기 선택 성공 |
+|---|---:|---:|---:|---:|---:|
+| Fusion | 155 | 96.875% | **2.1290** | 2 | 36 |
+| Similarity | 155 | 96.875% | **3.9355** | 3 | 36 |
+| Occlusion | 155 | 96.875% | **7.7226** | 8 | 5 |
+| Complexity | 155 | 96.875% | **6.0516** | 6 | 9 |
+
+성공한 동일 155조건의 평균 제거 횟수는 Fusion 2.1290회로 Similarity 3.9355회보다 45.90% 적음. Fusion 평균은 5/5 camera에서 세 단독 stream보다 작음. S보다 적게/같게/많게 제거한 조건은 84/58/13임. 이 평균은 target 회수 동작을 제외하며 실패 회차를 성공으로 바꾸지 않음.
+
+기존 16종·고정 5camera·한 seed·clean 합성 조건의 비교이며 zero-shot/실제 robot 파지 성공률이 아님. Simulator 물체 ID·가시율을 행동 연결과 가능 조건에 사용하므로 배포 segmentation 오류를 포함한 검증이 아님. SOC와 각 단독 stream의 비교만으로 Complexity의 추가 효과를 분리할 수 없으며, SOC–SO 비교 해석이 별도로 필요함.
+
+![편차가큰세조건의제거횟수](img/search_20261027_matched_scene_overview.png)
+
+전체단계그림·행동순서·카메라별수치·원본매몰scene의실패근거는 [제거탐색](closed_loop_search.md)에정리함. 각step은단일RGB-D→현재지도→물체별최대점수→가시율50%검사→제거→물리5초→새관측순서임. Target회수는평균에서제외함. 실패5회씩을포함한분모160을유지했으며정답물체ID/가시율은시뮬레이터행동판정에만사용함.
 
 ## 목적과 현재 확인 범위
 
@@ -41,7 +61,7 @@ F_C [64,30,40] ─┘
  → sigmoid → target occupancy probability [1,30,40]
 ```
 
-SO 비교 head는 C를 제외한128채널을 같은64채널 크기로 projection한 뒤 같은 구조를 사용함. SO/SOC의 공통 크기 body·output 초기값은 같은 seed로 맞추지만 입력 projection의 크기는 다름. 두 head의 optimizer·validation 선택·조기 종료는 독립적임. 현재 SO/SOC 비교는 학습 중이며 C의 추가효과를 확정한 결과가 아님.
+SO 비교 head는 C를 제외한128채널을 같은64채널 크기로 projection한 뒤 같은 구조를 사용함. SO/SOC의 공통 크기 body·output 초기값은 같은 seed로 맞추지만 입력 projection의 크기는 다름. 두 head의 optimizer·validation 선택·조기 종료는 독립적임. 두head의공동학습·test완료기록은확인했으며C의추가효과해석은별도로구분함. 이번제거탐색은SOC와단독S/O/C의네정책비교임.
 
 ## GT와 loss
 
@@ -65,9 +85,9 @@ SO 비교 head는 C를 제외한128채널을 같은64채널 크기로 projection
 | 모델 선택 | 각 head의 전체 validation BCE 최저 |
 | SOC 상태 | 13epoch·156,000updates 후 조기 종료 |
 | SOC 선택 모델 | Epoch10, validation BCE **0.012314409569526712** |
-| SO 상태 | 2026-10-27 17:56:50 KST, epoch18 학습 중인 snapshot |
+| SO 상태 | 이후공동완료기록:20epoch·best20, test24,000장완료. 17:56:50의epoch18은과거snapshot |
 | SOC 전체 test | Best10 고정, 24,000장 예측·평가 완료 |
-| SOC/SO 공동 비교 | 원래 공동 실행의 SO 학습·test 및 두 모델 비교 미완료 |
+| SOC/SO 공동 비교 | 공동학습·각test완료기록확인. 이번제거실험에는SO미포함, C추가효과해석별도 |
 
 Validation BCE는 모델 선택 손실이며 “정확도98.77%”처럼 변환할 수 없음. 선택epoch10이 실행epoch13보다 이른 이유는 마지막epoch가 아니라 validation 최저 checkpoint를 쓰기 때문임. 실행 중 상태는 계속 바뀌므로 이 표는 위 날짜의 기록이며 [요약 JSON](docs/fusion_training_20261027_summary.json)의 상태와 함께 읽음.
 
@@ -116,9 +136,9 @@ Fusion 예측은 공통0–1 범위의 grayscale이며 장면별 밝기 정규�
 
 [개별 stream의 외부80장 평가](docs/stream_external_evaluation_20261027.json)에서 공통 영역의 상위20% 선택 일치율은 S90.16% / O95.25% / C90.85%, S의 실제 target visible 최고점 적중은2.50%임. 이는 fusion 위치 적중률과 다른 지표임. 20%는 기존 평가에서 고정한 비율이며 최적값으로 검증한 것은 아님. 전체 유효 영역으로 재집계한 **GT 총량 대비 절대오차율**은 S9.59% / O12.39% / C9.34%이며 낮을수록 좋음. 이는80장 전체의 가중 절대오차 합/가중 GT 합×100으로, 100에서 빼서 정확도나 일치율로 쓰지 않음. 평가 영역·집계식은 [전체 영역 오차 JSON](docs/stream_full_map_error_20261027.json)을 따름.
 
-완전히 가려진 물체는 동일 RGB-D에서도 여러 숨은 배치가 가능하므로 단일 관측만으로 실제 pose가 유일하게 결정되지 않을 수 있음. Amodal 감독은 숨은 부분을 포함한 위치 학습 목표이지만 가림 아래의 정확한 위치를 항상 식별한다는 보장은 아님. 또한 amodal 최고점이 보이는 부분 또는 집기 가능한 점이라는 보장도 없음. Visible 적중률은 그 차이를 보는 진단이며 실제 집기·가림물 제거·DRL 탐색 성공률은 별도 미검증임.
+완전히 가려진 물체는 동일 RGB-D에서도 여러 숨은 배치가 가능하므로 단일 관측만으로 실제 pose가 유일하게 결정되지 않을 수 있음. Amodal 감독은 숨은 부분을 포함한 위치 학습 목표이지만 가림 아래의 정확한 위치를 항상 식별한다는 보장은 아님. 또한 amodal 최고점이 보이는 부분 또는 집기 가능한 점이라는 보장도 없음. Visible 적중률은 그 차이를 보는 진단이며 실제집기·DRL성공률은미검증임. 고정규칙으로가림물을제거하는기존16종시뮬레이션비교는별도제거탐색절에제시함.
 
-기존16종 test의 위치 적중과 외부1종의 visible 실패를 함께 유지함. 여러 새 물체·새 category·완전 가림 외부 target·실센서·정책 효용은 미검증이며, SO/SOC test 비교 전에 “Complexity 때문에 성능이 좋아졌다”고 결론내리지 않음.
+기존16종 test의 위치 적중과 외부1종의 visible 실패를 함께 유지함. 여러 새 물체·새 category·완전 가림 외부 target·실센서의 탐색 효용은 미검증임. 기존 16종의 SOC·단독 stream 제거 비교는 완료했으나, Complexity의 추가 효과는 SOC–SO 차이를 별도로 검토해야 함.
 
 ## 재작성·근거 안내
 

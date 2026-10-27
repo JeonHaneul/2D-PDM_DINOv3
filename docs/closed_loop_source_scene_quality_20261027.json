@@ -1,0 +1,1789 @@
+{
+  "status": "completed_source_quality_diagnostic",
+  "created_utc": "2026-10-27T10:48:04.889942+00:00",
+  "scope": "All32 fixed selected initial target poses; CPU mesh geometry only; original five-view raw physical IDs checked only for flagged targets. No current model predictions used.",
+  "selection": "<DEV_ROOT>/outputs/closed_loop_search_20261027/selection.json",
+  "selection_sha256": "f3f5ad484796d509c7aff275fbf33c6ae9a83f72718b8fc0db0913c3dd59d212",
+  "runtime": "<DEV_ROOT>/outputs/closed_loop_search_20261027/full/simulator/full_0000_0031/runtime.json",
+  "runtime_sha256": "9808d1b93484b3badedef10c2e2ecbbaeaafa5c8f2cefc1e5cc7e5e008a9cb5c",
+  "method": {
+    "source_vertices": "Visible default/render-purpose USD Mesh points including instance proxies; child transform relative to default asset root; explicit runtime applied root scale; float64-normalized saved wxyz rotation; saved position_local in meters",
+    "floor_asset": "<ASSET_ROOT>/Collected_drawer/drawer.usd",
+    "floor_asset_sha256": "e408c9a6e0ea796d56af540e36aa8c2dabda5a35e3b140552929326ab6017af3",
+    "floor_prim": "/World/Cube",
+    "floor_local_min_m": [
+      -0.35,
+      -0.35,
+      0.0
+    ],
+    "floor_local_max_m": [
+      0.35,
+      0.35,
+      0.01
+    ],
+    "flag_rule": "Whole target mesh maximum z is strictly below drawer floor top AND target mesh XY bounds lie entirely inside floor XY bounds. This is a preexisting complete burial flag; partial contact penetration and ordinary object occlusion are not flagged.",
+    "raw_id_normalization_source": "<WORKSPACE_ROOT>/scene_generator/instance_capture.py",
+    "raw_id_normalization_sha256": "c74256c8eb5067e32084a143914734b38440a46023d8ef9677410e0bdb51d196",
+    "limitations": "Geometry reconstruction is not cooked-convex contact replay or comprehensive scene-quality validation. Unflagged does not certify full physical validity. No scene is excluded/replaced and policy performance is not retuned."
+  },
+  "summary": {
+    "selected_layouts": 32,
+    "target_assets_cached": 16,
+    "flagged_preexisting_buried_target_layouts": 1,
+    "flagged_layout_ids": [
+      "book_3_scene00005_env0031"
+    ],
+    "flagged_original_views_checked": 5,
+    "flagged_original_views_with_target_pixels": 0,
+    "all32_retained": true,
+    "selection_filter_or_replacement_applied": false,
+    "elapsed_seconds": 0.5424225749447942
+  },
+  "assets": [
+    {
+      "usd_path": "<ASSET_ROOT>/Book/book_1/Book_02.usd",
+      "usd_sha256": "b527b6f0215412046d2350a1837d68325c04eb1d4a69a66a6e194603af54d3e0",
+      "meters_per_unit": 0.01,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "alias": "book_1",
+      "meshes": [
+        {
+          "path": "/World/Book",
+          "vertices": 400
+        }
+      ],
+      "total_vertices": 400,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Book/book_2/Book_GetKnowPPU.usd",
+      "usd_sha256": "44cfcdda0187874e2f7fc87b2547d50618a44ff44dafedc0489a9f4f3b0bc551",
+      "meters_per_unit": 0.009999999776482582,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "alias": "book_2",
+      "meshes": [
+        {
+          "path": "/World/Book/Book_Full",
+          "vertices": 422
+        }
+      ],
+      "total_vertices": 422,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Book/book_3/Book_Greener.usd",
+      "usd_sha256": "d6fca904ddf9fc0ade9843b278934bccbd26d43021d2754fdbf55672ca66557e",
+      "meters_per_unit": 0.009999999776482582,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "alias": "book_3",
+      "meshes": [
+        {
+          "path": "/World/Book/Book_Full",
+          "vertices": 422
+        }
+      ],
+      "total_vertices": 422,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Book/book_4/OmniConnect2015.usd",
+      "usd_sha256": "2c41ef8f440746e241ac3b221eed62a7fc9f2534bf404d9afa910f2b524cf5fb",
+      "meters_per_unit": 0.009999999776482582,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "alias": "book_4",
+      "meshes": [
+        {
+          "path": "/World/Book",
+          "vertices": 392
+        },
+        {
+          "path": "/World/Pages",
+          "vertices": 8
+        }
+      ],
+      "total_vertices": 400,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Fruit/fruit_1/Apple.usd",
+      "usd_sha256": "9a0169c5ac8d4e0af2ebca4b30211c39e4f505f77b0ff820ed44c846657947a5",
+      "meters_per_unit": 0.01,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "alias": "fruit_1",
+      "meshes": [
+        {
+          "path": "/World/Apple",
+          "vertices": 6344
+        }
+      ],
+      "total_vertices": 6344,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Fruit/fruit_2/Avocado01.usd",
+      "usd_sha256": "545f967379441c9c9eb85642d574dd5555c13687c3e5d2b8e0aa22d6d8fa622e",
+      "meters_per_unit": 0.009999999776482582,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "alias": "fruit_2",
+      "meshes": [
+        {
+          "path": "/World/Avocado_01",
+          "vertices": 3874
+        }
+      ],
+      "total_vertices": 3874,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Fruit/fruit_3/Lime01.usd",
+      "usd_sha256": "da6a63e2e721f68ce2ccc0da39a72809b2827e03c452dbd17ff3e9863003d04e",
+      "meters_per_unit": 0.009999999776482582,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "alias": "fruit_3",
+      "meshes": [
+        {
+          "path": "/World/food_lime_01",
+          "vertices": 4052
+        }
+      ],
+      "total_vertices": 4052,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Fruit/fruit_4/Orange_03.usd",
+      "usd_sha256": "0df7f8b495b98f14ce01e7c8687a608945cf5fda995b6ea2f0192ec0d34f7169",
+      "meters_per_unit": 0.01,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "alias": "fruit_4",
+      "meshes": [
+        {
+          "path": "/Root/Orange_03",
+          "vertices": 13406
+        },
+        {
+          "path": "/Root/Orange_03/Leaf",
+          "vertices": 161
+        }
+      ],
+      "total_vertices": 13567,
+      "default_prim": "/Root"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Packaged_food/packaged_food_1/005_tomato_soup_can.usd",
+      "usd_sha256": "fae81197ca467f35c1c488dab855d41efa35f23848b1b1febc83e6700d4e52e9",
+      "meters_per_unit": 1.0,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "alias": "packaged_food_1",
+      "meshes": [
+        {
+          "path": "/Root/_05_tomato_soup_can",
+          "vertices": 8565
+        }
+      ],
+      "total_vertices": 8565,
+      "default_prim": "/Root"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Packaged_food/packaged_food_2/010_potted_meat_can.usd",
+      "usd_sha256": "751be7cb5341f23fe7a45cd9451022ce8be64fe8773d30508e675f795d408c10",
+      "meters_per_unit": 1.0,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "alias": "packaged_food_2",
+      "meshes": [
+        {
+          "path": "/Root/_10_potted_meat_can",
+          "vertices": 8516
+        }
+      ],
+      "total_vertices": 8516,
+      "default_prim": "/Root"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Packaged_food/packaged_food_3/006_mustard_bottle.usd",
+      "usd_sha256": "72f690cfcc9baefde7be1759f5adc3f1ece929d16347cadce29ef94e5f7cfacb",
+      "meters_per_unit": 1.0,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "alias": "packaged_food_3",
+      "meshes": [
+        {
+          "path": "/Root/_06_mustard_bottle",
+          "vertices": 8377
+        }
+      ],
+      "total_vertices": 8377,
+      "default_prim": "/Root"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Packaged_food/packaged_food_4/008_pudding_box.usd",
+      "usd_sha256": "580dde3eef58f6a14904f130d14e0986b799ec55d7a690ee20c34486004c2f6b",
+      "meters_per_unit": 1.0,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "alias": "packaged_food_4",
+      "meshes": [
+        {
+          "path": "/Root/_08_pudding_box",
+          "vertices": 8442
+        }
+      ],
+      "total_vertices": 8442,
+      "default_prim": "/Root"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Toy/toy_1/toy_truck.usd",
+      "usd_sha256": "68e655cde25cdc3803d3f780f704551cd7d0725da411af2591cfe369e2a839ba",
+      "meters_per_unit": 1.0,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "alias": "toy_1",
+      "meshes": [
+        {
+          "path": "/Root/Aligned/wanjukache_wanjukache_007",
+          "vertices": 21763
+        }
+      ],
+      "total_vertices": 21763,
+      "default_prim": "/Root"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Toy/toy_2/Ball_Walnut.usd",
+      "usd_sha256": "ad6fbb0a660ba41494f92aa01fcd6adee348a4d725a3a52ec2ddc39ec57270ff",
+      "meters_per_unit": 0.009999999776482582,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.009999999776482582,
+        0.009999999776482582,
+        0.009999999776482582
+      ],
+      "alias": "toy_2",
+      "meshes": [
+        {
+          "path": "/World/Ball_Walnut",
+          "vertices": 1262
+        }
+      ],
+      "total_vertices": 1262,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Toy/toy_3/Shield_Controller.usd",
+      "usd_sha256": "b1f8720172b78ff243232c6b79061b548cc521c9d4835d81725be0787b23aa5b",
+      "meters_per_unit": 0.01,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "alias": "toy_3",
+      "meshes": [
+        {
+          "path": "/World/joyStickKnob",
+          "vertices": 47170
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/Nvidia_logo",
+          "vertices": 390
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/XABY_buttons",
+          "vertices": 31491
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/backPiece",
+          "vertices": 4556
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/bottomCage",
+          "vertices": 11327
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/bottomCase",
+          "vertices": 13432
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/bottomTriggers",
+          "vertices": 97183
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/buttonText",
+          "vertices": 9759
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/dpad",
+          "vertices": 49259
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/glyph01",
+          "vertices": 187
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/glyph02",
+          "vertices": 201
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/glyph03",
+          "vertices": 215
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/glyph04",
+          "vertices": 403
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/gut_Power",
+          "vertices": 37797
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/hdmi",
+          "vertices": 10078
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/headphones",
+          "vertices": 19453
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/joyStickBase_Fillets",
+          "vertices": 3710
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/joystickCase",
+          "vertices": 1933
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/joystick_GRP/joyStick",
+          "vertices": 96771
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/joystick_GRP/joyStick_indent",
+          "vertices": 31706
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/logo_triangle",
+          "vertices": 187
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/middleButton",
+          "vertices": 2860
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/middleSection",
+          "vertices": 908
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/screws",
+          "vertices": 97173
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/shieldBase",
+          "vertices": 57785
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/shieldLogoBack",
+          "vertices": 1534
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/shieldPower",
+          "vertices": 17899
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/sideButtons",
+          "vertices": 10211
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/topCage",
+          "vertices": 4012
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/topCase",
+          "vertices": 30529
+        },
+        {
+          "path": "/World/Thunderstrike_Grp/topTriggers",
+          "vertices": 304762
+        },
+        {
+          "path": "/World/joyStickKnob1",
+          "vertices": 47170
+        }
+      ],
+      "total_vertices": 1042051,
+      "default_prim": "/World"
+    },
+    {
+      "usd_path": "<ASSET_ROOT>/Toy/toy_4/RubixCube.usd",
+      "usd_sha256": "8a1d15cc4b786462bc2b6635bfa314c1814cc6220ff39e1c6179554fe275bcca",
+      "meters_per_unit": 0.01,
+      "authored_root_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "applied_root_scale": [
+        0.01,
+        0.01,
+        0.01
+      ],
+      "alias": "toy_4",
+      "meshes": [
+        {
+          "path": "/World/Cubies_1",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_10",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_11",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_12",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_13",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_14",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_15",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_16",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_17",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_18",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_19",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_2",
+          "vertices": 56
+        },
+        {
+          "path": "/World/Cubies_20",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_21",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_22",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_23",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_24",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_25",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_26",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_27",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_3",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_4",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_5",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_6",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_7",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_8",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_9",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_45",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_31",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_39",
+          "vertices": 104
+        },
+        {
+          "path": "/World/Cubies_37",
+          "vertices": 200
+        },
+        {
+          "path": "/World/Cubies_28",
+          "vertices": 152
+        },
+        {
+          "path": "/World/Cubies_35",
+          "vertices": 152
+        }
+      ],
+      "total_vertices": 5016,
+      "default_prim": "/World"
+    }
+  ],
+  "layouts": [
+    {
+      "layout_id": "book_1_scene00013_env0051",
+      "target": "book_1",
+      "target_instance_id": 1,
+      "pose_path": "<DATA_ROOT>/scene/book_1/scene00013_env0051_poses.json",
+      "pose_sha256": "8b1358975296dfc9eaf8747373e4bdb1e538bca8a3fc50522842d7e3a507307c",
+      "source_run_id": "book_1_20261013_130529_seed261013000",
+      "env_origin": [
+        -9.0,
+        -3.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.02544689178466797,
+        -0.006920814514160156,
+        0.009934855625033379
+      ],
+      "mesh_min_local_m": [
+        -0.08164896315994369,
+        -0.15409931873721774,
+        0.00987378501471553
+      ],
+      "mesh_max_local_m": [
+        0.13254357620183713,
+        0.1402623276874916,
+        0.02456091826381477
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "book_1_scene00001_env0008",
+      "target": "book_1",
+      "target_instance_id": 1,
+      "pose_path": "<DATA_ROOT>/scene/book_1/scene00001_env0008_poses.json",
+      "pose_sha256": "ec6fa25e880486d2cc2fe99ff636281240d37aa94643163e0e7c00d29fde8572",
+      "source_run_id": "book_1_20261013_130529_seed261013000",
+      "env_origin": [
+        9.0,
+        -6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.026880264282226562,
+        -0.01360940933227539,
+        0.1300266683101654
+      ],
+      "mesh_min_local_m": [
+        -0.13678951491831082,
+        -0.1631145789615316,
+        0.11222667849801837
+      ],
+      "mesh_max_local_m": [
+        0.08353974689098294,
+        0.13454178039103704,
+        0.16246880610138306
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "book_2_scene00009_env0026",
+      "target": "book_2",
+      "target_instance_id": 2,
+      "pose_path": "<DATA_ROOT>/scene/book_2/scene00009_env0026_poses.json",
+      "pose_sha256": "63b32b2c58acfd6cd593c2e7e692a8b1293ce12f6796fd0f8bba6813bca84302",
+      "source_run_id": "book_2_20261013_133918_seed261023000",
+      "env_origin": [
+        3.0,
+        6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.018887758255004883,
+        0.03485250473022461,
+        0.010001024231314659
+      ],
+      "mesh_min_local_m": [
+        -0.11642646270610411,
+        -0.08594490095502585,
+        0.009993864177319359
+      ],
+      "mesh_max_local_m": [
+        0.08397017866140934,
+        0.156845305922848,
+        0.017484188079586366
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "book_2_scene00038_env0006",
+      "target": "book_2",
+      "target_instance_id": 2,
+      "pose_path": "<DATA_ROOT>/scene/book_2/scene00038_env0006_poses.json",
+      "pose_sha256": "c074cf2eab1517bdb06d7d85d084c41139f6c0bfb8dc0534953cc2f07b5bcb9b",
+      "source_run_id": "book_2_20261013_133918_seed261023000",
+      "env_origin": [
+        12.0,
+        9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.065093994140625,
+        -0.0010786056518554688,
+        0.009967930614948273
+      ],
+      "mesh_min_local_m": [
+        -0.1630965672180506,
+        -0.12226554650670157,
+        0.009930037878227032
+      ],
+      "mesh_max_local_m": [
+        0.038230951653615605,
+        0.1212861562984544,
+        0.017482609823190158
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "book_3_scene00011_env0001",
+      "target": "book_3",
+      "target_instance_id": 3,
+      "pose_path": "<DATA_ROOT>/scene/book_3/scene00011_env0001_poses.json",
+      "pose_sha256": "1ee7ee8c5fb276ff690c4035c4e9fd62a18e3af1380a6faf3b55aedcb05fc0d2",
+      "source_run_id": "book_3_20261013_141323_seed261033000",
+      "env_origin": [
+        12.0,
+        -6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.0391693115234375,
+        -0.23069477081298828,
+        0.10712973773479462
+      ],
+      "mesh_min_local_m": [
+        -0.1815261735110793,
+        -0.3500022569400799,
+        0.010002220131609924
+      ],
+      "mesh_max_local_m": [
+        0.10665578110005086,
+        -0.11288454313034034,
+        0.2110469424461252
+      ],
+      "footprint_fully_within_floor_xy": false,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "book_3_scene00005_env0031",
+      "target": "book_3",
+      "target_instance_id": 3,
+      "pose_path": "<DATA_ROOT>/scene/book_3/scene00005_env0031_poses.json",
+      "pose_sha256": "f7840b691d1393495e306e0dd1b5654293b8fed6b0fefc4351bc243c9d61b426",
+      "source_run_id": "book_3_20261013_141323_seed261033000",
+      "env_origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.028911780565977097,
+        0.040347546339035034,
+        -0.0003036158159375191
+      ],
+      "mesh_min_local_m": [
+        -0.12548586546119267,
+        -0.07963651324849594,
+        -0.0008890562354811253
+      ],
+      "mesh_max_local_m": [
+        0.07300668293660088,
+        0.161575901563344,
+        0.006270953489307618
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": true,
+      "flag_preexisting_target_buried_under_drawer": true,
+      "raw_id_check": "source raw physical-ID maps directly normalized; five views",
+      "selection_retained": true,
+      "original_views": [
+        {
+          "camera": "center",
+          "original_raw_ids": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_center/raw_ids.npz",
+          "raw_ids_sha256": "46710b8dadaf1b7fa713929e7571bb451b661d1ef609ac6e190bc6dd4f60bc68",
+          "metadata": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_center/metadata.json",
+          "metadata_sha256": "8a981ce09f2fb286f4756e0f09d8b71aacbbbc6f9e6a46b75cb2344b588f7259",
+          "target_visible_pixels": 0
+        },
+        {
+          "camera": "left",
+          "original_raw_ids": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_left/raw_ids.npz",
+          "raw_ids_sha256": "a070ba47b016f547efa3fc8969271c074fe0ed36c59f7c31c14786c92aba35e1",
+          "metadata": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_left/metadata.json",
+          "metadata_sha256": "ed1eb9854b19c55ef0a7730391331bc008a5a2624910e312b13e2477b6841c86",
+          "target_visible_pixels": 0
+        },
+        {
+          "camera": "right",
+          "original_raw_ids": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_right/raw_ids.npz",
+          "raw_ids_sha256": "9e1dd2a65c8d8b1567b616229f68c99188d2eba64e4f06394b207edf8c21022f",
+          "metadata": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_right/metadata.json",
+          "metadata_sha256": "6ea87f434f4fc583ac20d2b6766c3f056b03bac56b8fdbad992cf66a76e22293",
+          "target_visible_pixels": 0
+        },
+        {
+          "camera": "top",
+          "original_raw_ids": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_top/raw_ids.npz",
+          "raw_ids_sha256": "7049803818a901e7415b38b7a4bf9a655b04743841d2d7e42316fb02261c8059",
+          "metadata": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_top/metadata.json",
+          "metadata_sha256": "f63c75bfefa9d16b1392d1f3221196b9a91f4117f8d8446b70c09b2cbaec310d",
+          "target_visible_pixels": 0
+        },
+        {
+          "camera": "bottom",
+          "original_raw_ids": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_bottom/raw_ids.npz",
+          "raw_ids_sha256": "e3910254394d4b5aa4fc9dd1f2d4559f284090c9107282bd2fa8b8f6d5a12767",
+          "metadata": "<DATA_ROOT>/scene/book_3/instances/scene00005_env0031_bottom/metadata.json",
+          "metadata_sha256": "8322fa17582c343af9abba8d950e4889371eb161e48353dac4c35f5bf33febc6",
+          "target_visible_pixels": 0
+        }
+      ],
+      "all_five_original_views_target_invisible": true
+    },
+    {
+      "layout_id": "book_4_scene00038_env0035",
+      "target": "book_4",
+      "target_instance_id": 4,
+      "pose_path": "<DATA_ROOT>/scene/book_4/scene00038_env0035_poses.json",
+      "pose_sha256": "fc6c6ae55e3c0f12f46ffe53d84226d6b382e7a049a10691c7f3bbe73bcf45b3",
+      "source_run_id": "book_4_20261013_144758_seed261043000",
+      "env_origin": [
+        -3.0,
+        -9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.05820751190185547,
+        -0.056982994079589844,
+        0.009886391460895538
+      ],
+      "mesh_min_local_m": [
+        -0.02642294872353268,
+        -0.1716792811693934,
+        0.009841347310527214
+      ],
+      "mesh_max_local_m": [
+        0.14347864438245184,
+        0.058214965558473775,
+        0.036925828673982815
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "book_4_scene00048_env0052",
+      "target": "book_4",
+      "target_instance_id": 4,
+      "pose_path": "<DATA_ROOT>/scene/book_4/scene00048_env0052_poses.json",
+      "pose_sha256": "5b5a06e2d3f6d43f114c60968473701f64eed83ee4287abd5c62ce7a88f1d2c7",
+      "source_run_id": "book_4_20261013_144758_seed261043000",
+      "env_origin": [
+        -9.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.1150665283203125,
+        0.03306454420089722,
+        0.0451308973133564
+      ],
+      "mesh_min_local_m": [
+        -0.2223129374853812,
+        -0.09355098652291555,
+        0.010000675829490158
+      ],
+      "mesh_max_local_m": [
+        -0.018745369017632033,
+        0.1623487951410468,
+        0.10470055107132897
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_1_scene00003_env0046",
+      "target": "fruit_1",
+      "target_instance_id": 5,
+      "pose_path": "<DATA_ROOT>/scene/fruit_1/scene00003_env0046_poses.json",
+      "pose_sha256": "d1af8d527e925865622b9a190ad74fbfffaf4e2b33cd96024f7fbf5c656e0ba2",
+      "source_run_id": "fruit_1_20261013_152241_seed261053000",
+      "env_origin": [
+        -6.0,
+        3.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.019904613494873047,
+        -0.03982067108154297,
+        0.060733284801244736
+      ],
+      "mesh_min_local_m": [
+        -0.07681413463783207,
+        -0.04528514986392244,
+        0.005306629463862303
+      ],
+      "mesh_max_local_m": [
+        0.00958397705138819,
+        0.056460611557425835,
+        0.09311916806354278
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_1_scene00047_env0027",
+      "target": "fruit_1",
+      "target_instance_id": 5,
+      "pose_path": "<DATA_ROOT>/scene/fruit_1/scene00047_env0027_poses.json",
+      "pose_sha256": "2c936892f795277aace32ea157ab00ddeeb41ec28f258c60f3e60bfc19f1b750",
+      "source_run_id": "fruit_1_20261013_152241_seed261053000",
+      "env_origin": [
+        3.0,
+        9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.006422996520996094,
+        -0.06418800354003906,
+        0.03624754399061203
+      ],
+      "mesh_min_local_m": [
+        -0.045022145663207766,
+        -0.06946275681439545,
+        0.006992234066819546
+      ],
+      "mesh_max_local_m": [
+        0.04381665096329069,
+        0.033865062156201595,
+        0.09269520950224358
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_2_scene00020_env0047",
+      "target": "fruit_2",
+      "target_instance_id": 6,
+      "pose_path": "<DATA_ROOT>/scene/fruit_2/scene00020_env0047_poses.json",
+      "pose_sha256": "86cbedaf7275d2f2d6c734e84f0ceed82b84be1c983d3236d9b500fe3a0d2226",
+      "source_run_id": "fruit_2_20261013_155718_seed261063000",
+      "env_origin": [
+        -6.0,
+        6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.06451129913330078,
+        0.0816793441772461,
+        0.040674395859241486
+      ],
+      "mesh_min_local_m": [
+        -0.09883017102225923,
+        -0.002570201191957791,
+        0.023453984870889278
+      ],
+      "mesh_max_local_m": [
+        -0.03836420367972136,
+        0.0844189107960495,
+        0.08905932379491988
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_2_scene00044_env0057",
+      "target": "fruit_2",
+      "target_instance_id": 6,
+      "pose_path": "<DATA_ROOT>/scene/fruit_2/scene00044_env0057_poses.json",
+      "pose_sha256": "46ae67b6196fc2bf148f9295cc97c7d8c59eabf4f024c4e327ec1cd24c596b8e",
+      "source_run_id": "fruit_2_20261013_155718_seed261063000",
+      "env_origin": [
+        -12.0,
+        -6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.014043807983398438,
+        -0.00673675537109375,
+        0.050728559494018555
+      ],
+      "mesh_min_local_m": [
+        -0.064472284970104,
+        -0.01998583688280888,
+        0.00823954475197309
+      ],
+      "mesh_max_local_m": [
+        0.020928459786220144,
+        0.04940202261206916,
+        0.06983014005157546
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_3_scene00005_env0024",
+      "target": "fruit_3",
+      "target_instance_id": 7,
+      "pose_path": "<DATA_ROOT>/scene/fruit_3/scene00005_env0024_poses.json",
+      "pose_sha256": "83b1be079ea38244af6ec49e04b61a45b52d051d4128d129f57089e8a463dbf7",
+      "source_run_id": "fruit_3_20261013_163201_seed261073000",
+      "env_origin": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.0815732479095459,
+        0.057872556149959564,
+        0.011778432875871658
+      ],
+      "mesh_min_local_m": [
+        0.06671254266858274,
+        0.018543938351271126,
+        0.006820631482092022
+      ],
+      "mesh_max_local_m": [
+        0.12960597222968884,
+        0.09174498448099169,
+        0.06702302835119281
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_3_scene00018_env0052",
+      "target": "fruit_3",
+      "target_instance_id": 7,
+      "pose_path": "<DATA_ROOT>/scene/fruit_3/scene00018_env0052_poses.json",
+      "pose_sha256": "ff6d991c53f5b038f03003e03c11cbec61ef8981c487fbd010c39ead7ec45653",
+      "source_run_id": "fruit_3_20261013_163201_seed261073000",
+      "env_origin": [
+        -9.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.06365489959716797,
+        -0.01962330937385559,
+        0.055552102625370026
+      ],
+      "mesh_min_local_m": [
+        -0.1047148987051797,
+        -0.025478847799914675,
+        0.0067018539870501714
+      ],
+      "mesh_max_local_m": [
+        -0.03306248416738052,
+        0.03450115267420987,
+        0.07041046991295381
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_4_scene00031_env0031",
+      "target": "fruit_4",
+      "target_instance_id": 8,
+      "pose_path": "<DATA_ROOT>/scene/fruit_4/scene00031_env0031_poses.json",
+      "pose_sha256": "af98c937297d30325ca405bd6ca43a17c51d77a63dfa169095d414b040b57765",
+      "source_run_id": "fruit_4_20261013_170644_seed261083000",
+      "env_origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.0482650101184845,
+        0.02173888497054577,
+        0.04917510971426964
+      ],
+      "mesh_min_local_m": [
+        0.002944435538006808,
+        -0.025854463531935497,
+        0.007758496613593041
+      ],
+      "mesh_max_local_m": [
+        0.09208454690979959,
+        0.06400007953204026,
+        0.0927109844079248
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "fruit_4_scene00042_env0049",
+      "target": "fruit_4",
+      "target_instance_id": 8,
+      "pose_path": "<DATA_ROOT>/scene/fruit_4/scene00042_env0049_poses.json",
+      "pose_sha256": "68384baddcc488db6fdee28996f4054412ffa10271f4c395bb9708f87c8586e3",
+      "source_run_id": "fruit_4_20261013_170644_seed261083000",
+      "env_origin": [
+        -9.0,
+        -9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.028135299682617188,
+        0.03125762939453125,
+        0.04772845655679703
+      ],
+      "mesh_min_local_m": [
+        -0.01911458015874179,
+        -0.013737763412560909,
+        0.005850624885060385
+      ],
+      "mesh_max_local_m": [
+        0.07223740083415348,
+        0.07327507365456448,
+        0.09074062644023326
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_1_scene00027_env0008",
+      "target": "packaged_food_1",
+      "target_instance_id": 9,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_1/scene00027_env0008_poses.json",
+      "pose_sha256": "b8c55e709cd685893071905fc90ba444da5ebe3eadfe3d8add251a3edd9a40c4",
+      "source_run_id": "packaged_food_1_20261013_174123_seed261093000",
+      "env_origin": [
+        9.0,
+        -6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.15619850158691406,
+        -0.10396671295166016,
+        0.04919112101197243
+      ],
+      "mesh_min_local_m": [
+        -0.2169811980959772,
+        -0.15946052492554802,
+        0.009316288422964648
+      ],
+      "mesh_max_local_m": [
+        -0.0968139217819177,
+        -0.04956726241059693,
+        0.08817410875238488
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_1_scene00028_env0016",
+      "target": "packaged_food_1",
+      "target_instance_id": 9,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_1/scene00028_env0016_poses.json",
+      "pose_sha256": "9957fb85965a4377e7fbe6dee798df5b849eda4365326de01ad1239c2305eb9d",
+      "source_run_id": "packaged_food_1_20261013_174123_seed261093000",
+      "env_origin": [
+        6.0,
+        -3.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.011623382568359375,
+        0.011618852615356445,
+        0.04339119419455528
+      ],
+      "mesh_min_local_m": [
+        -0.025410851380951803,
+        -0.042025799873988044,
+        0.009400249263170131
+      ],
+      "mesh_max_local_m": [
+        0.04978820981273516,
+        0.06512896081016215,
+        0.077608034669773
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_2_scene00029_env0005",
+      "target": "packaged_food_2",
+      "target_instance_id": 10,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_2/scene00029_env0005_poses.json",
+      "pose_sha256": "64fe7322ed4057d568eef74649d82c25c1cc5001f6db573ae68f66dc1184bdc2",
+      "source_run_id": "packaged_food_2_20261013_181603_seed261103000",
+      "env_origin": [
+        12.0,
+        6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.018329620361328125,
+        0.02073955535888672,
+        0.036920662969350815
+      ],
+      "mesh_min_local_m": [
+        -0.06979871560482509,
+        -0.022130475354736362,
+        0.00927477287898728
+      ],
+      "mesh_max_local_m": [
+        0.032287205920766525,
+        0.06367987208789616,
+        0.06855386715790135
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_2_scene00050_env0000",
+      "target": "packaged_food_2",
+      "target_instance_id": 10,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_2/scene00050_env0000_poses.json",
+      "pose_sha256": "712d853fcba465a8e9359582c800289ac4673402a2d30a448b8f20519c421e30",
+      "source_run_id": "packaged_food_2_20261013_181603_seed261103000",
+      "env_origin": [
+        12.0,
+        -9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.053048133850097656,
+        0.020478248596191406,
+        0.03691186383366585
+      ],
+      "mesh_min_local_m": [
+        0.0024582034977071177,
+        -0.022011719882193283,
+        0.009605500278367728
+      ],
+      "mesh_max_local_m": [
+        0.10404468256221099,
+        0.06306173819055669,
+        0.06700256926265732
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_3_scene00004_env0058",
+      "target": "packaged_food_3",
+      "target_instance_id": 11,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_3/scene00004_env0058_poses.json",
+      "pose_sha256": "525a1af5f253016056528b88929c466cdbd5b5431386c048e3fb7198d3c3191b",
+      "source_run_id": "packaged_food_3_20261013_185052_seed261113000",
+      "env_origin": [
+        -12.0,
+        -3.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.07921981811523438,
+        -0.01322484016418457,
+        0.038713350892066956
+      ],
+      "mesh_min_local_m": [
+        0.030434425034675125,
+        -0.1090975048839285,
+        0.008434902242735277
+      ],
+      "mesh_max_local_m": [
+        0.1325325606588364,
+        0.08402056942729902,
+        0.07119012793120108
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_3_scene00010_env0017",
+      "target": "packaged_food_3",
+      "target_instance_id": 11,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_3/scene00010_env0017_poses.json",
+      "pose_sha256": "cbb2a9b19a9bfdec7e0aa9b616b60f2d4b60fc6832e55b6488611555bca5133c",
+      "source_run_id": "packaged_food_3_20261013_185052_seed261113000",
+      "env_origin": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.026357650756835938,
+        0.036708563566207886,
+        0.0376078262925148
+      ],
+      "mesh_min_local_m": [
+        -0.0744610344066266,
+        -0.059018357630167675,
+        0.007687756202482469
+      ],
+      "mesh_max_local_m": [
+        0.023182841765728983,
+        0.13277068452865154,
+        0.0671457204002412
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_4_scene00028_env0017",
+      "target": "packaged_food_4",
+      "target_instance_id": 12,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_4/scene00028_env0017_poses.json",
+      "pose_sha256": "ba38334926abededd692a87ec19b1e4c5db620cfee9934ebf2d837e0b7666e57",
+      "source_run_id": "packaged_food_4_20261013_192522_seed261123000",
+      "env_origin": [
+        6.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.050337791442871094,
+        -0.051449015736579895,
+        0.02839501202106476
+      ],
+      "mesh_min_local_m": [
+        -0.009034614835407885,
+        -0.09970964802596224,
+        0.009605605598479717
+      ],
+      "mesh_max_local_m": [
+        0.10884676906546031,
+        -0.002650234024274084,
+        0.04884192291697621
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "packaged_food_4_scene00025_env0005",
+      "target": "packaged_food_4",
+      "target_instance_id": 12,
+      "pose_path": "<DATA_ROOT>/scene/packaged_food_4/scene00025_env0005_poses.json",
+      "pose_sha256": "da91675ef169740f96a7fdbf1da0c845efc3f063ef59db9d468768eb7510daf8",
+      "source_run_id": "packaged_food_4_20261013_192522_seed261123000",
+      "env_origin": [
+        12.0,
+        6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.026625633239746094,
+        -0.046418190002441406,
+        0.02879888378083706
+      ],
+      "mesh_min_local_m": [
+        -0.030043549923184594,
+        -0.09158948162693153,
+        0.009130755470255388
+      ],
+      "mesh_max_local_m": [
+        0.0832889504687429,
+        -0.0011842908899987459,
+        0.04942018092474193
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_1_scene00019_env0033",
+      "target": "toy_1",
+      "target_instance_id": 13,
+      "pose_path": "<DATA_ROOT>/scene/toy_1/scene00019_env0033_poses.json",
+      "pose_sha256": "a179c7fef0d89bff5fdcd6ef6632d65fc668a3604428a737813b0f5bb59a5cf3",
+      "source_run_id": "toy_1_20261013_200007_seed261133000",
+      "env_origin": [
+        0.0,
+        6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.01260357815772295,
+        0.28378915786743164,
+        0.06679457426071167
+      ],
+      "mesh_min_local_m": [
+        -0.06170538228107662,
+        0.22231200426972705,
+        0.01695062087048667
+      ],
+      "mesh_max_local_m": [
+        0.03041101582412667,
+        0.34791517255101007,
+        0.10802960240726332
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_1_scene00007_env0048",
+      "target": "toy_1",
+      "target_instance_id": 13,
+      "pose_path": "<DATA_ROOT>/scene/toy_1/scene00007_env0048_poses.json",
+      "pose_sha256": "a7ba386f1077a9c54a6a8c007b68c26d89a00e8104e6f5ed459c2d69f97a53eb",
+      "source_run_id": "toy_1_20261013_200007_seed261133000",
+      "env_origin": [
+        -6.0,
+        9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.004181861877441406,
+        0.031000137329101562,
+        0.04183730483055115
+      ],
+      "mesh_min_local_m": [
+        -0.059541134251001604,
+        -0.008236756869438311,
+        0.00974703034970719
+      ],
+      "mesh_max_local_m": [
+        0.06608013427085102,
+        0.07015978183077086,
+        0.07387969338667352
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_2_scene00029_env0037",
+      "target": "toy_2",
+      "target_instance_id": 14,
+      "pose_path": "<DATA_ROOT>/scene/toy_2/scene00029_env0037_poses.json",
+      "pose_sha256": "7454e8a65cd694e94aeca47abcc9b2039aa6e643f5bf49148a9b7d2d17719d7d",
+      "source_run_id": "toy_2_20261013_203449_seed261143000",
+      "env_origin": [
+        -3.0,
+        -3.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.03969717025756836,
+        -0.01570606231689453,
+        0.01364203542470932
+      ],
+      "mesh_min_local_m": [
+        -0.02262502692293325,
+        -0.08714808533543762,
+        0.008759057749792725
+      ],
+      "mesh_max_local_m": [
+        0.08056977115199344,
+        0.015886537356779258,
+        0.11201710802262267
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_2_scene00023_env0023",
+      "target": "toy_2",
+      "target_instance_id": 14,
+      "pose_path": "<DATA_ROOT>/scene/toy_2/scene00023_env0023_poses.json",
+      "pose_sha256": "b6619e4405bd6c889c53dc674d1a2371252e2f91a3f0a19043b25427bc6329de",
+      "source_run_id": "toy_2_20261013_203449_seed261143000",
+      "env_origin": [
+        3.0,
+        -3.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.050974130630493164,
+        -0.11079955101013184,
+        0.07358299195766449
+      ],
+      "mesh_min_local_m": [
+        -0.07535796137918392,
+        -0.2032822735173338,
+        0.004995955116210191
+      ],
+      "mesh_max_local_m": [
+        0.027617897240786782,
+        -0.1001366152589216,
+        0.10817252200422768
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_3_scene00048_env0024",
+      "target": "toy_3",
+      "target_instance_id": 15,
+      "pose_path": "<DATA_ROOT>/scene/toy_3/scene00048_env0024_poses.json",
+      "pose_sha256": "9dd43345f3d6b643a7a36d65814034d567877e0285efa218fb94d20b9e8024c4",
+      "source_run_id": "toy_3_20261013_210937_seed261153000",
+      "env_origin": [
+        3.0,
+        0.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.06409502029418945,
+        0.032074376940727234,
+        0.006466837599873543
+      ],
+      "mesh_min_local_m": [
+        -0.010360393416146516,
+        -0.02974564161737918,
+        0.009904002327987521
+      ],
+      "mesh_max_local_m": [
+        0.13875910165115993,
+        0.08845026142002253,
+        0.06328647916119398
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_3_scene00023_env0036",
+      "target": "toy_3",
+      "target_instance_id": 15,
+      "pose_path": "<DATA_ROOT>/scene/toy_3/scene00023_env0036_poses.json",
+      "pose_sha256": "eeef5c70d610940af30e7b7876a6872b4ac5c6b190f7d145a55f15d7164d6551",
+      "source_run_id": "toy_3_20261013_210937_seed261153000",
+      "env_origin": [
+        -3.0,
+        -6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        0.06764578819274902,
+        -0.06717109680175781,
+        0.00647532194852829
+      ],
+      "mesh_min_local_m": [
+        -0.006427241407924125,
+        -0.1297032076244617,
+        0.00996587375534615
+      ],
+      "mesh_max_local_m": [
+        0.14267375893003464,
+        -0.010303265067698818,
+        0.06328434065306457
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_4_scene00050_env0040",
+      "target": "toy_4",
+      "target_instance_id": 16,
+      "pose_path": "<DATA_ROOT>/scene/toy_4/scene00050_env0040_poses.json",
+      "pose_sha256": "d200b1c3a735015a60258a940c8c9b1dfb4fee244cb9d359ae26e5ca045368f7",
+      "source_run_id": "toy_4_20261013_214419_seed261163000",
+      "env_origin": [
+        -3.0,
+        6.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.015362024307250977,
+        -0.004197597503662109,
+        0.01000230759382248
+      ],
+      "mesh_min_local_m": [
+        -0.05029338883528634,
+        -0.03926055423350291,
+        0.009979773397410798
+      ],
+      "mesh_max_local_m": [
+        0.019958453067978728,
+        0.031127426217566846,
+        0.0682581554094018
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    },
+    {
+      "layout_id": "toy_4_scene00049_env0048",
+      "target": "toy_4",
+      "target_instance_id": 16,
+      "pose_path": "<DATA_ROOT>/scene/toy_4/scene00049_env0048_poses.json",
+      "pose_sha256": "3e615ec86f38e033e32464c532cb0c12902337fa0ce98d280b9d8017cd0da357",
+      "source_run_id": "toy_4_20261013_214419_seed261163000",
+      "env_origin": [
+        -6.0,
+        9.0,
+        0.0
+      ],
+      "source_target_position_local_m": [
+        -0.07385826110839844,
+        -0.018299102783203125,
+        0.012622827664017677
+      ],
+      "mesh_min_local_m": [
+        -0.10565632321268212,
+        -0.050613206103416346,
+        0.009996969751284807
+      ],
+      "mesh_max_local_m": [
+        -0.03554284983758343,
+        0.015630867486211834,
+        0.07363221409140984
+      ],
+      "footprint_fully_within_floor_xy": true,
+      "whole_target_mesh_below_drawer_top": false,
+      "flag_preexisting_target_buried_under_drawer": false,
+      "raw_id_check": "not_requested_for_unflagged_layout",
+      "selection_retained": true
+    }
+  ]
+}

@@ -1,0 +1,1137 @@
+{
+  "schema": "closed_loop_search_public_results_v1",
+  "date": "2026-10-27",
+  "timezone": "Asia/Seoul",
+  "status": "complete",
+  "scope": "Known16 assets, held-out original test scenes, clean simulation, one fixed model seed; not zero-shot or robotic grasp success",
+  "selection": {
+    "seed": 20261027,
+    "physical_scenes": 32,
+    "targets": 16,
+    "scenes_per_target": 2,
+    "cameras": [
+      "center",
+      "left",
+      "right",
+      "top",
+      "bottom"
+    ],
+    "episodes_per_policy": 160,
+    "total_episodes": 640,
+    "selection_changed_after_results": false
+  },
+  "policy": {
+    "observation": "Single camera RGB-D per episode; no multi-view model input",
+    "score": "Bilinear native map, maximum score per currently visible physical instance; background skipped; row-major tie break",
+    "eligibility": "Visible pixels / isolated same-pose same-camera projection pixels >=0.5; try next distinct instance if below",
+    "success": "Selected eligible instance is the target; GT visibility alone does not terminate",
+    "physics": "After removal600 actual substeps at120Hz=5 simulated seconds; render-only observation",
+    "steps": "Non-target removals before target selection; initial success=0; target retrieval adds1 separate action",
+    "oracle": "Simulator physical IDs and visibility are action binding/eligibility/outcome only; worker sees observed RGB-D and target reference",
+    "initial_pairing": "Same saved world poses and zero velocities; exact initial depth/physical labels; fixed fusion-copy RGB shared across policies to control rendering noise",
+    "models": {
+      "fusion": "SOC best10",
+      "similarity": "S20",
+      "occlusion": "O12",
+      "complexity": "C19 target-independent score"
+    }
+  },
+  "definitions": {
+    "success": "Model-selected highest eligible object is target and current visible/alone projected area>=0.5",
+    "removals": "Number of removed non-target objects before target selection; initial selection may be0",
+    "retrieval_actions": "One additional target retrieval action for a successful episode",
+    "mean": "Success-conditioned mean; failure count and success rate must accompany it",
+    "independence": "Five views and four policies share32 original physical layouts; paired comparisons, not640 independent scenes",
+    "limits": "Oracle physical IDs/visibility eligibility, simulator removal rather than robot grasp; target-independent C baseline; frozen16 known assets"
+  },
+  "overall": {
+    "fusion": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 2.129032258064516,
+      "median_removals_success_only": 2,
+      "zero_removal_successes": 36,
+      "max_successful_removals": 6
+    },
+    "similarity": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 3.935483870967742,
+      "median_removals_success_only": 3,
+      "zero_removal_successes": 36,
+      "max_successful_removals": 12
+    },
+    "occlusion": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 7.72258064516129,
+      "median_removals_success_only": 8,
+      "zero_removal_successes": 5,
+      "max_successful_removals": 14
+    },
+    "complexity": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 6.051612903225807,
+      "median_removals_success_only": 6,
+      "zero_removal_successes": 9,
+      "max_successful_removals": 15
+    }
+  },
+  "per_camera": {
+    "center": {
+      "fusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.161290322580645,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 3.903225806451613,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 9,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 8.193548387096774,
+        "median_removals_success_only": 8,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 14
+      },
+      "complexity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 5.516129032258065,
+        "median_removals_success_only": 5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 14
+      }
+    },
+    "left": {
+      "fusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.129032258064516,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 3.838709677419355,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 7.709677419354839,
+        "median_removals_success_only": 8,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 13
+      },
+      "complexity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 6.032258064516129,
+        "median_removals_success_only": 6,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 15
+      }
+    },
+    "right": {
+      "fusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 3.838709677419355,
+        "median_removals_success_only": 4,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 12
+      },
+      "occlusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 7.612903225806452,
+        "median_removals_success_only": 8,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 14
+      },
+      "complexity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 5.870967741935484,
+        "median_removals_success_only": 5,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 15
+      }
+    },
+    "top": {
+      "fusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.2903225806451615,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 4.129032258064516,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 7.290322580645161,
+        "median_removals_success_only": 8,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 13
+      },
+      "complexity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 5.903225806451613,
+        "median_removals_success_only": 6,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 14
+      }
+    },
+    "bottom": {
+      "fusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.064516129032258,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "similarity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 3.967741935483871,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 7.806451612903226,
+        "median_removals_success_only": 8,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 14
+      },
+      "complexity": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 6.935483870967742,
+        "median_removals_success_only": 8,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 15
+      }
+    }
+  },
+  "per_target": {
+    "book_1": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 4
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.5,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 3
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.4,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 9
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.8,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 5
+      }
+    },
+    "book_2": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.7,
+        "median_removals_success_only": 4.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.5,
+        "median_removals_success_only": 3.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.6,
+        "median_removals_success_only": 5.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.9,
+        "median_removals_success_only": 7.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 10
+      }
+    },
+    "book_3": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 2
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 5.6,
+        "median_removals_success_only": 6,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      }
+    },
+    "book_4": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.4,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.4,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 5,
+        "median_removals_success_only": 5.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 5.7,
+        "median_removals_success_only": 5.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 14
+      }
+    },
+    "fruit_1": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.7,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.9,
+        "median_removals_success_only": 4.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.3,
+        "median_removals_success_only": 6.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 8
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.2,
+        "median_removals_success_only": 8.5,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 10
+      }
+    },
+    "fruit_2": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0.9,
+        "median_removals_success_only": 0.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 2
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.6,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 10.7,
+        "median_removals_success_only": 10.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 13
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.9,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 10
+      }
+    },
+    "fruit_3": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.2,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.1,
+        "median_removals_success_only": 7.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 12
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 13.2,
+        "median_removals_success_only": 13.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 14
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 8
+      }
+    },
+    "fruit_4": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.7,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.7,
+        "median_removals_success_only": 6.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 9
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 8.8,
+        "median_removals_success_only": 9.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 10
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.4,
+        "median_removals_success_only": 5.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 13
+      }
+    },
+    "packaged_food_1": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 3
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 6
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.8,
+        "median_removals_success_only": 7.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 9
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 10.4,
+        "median_removals_success_only": 11.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 15
+      }
+    },
+    "packaged_food_2": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 3
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 5
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 10.5,
+        "median_removals_success_only": 11.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 13
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.1,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 10
+      }
+    },
+    "packaged_food_3": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.9,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 5
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 8.7,
+        "median_removals_success_only": 9.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 11
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 8.7,
+        "median_removals_success_only": 9.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 10
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.6,
+        "median_removals_success_only": 7.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 10
+      }
+    },
+    "packaged_food_4": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 3
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.9,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 6
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 9.4,
+        "median_removals_success_only": 10.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 11
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.5,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 11
+      }
+    },
+    "toy_1": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.7,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 3
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.6,
+        "median_removals_success_only": 3.5,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 7
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.5,
+        "median_removals_success_only": 8.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 9
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 10.1,
+        "median_removals_success_only": 10.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 15
+      }
+    },
+    "toy_2": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.1,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 2
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.9,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 4
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.3,
+        "median_removals_success_only": 5.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 5
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.3,
+        "median_removals_success_only": 5.5,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 13
+      }
+    },
+    "toy_3": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.5,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 5.7,
+        "median_removals_success_only": 5.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 8.7,
+        "median_removals_success_only": 8.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 11
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.4,
+        "median_removals_success_only": 8.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 10
+      }
+    },
+    "toy_4": {
+      "fusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 4
+      },
+      "similarity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.7,
+        "median_removals_success_only": 5.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      },
+      "occlusion": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 9.9,
+        "median_removals_success_only": 10.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 12
+      },
+      "complexity": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.7,
+        "median_removals_success_only": 7.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 15
+      }
+    }
+  },
+  "paired": {
+    "similarity": {
+      "paired_conditions": 160,
+      "fusion_only_success": 0,
+      "baseline_only_success": 0,
+      "both_success": 155,
+      "mean_fusion_minus_baseline_removals": -1.8064516129032258,
+      "fusion_fewer": 84,
+      "equal": 58,
+      "fusion_more": 13
+    },
+    "occlusion": {
+      "paired_conditions": 160,
+      "fusion_only_success": 0,
+      "baseline_only_success": 0,
+      "both_success": 155,
+      "mean_fusion_minus_baseline_removals": -5.593548387096774,
+      "fusion_fewer": 139,
+      "equal": 13,
+      "fusion_more": 3
+    },
+    "complexity": {
+      "paired_conditions": 160,
+      "fusion_only_success": 0,
+      "baseline_only_success": 0,
+      "both_success": 155,
+      "mean_fusion_minus_baseline_removals": -3.92258064516129,
+      "fusion_fewer": 120,
+      "equal": 24,
+      "fusion_more": 11
+    }
+  },
+  "four_policy_common_success": {
+    "episodes": 155,
+    "mean_removals": {
+      "fusion": 2.129032258064516,
+      "similarity": 3.935483870967742,
+      "occlusion": 7.72258064516129,
+      "complexity": 6.051612903225807
+    }
+  },
+  "source_nonburied_subset_descriptive_only": {
+    "layouts": 31,
+    "excluded_source_flagged_layouts": [
+      "book_3_scene00005_env0031"
+    ],
+    "primary_32_unchanged": true,
+    "metrics": {
+      "fusion": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.129032258064516
+      },
+      "similarity": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.935483870967742
+      },
+      "occlusion": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 7.72258064516129
+      },
+      "complexity": {
+        "episodes": 155,
+        "successes": 155,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 6.051612903225807
+      }
+    }
+  },
+  "failure_counts_by_layout": {
+    "book_3_scene00005_env0031": 20
+  },
+  "source_issue": {
+    "layout_id": "book_3_scene00005_env0031",
+    "condition": "Target mesh already entirely below drawer floor in original saved scene",
+    "original_target_max_z_mm": 6.27095,
+    "floor_top_z_mm": 10,
+    "original_visible_target_pixels_all_five_views": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "source_scene_replaced_or_excluded": false,
+    "verified_initial_meshes": 32,
+    "evidence": "docs/closed_loop_source_scene_quality_20261027.json"
+  },
+  "verification": {
+    "status": "pass",
+    "completed_episodes_audited": 640,
+    "step_logs": 4011,
+    "candidate_native_checks": 5461,
+    "ineligible_skips": 1470,
+    "removal_transitions": 3371,
+    "floor_initial_pair_checks": 32,
+    "physics_errors": [],
+    "source_model_selection_locks_verified": true
+  },
+  "timing": {
+    "final_run_seconds": 5083.966350078583,
+    "includes": "Initialization, inference, physical simulation, rendering and report generation",
+    "gpu_shared_with_existing_training": true,
+    "independent_deployment_speed": false,
+    "repeated_work": "4011 observations;5461 isolated visibility checks;3371 blocker removals;20 environments use parallel physics and sequential capture",
+    "excluded_development_attempts": "Static floor reset ordering and GPU pair-capacity errors were repaired and archived; their outputs are not included in final metrics"
+  },
+  "sources": {
+    "completion": {
+      "path": "<DEV_ROOT>/outputs/closed_loop_search_20261027/full/completion.json",
+      "sha256": "d0150832d8a43118f3309f2ad44be5377172496daec1f7b119e4fb9edf0a062c"
+    },
+    "protocol": {
+      "path": "<DEV_ROOT>/outputs/closed_loop_search_20261027/protocol.json",
+      "sha256": "aa53bb03cc3f833b672bf8f797530293a5f2c852456b05463036540d6bbc3265"
+    },
+    "selection": {
+      "path": "<DEV_ROOT>/outputs/closed_loop_search_20261027/selection.json",
+      "sha256": "f3f5ad484796d509c7aff275fbf33c6ae9a83f72718b8fc0db0913c3dd59d212"
+    },
+    "independent_audit": {
+      "path": "<DEV_ROOT>/outputs/closed_loop_search_20261027/full/audit/final.json",
+      "sha256": "dfc94a89933852d8d44b0a4696393973cd5d7b985da268cc96c6b3f0c7a8b6be"
+    },
+    "source_scene_quality": {
+      "path": "<DEV_ROOT>/outputs/closed_loop_search_20261027/full/audit/source_scene_quality.json",
+      "sha256": "934389f317d7ff779755541d2aa8fef90a184db56ce936e96d6c5f94fe37f2e8"
+    },
+    "physics_log_audit": {
+      "path": "<DEV_ROOT>/outputs/closed_loop_search_20261027/full/physics_log_audit.json",
+      "sha256": "1003fa075b38d04f07e561077b82ff3700e651a88d53b7cfd0a1dd272fd982b6"
+    }
+  },
+  "assets": "img/closed_loop_search_assets_20261027.json",
+  "episodes_csv": "docs/closed_loop_search_20261027_episodes.csv",
+  "paired_csv": "docs/closed_loop_search_20261027_pairs.csv",
+  "training_completion_snapshot": {
+    "status": "complete",
+    "completed_kst": "2026-10-27T20:50:52.022527+09:00",
+    "source": "<DEV_ROOT>/outputs/fusion_training_20261026/completion.json",
+    "sha256": "69a8315f2e1585e70894fa467177e7989d938c2a1873b1f87c5bd2fe049cbac3",
+    "variants": {
+      "soc": {
+        "status": "complete",
+        "epochs": 13,
+        "best_epoch": 10,
+        "test_images": 24000
+      },
+      "so": {
+        "status": "complete",
+        "epochs": 20,
+        "best_epoch": 20,
+        "test_images": 24000
+      }
+    },
+    "interpretation": "Shared training/test completion checked; SO is not one of the four search policies. Incremental Complexity contribution is a separate SOC-versus-SO analysis."
+  }
+}

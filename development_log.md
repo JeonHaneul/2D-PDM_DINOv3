@@ -6,7 +6,68 @@
 
 Similarity·Occlusion·Complexity 연구가 현재 상태에 도달한 이유를 시간순으로 기록함. 각 Phase는 단순 모델 목록이 아니라 **왜 문제가 되었는지 → 무엇만 바꿨는지 → 결과가 무엇을 뜻하는지 → 다음 Step은 무엇인지**를 설명함.
 
-> 최신: 2026-10-27 SOC best10의 기존16종 test24,000장 평가·외부80장 visible 진단·개별 stream 전체유효영역 상대오차를 공개함. SO는17:56:50 KST snapshot에서epoch18 학습 중이며 공동 비교는 미완료임. 아래 날짜별 미실행·진행 중 문구는 당시 이력임.
+> 최신: 2026-10-27 동일32scene·5camera·4정책640회제거탐색과전체단계그림공개. Fusion평균2.1290회, S3.9355/O7.7226/C6.0516회이며각155/160성공. SO공동학습·각test완료기록도확인함. 아래날짜별미완료문구는당시이력임.
+
+<a id="closed-loop-search-20261027"></a>
+## 2026-10-27 — 동일 초기 scene의 Fusion·S/O/C 제거 탐색
+
+**목적·방법.** 정적지도적중이실제반복제거횟수차이로이어지는지확인함. 기존 16개 물체의 별도 test 32장면을 5개 고정 camera에서 각각 독립적으로 평가하여 정책당 160회·총 640회 제거 탐색을 완료함. 한 episode의 입력은 해당 camera의 단일 RGB-D이며, 5뷰를 합친 입력이 아님. 네 정책 모두 155/160=96.875% 성공했고, 성공한 155조건의 집합도 정확히 동일함. 각물체의최대지도점수로순서를정하고, 현재가시율≥50%인첫후보를선택함. 방해물은제거후5초분량물리를진행하고다시관측함. ID/단독투영은행동가능조건·성공판정용이며모델입력이아님.
+
+| 정책 | 성공/160 | 성공률 | 평균 제거 | 중앙값 | 초기 선택 성공 |
+|---|---:|---:|---:|---:|---:|
+| Fusion | 155 | 96.875% | **2.1290** | 2 | 36 |
+| Similarity | 155 | 96.875% | **3.9355** | 3 | 36 |
+| Occlusion | 155 | 96.875% | **7.7226** | 8 | 5 |
+| Complexity | 155 | 96.875% | **6.0516** | 6 | 9 |
+
+성공한 동일 155조건의 평균 제거 횟수는 Fusion 2.1290회로 Similarity 3.9355회보다 45.90% 적음. Fusion 평균은 5/5 camera에서 세 단독 stream보다 작음. S보다 적게/같게/많게 제거한 조건은 84/58/13임. 이 평균은 target 회수 동작을 제외하며 실패 회차를 성공으로 바꾸지 않음.
+
+**실패와범위.** 정책별 실패 5회는 모두 같은 원본 장면 `book_3_scene00005_env0031`의 5뷰임. 원본 pose·실제 mesh에서 책의 최고 높이 6.271mm가 서랍 바닥 윗면 10mm보다 낮고, 원본 5뷰의 target 가시 픽셀이 모두 0임. 원본 32장면을 교체하거나 제외하지 않았으며 이를 모델 실패로만 귀속하지 않음. 매몰 조건이 없는 31장면의 155/155 성공은 별도 설명용이며 전체 32장면 분모를 대체하지 않음. 기존 16종·고정 5camera·한 seed·clean 합성 조건의 비교이며 zero-shot/실제 robot 파지 성공률이 아님. Simulator 물체 ID·가시율을 행동 연결과 가능 조건에 사용하므로 배포 segmentation 오류를 포함한 검증이 아님. SOC와 각 단독 stream의 비교만으로 Complexity의 추가 효과를 분리할 수 없으며, SOC–SO 비교 해석이 별도로 필요함.
+
+![차이가큰세조건의평균이아닌실제회차제거횟수](img/search_20261027_matched_scene_overview.png)
+
+| 비교 사례 | Target / camera | Fusion | Similarity | Occlusion | Complexity |
+|---|---|---:|---:|---:|---:|
+| Similarity 대비 차이가 가장 큰 사례 | fruit_2 / left | 1 | 11 | 12 | 2 |
+| Complexity 대비 차이가 가장 큰 사례 | packaged_food_1 / bottom | 0 | 0 | 7 | 15 |
+| Fusion이 Similarity보다 늦었던 사례 | book_2 / center | 6 | 3 | 6 | 10 |
+
+**선정기준.** 결과확인후공통성공155조건에서S−F/C−F/F−S차이최대조건을하나씩선정함. 동점은scene/camera사전순임. 좋은사례만으로전체성능을대체하지않고Fusion이늦은사례도포함함. 아래그림은각scene에서첫관측부터target발견까지모든단계를포함함.
+
+각 그림의 열은 Fusion/S/O/C, 행 `r=0,1,...`은 방해물을 r개 제거한 뒤 다음 행동을 선택하는 관측임. 셀 왼쪽은 실제 RGB, 오른쪽은 실제 예측 지도임. 빨강은 제거할 방해물, 초록은 선택한 target이며 선택 물체명·가시율·점수·50% 미달로 건너뛴 후보 수도 표시함. 초기 RGB는 동일하고 각 정책의 선택 윤곽만 다름. 첫 제거 후에는 정책마다 남은 물체와 물리 상태가 달라지므로 같은 행의 scene이 서로 다를 수 있음. 종료 후 회색 셀은 추가 관측이 없다는 뜻임.
+
+F/S/O 지도는 0–1, C는 0–6의 고정 grayscale로 표시하며 영상별 밝기 정규화는 없음. C의 6은 표시 상한으로 GT/점수의 최댓값이 아님. O도 실제 행동에 사용한 raw 출력을 표시하므로 이전 정적 그림의 workspace 표시 마스크를 곱하지 않았음. O 지도 바깥의 흰 반응도 보존하며 행동 선택에서는 배경을 건너뜀. 윤곽은 시뮬레이터 ID에 따른 행동 주석이며 모델 segmentation 출력이 아님. 지도 자체를 GT로 자르거나 정답을 예측으로 바꾸지 않음.
+
+<details>
+<summary>Similarity 대비 차이가 가장 큰 사례: fruit_2/left, F/S/O/C=1/11/12/2회</summary>
+
+![네정책의모든단계scene·예측](img/search_20261027_similarity_gap_fruit_2_left.png)
+
+[확대PDF](img/search_20261027_similarity_gap_fruit_2_left.pdf)
+
+</details>
+
+<details>
+<summary>Complexity 대비 차이가 가장 큰 사례: packaged_food_1/bottom, F/S/O/C=0/0/7/15회</summary>
+
+![네정책의모든단계scene·예측](img/search_20261027_complexity_gap_packaged_food_1_bottom.png)
+
+[확대PDF](img/search_20261027_complexity_gap_packaged_food_1_bottom.pdf)
+
+</details>
+
+<details>
+<summary>Fusion이 Similarity보다 늦었던 사례: book_2/center, F/S/O/C=6/3/6/10회</summary>
+
+![네정책의모든단계scene·예측](img/search_20261027_fusion_slower_book_2_center.png)
+
+[확대PDF](img/search_20261027_fusion_slower_book_2_center.pdf)
+
+</details>
+
+**검산·시간.** 640episode·4011관측·5461가시율·3371제거전이·160paired조건감사PASS, PhysX오류0,모델/40source·7실행Python보존확인임. 최종실행84.73분에는반복물리/순차렌더/추론/후처리가포함됨. 정적바닥복원·GPU접촉버퍼오류를수정한이전실행은보존하고최종성능에서제외함.
+
+[전체평가·행동순서](closed_loop_search.md) · [수치JSON](docs/closed_loop_search_20261027.json) · [선택단계·그림manifest](img/closed_loop_search_assets_20261027.json)
 
 <a id="fusion-test-results-20261027"></a>
 ## 2026-10-27 — SOC 전체 test 완료와 % 지표의 구분

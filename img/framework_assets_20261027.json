@@ -271,5 +271,6 @@
     "amodal_miou_percent": 50.92098544438679,
     "displayed_precision_decimal_places": 2,
     "definition": "Peak hit is one unmasked native-bilinear argmax inside amodal GT; mIoU thresholds the same probabilities at 0.5. Neither metric is pixel accuracy or grasp success."
-  }
+  },
+  "closed_loop_trajectory_assets": "img/closed_loop_search_assets_20261027.json"
 }

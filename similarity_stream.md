@@ -4,7 +4,10 @@
 [전체 개요](README.md) · **Similarity** · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->
 
-> **현재 상태 — 2026-10-27 정리:** DINOv3–SigLIP no-shortcut S20의 기존16종 test24,000장 평가와 외부 `packaged_food_5` 80장 평가를 완료함. 외부 공통 상위20% 영역 일치율은90.15865%이나 정확한 새 target의 최고점 적중은2/80=2.5%임. 두 지표를 함께 해석함. 고정 `F_S`는 실제 SOC Fusion에 연결했으며 SOC의 전체 test 24,000장 평가를 완료함. SO 비교는 미완료임.
+> **2026-10-27 제거탐색평가추가:** 현재Similarity단독정책은동일32scene×5camera에서155/160성공, 성공155조건평균방해물제거3.9355회임. 같은조건Fusion은2.1290회임. 실패는원본매몰scene하나의5뷰로동일하며target회수1행동은평균에서제외함. [전체단계비교·평가규칙](closed_loop_search.md)에서원시지도/시뮬레이터가시율조건과현재모델의역할을구분함.
+
+
+> **현재 상태 — 2026-10-27 정리:** DINOv3–SigLIP no-shortcut S20의 기존16종 test24,000장 평가와 외부 `packaged_food_5` 80장 평가를 완료함. 외부 공통 상위20% 영역 일치율은90.15865%이나 정확한 새 target의 최고점 적중은2/80=2.5%임. 두 지표를 함께 해석함. 고정 `F_S`는 실제 SOC Fusion에 연결했으며 SOC의 전체 test 24,000장 평가를 완료함. 이후 SO의 공동 학습·test 완료 기록을 확인했으며, 이번 네 정책 제거 비교와 C 추가 효과 해석을 구분함.
 
 ## 현재 모델의 외부 물체 평가와 Fusion 연결 — 2026-10-27
 
@@ -80,7 +83,7 @@ F_S → 1×1 Conv64→1 + sigmoid → P_S: 1×30×40
 
 DINO·SigLIP weight를 고정하고 semantic projection, 네 MatchingBlock, feature fusion, map head를 새 학습함. DINO는 RGB만 받고 SigLIP은 target 이미지·text만 받음. Scene depth·scene GT segmentation은 Similarity 입력이 아님. Target mask는 별도 reference의 crop·pooling용 입력임. Output에 raw cosine을 직접 더하는 shortcut은 없음.
 
-현재 Fusion은 고정한 S20/O12/C19의 head 이전 `64×30×40` feature를 concat한 `192×30×40`을 별도 CNN에 입력함. **최종 1채널 예측 map의 concat이 아님.** 같은 scene RGB의 DINO layer2/5/8/11을 한 번 계산해 S/O에 공유하고 C에는 layer11을 제공하는 통합 forward를 구현함. 세 stream 전체와 backbone은 `eval/no_grad`로 고정하고 Fusion CNN만 학습함. SOC는 13 epochs 후 종료하여 best 10을 선택했고, 실제 5장 예시와 전체 test 24,000장 평가를 완료함. SO 비교 학습·평가는 미완료이며 상세는 [Fusion](fusion_stream.md)을 따름.
+현재 Fusion은 고정한 S20/O12/C19의 head 이전 `64×30×40` feature를 concat한 `192×30×40`을 별도 CNN에 입력함. **최종 1채널 예측 map의 concat이 아님.** 같은 scene RGB의 DINO layer2/5/8/11을 한 번 계산해 S/O에 공유하고 C에는 layer11을 제공하는 통합 forward를 구현함. 세 stream 전체와 backbone은 `eval/no_grad`로 고정하고 Fusion CNN만 학습함. SOC는 13 epochs 후 종료하여 best 10을 선택했고, 실제 5장 예시와 전체 test 24,000장 평가를 완료함. 이후 SO 공동 학습·test 완료 기록도 확인함. 기존 16종의 네 정책 제거 탐색을 추가 평가했으며 상세는 [Fusion](fusion_stream.md)을 따름.
 
 ### 전체 test 결과와 해석
 
@@ -672,7 +675,7 @@ P_S(A) = 1/(1+exp(-z))
 
 현재 출력에 raw DINO cosine을 직접 더하는 residual shortcut은 없음. Cosine은 ⑥의 interaction channel을 거쳐 예측에 반영됨. `prob_full_res`는 sigmoid 이후 bilinear interpolation(`align_corners=False`)으로 계산하며, patch 사이를 보간하는 표시용 확대임.
 
-현재 모델은 `fused=F_S`, `prob_patch_res=P_S`, 요청 시 `prob_full_res`를 반환함. `F_S`를 실제 frozen-stream Fusion에 전달함. SOC의 전체 test는 평가했으며 SO 비교와 통합 탐색 효용은 후속 평가 항목임.
+현재 모델은 `fused=F_S`, `prob_patch_res=P_S`, 요청 시 `prob_full_res`를 반환함. `F_S`를 실제 frozen-stream Fusion에 전달함. SOC전체test와기존16종32scene의네정책제거탐색을평가했음. SOC–SO추가효과해석·실센서/새target탐색효용은별도검증범위임.
 
 </details>
 
