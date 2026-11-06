@@ -1,0 +1,218 @@
+{
+  "review_date": "2026-11-06",
+  "timezone": "Asia/Seoul",
+  "scope": "Read-only interpretation of completed 2026-10-27 shared SO/SOC test; no new training/inference/physics",
+  "images": 24000,
+  "seen_targets": 16,
+  "cameras": 5,
+  "seed": 0,
+  "architecture": "Frozen 64x30x40 pre-scalar-head stream features; SO concat128 or SOC concat192, Conv64, two 3x3 Conv64, Conv1; GN8/GELU",
+  "ground_truth": "Existing native amodal target mask pooled by 16x16 average; BCEWithLogits",
+  "source_completion_sha256": "69a8315f2e1585e70894fa467177e7989d938c2a1873b1f87c5bd2fe049cbac3",
+  "source_protocol_sha256": "4b66d1613d66e8d11d3db5a529e8930de746688231980a07a632a5ca6f1aa4fe",
+  "variants": {
+    "so": {
+      "epochs": 20,
+      "best_epoch": 20,
+      "best_sha256": "fae7c01707b48aa793259d007a2009d7d6250ed4cca8d64c4a7fcc6cdbd9365c",
+      "overall": {
+        "images": 24000,
+        "metric_valid_images": {
+          "pooled_bce": 24000,
+          "amodal_iou": 24000,
+          "top1_amodal_hit": 24000,
+          "top1_visible_hit": 15235
+        },
+        "pooled_bce": 0.012628588490133392,
+        "amodal_iou": 0.5210307740295909,
+        "top1_amodal_hit": 0.8275833333333333,
+        "top1_visible_hit": 0.39789957335083687,
+        "iou_empty_union_images": 0,
+        "empty_amodal_images": 10,
+        "visible_images": 15235,
+        "visible_outside_amodal_pixels": 8566
+      },
+      "per_visibility": {
+        "visible": {
+          "images": 15235,
+          "metric_valid_images": {
+            "pooled_bce": 15235,
+            "amodal_iou": 15235,
+            "top1_amodal_hit": 15235,
+            "top1_visible_hit": 15235
+          },
+          "pooled_bce": 0.011910837842826504,
+          "amodal_iou": 0.6562415120932646,
+          "top1_amodal_hit": 0.924187725631769,
+          "top1_visible_hit": 0.39789957335083687,
+          "iou_empty_union_images": 0,
+          "empty_amodal_images": 0,
+          "visible_images": 15235,
+          "visible_outside_amodal_pixels": 8566
+        },
+        "fully_occluded": {
+          "images": 8755,
+          "metric_valid_images": {
+            "pooled_bce": 8755,
+            "amodal_iou": 8755,
+            "top1_amodal_hit": 8755,
+            "top1_visible_hit": 0
+          },
+          "pooled_bce": 0.013884321803613023,
+          "amodal_iou": 0.2863391364899249,
+          "top1_amodal_hit": 0.660422615648201,
+          "top1_visible_hit": null,
+          "iou_empty_union_images": 0,
+          "empty_amodal_images": 0,
+          "visible_images": 0,
+          "visible_outside_amodal_pixels": 0
+        },
+        "out_of_frame": {
+          "images": 10,
+          "metric_valid_images": {
+            "pooled_bce": 10,
+            "amodal_iou": 10,
+            "top1_amodal_hit": 10,
+            "top1_visible_hit": 0
+          },
+          "pooled_bce": 0.006727183710761994,
+          "amodal_iou": 0.0,
+          "top1_amodal_hit": 0.0,
+          "top1_visible_hit": null,
+          "iou_empty_union_images": 0,
+          "empty_amodal_images": 10,
+          "visible_images": 0,
+          "visible_outside_amodal_pixels": 0
+        }
+      },
+      "definitions": {
+        "output": "raw 30x40 probabilities; no workspace/GT masking",
+        "pooled_bce": "float64 numpy BCE clipped to [1e-7,1-1e-7] against avg16 binary amodal; reporting only",
+        "amodal_iou": "cv2.INTER_LINEAR 640x480 probability >=0.5 versus native binary amodal; empty union excluded",
+        "top1": "first row-major native bilinear probability argmax; no GT/coverage masking",
+        "top1_visible_hit": "undefined when no visible target pixels; not a grasp success measure",
+        "visibility": "original raw physical IDs; visible if >0 pixels, fully_occluded if visible=0 and amodal>0, otherwise out_of_frame"
+      },
+      "source_evaluation": {
+        "path": "<DEV_ROOT>/outputs/fusion_training_20261026/runs/so/evaluation/evaluation.json",
+        "sha256": "1e1dd3e5fe8d404e692befd9e2d1564b5d190d7e9c0d9d0f70ad0811f58d2237"
+      },
+      "source_per_image_csv_sha256": "e5f88e96a3d8f5a4f2e93f3f82a0276c4513271c6b33a7912ccca2351b5bf26d",
+      "common_index_source_hashes": {
+        "completion.json": "c3787f168e73de163ef9968a81ad7c28ffe3b464b72f63f9325acc0e9b0a9e8d",
+        "split_manifest.json": "6ec5edd508f0b59c622c082b7669b92c57e24a4e10608ab872824e070ccfc075",
+        "common_test.csv": "ababa93942e06c484f881c31c6a11c56c1c754f469343ab8d9a012508c1522ce"
+      },
+      "predictions_sha256": "3e1f67147521993c364fd8276504c28c097cf98b9f0f4bf5aadd8ec47ff8c723"
+    },
+    "soc": {
+      "epochs": 13,
+      "best_epoch": 10,
+      "best_sha256": "ae5a458fbc3c80c965219388c7006e58be560d2e43d16d7dda4fa10935e75ea1",
+      "overall": {
+        "images": 24000,
+        "metric_valid_images": {
+          "pooled_bce": 24000,
+          "amodal_iou": 24000,
+          "top1_amodal_hit": 24000,
+          "top1_visible_hit": 15235
+        },
+        "pooled_bce": 0.012119633212203884,
+        "amodal_iou": 0.5092098544438679,
+        "top1_amodal_hit": 0.8505833333333334,
+        "top1_visible_hit": 0.41450607154578273,
+        "iou_empty_union_images": 0,
+        "empty_amodal_images": 10,
+        "visible_images": 15235,
+        "visible_outside_amodal_pixels": 8566
+      },
+      "per_visibility": {
+        "visible": {
+          "images": 15235,
+          "metric_valid_images": {
+            "pooled_bce": 15235,
+            "amodal_iou": 15235,
+            "top1_amodal_hit": 15235,
+            "top1_visible_hit": 15235
+          },
+          "pooled_bce": 0.011459407110053228,
+          "amodal_iou": 0.6529911187517747,
+          "top1_amodal_hit": 0.9356087955365934,
+          "top1_visible_hit": 0.41450607154578273,
+          "iou_empty_union_images": 0,
+          "empty_amodal_images": 0,
+          "visible_images": 15235,
+          "visible_outside_amodal_pixels": 8566
+        },
+        "fully_occluded": {
+          "images": 8755,
+          "metric_valid_images": {
+            "pooled_bce": 8755,
+            "amodal_iou": 8755,
+            "top1_amodal_hit": 8755,
+            "top1_visible_hit": 0
+          },
+          "pooled_bce": 0.01327488659428812,
+          "amodal_iou": 0.25959072672410527,
+          "top1_amodal_hit": 0.7035979440319817,
+          "top1_visible_hit": null,
+          "iou_empty_union_images": 0,
+          "empty_amodal_images": 0,
+          "visible_images": 0,
+          "visible_outside_amodal_pixels": 0
+        },
+        "out_of_frame": {
+          "images": 10,
+          "metric_valid_images": {
+            "pooled_bce": 10,
+            "amodal_iou": 10,
+            "top1_amodal_hit": 10,
+            "top1_visible_hit": 0
+          },
+          "pooled_bce": 0.006549763823984739,
+          "amodal_iou": 0.0,
+          "top1_amodal_hit": 0.0,
+          "top1_visible_hit": null,
+          "iou_empty_union_images": 0,
+          "empty_amodal_images": 10,
+          "visible_images": 0,
+          "visible_outside_amodal_pixels": 0
+        }
+      },
+      "definitions": {
+        "output": "raw 30x40 probabilities; no workspace/GT masking",
+        "pooled_bce": "float64 numpy BCE clipped to [1e-7,1-1e-7] against avg16 binary amodal; reporting only",
+        "amodal_iou": "cv2.INTER_LINEAR 640x480 probability >=0.5 versus native binary amodal; empty union excluded",
+        "top1": "first row-major native bilinear probability argmax; no GT/coverage masking",
+        "top1_visible_hit": "undefined when no visible target pixels; not a grasp success measure",
+        "visibility": "original raw physical IDs; visible if >0 pixels, fully_occluded if visible=0 and amodal>0, otherwise out_of_frame"
+      },
+      "source_evaluation": {
+        "path": "<DEV_ROOT>/outputs/fusion_training_20261026/runs/soc/evaluation/evaluation.json",
+        "sha256": "bb22f4aeffecac02681e312b3fbb52b257bc1efeea4cf28287801ddfce700dc2"
+      },
+      "source_per_image_csv_sha256": "10c8508115791e1708f463d84b76a33e3e133142f605634d6a3f9e9718905872",
+      "common_index_source_hashes": {
+        "completion.json": "c3787f168e73de163ef9968a81ad7c28ffe3b464b72f63f9325acc0e9b0a9e8d",
+        "split_manifest.json": "6ec5edd508f0b59c622c082b7669b92c57e24a4e10608ab872824e070ccfc075",
+        "common_test.csv": "ababa93942e06c484f881c31c6a11c56c1c754f469343ab8d9a012508c1522ce"
+      },
+      "predictions_sha256": "c2a569a721adf547daca08aa25fe4fea9e6ccd307b6550116c0b1ee4ed710088"
+    }
+  },
+  "soc_minus_so_percentage_points": {
+    "top1_amodal_hit": 2.300000000000002,
+    "amodal_iou": -1.1820919585722955,
+    "top1_visible_hit": 1.6606498194945862
+  },
+  "interpretation": [
+    "Peak hit improves while mask IoU decreases in this paired-data, single-seed comparison.",
+    "Different validation-selected epochs and input projection sizes; not an intervention on one fixed model.",
+    "Does not establish semantic use or necessity of all streams, equal use, or complexity-specific removal efficiency."
+  ],
+  "unexecuted_proposals": [
+    "Fixed-model per-stream perturbation and target-reference substitution diagnostic.",
+    "Fusion over predicted scalar S/O/C maps with train-fixed value scaling, existing amodal GT and no feature bypass.",
+    "Optional spatial gating after comparison; no attention/gating adoption or experiment authorized by this documentation request."
+  ]
+}

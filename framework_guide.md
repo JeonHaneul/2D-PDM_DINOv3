@@ -2,6 +2,8 @@
 
 > [README](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [다른 agent를 위한 문맥·상세 보고서](agent.md)
 
+> **2026-11-06 검토 반영:** [최신 인계](agent.md#current-handoff-20261106)와 [Fusion 활용 검토](fusion_review_20261106.md)를 먼저 읽음. 현재 구조도는 64채널 특징 concat+CNN을 유지함. 세 1채널 예측 지도 결합·위치별 gating·attention은 미실행 후보이며 구현된 경로로 그리지 않음. GT 화살표는 loss에 연결하고 추론 입력으로 연결하지 않음. SO/SOC 비교는 [공개 JSON](docs/fusion_comparison_20261106.json)을 따르며 세 stream의 의미 활용을 입증한 결과로 표시하지 않음.
+
 **목적:** 웹 GPT와 외부 독자가 이 저장소만 읽고 현재 세 stream의 구조, 실제 출력, 학습 과정과 실제 구현·학습된 fusion을 정확한 논문 그림으로 표현할 수 있도록 정리함. 아래 설명·좌표·공개 이미지를 함께 사용함. 그림을 새로 그리는 작업이며 추가 학습을 의미하지 않음.
 
 ## 0. 최신 제거 탐색 그림과 연결 위치

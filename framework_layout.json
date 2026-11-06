@@ -832,5 +832,19 @@
       }
     },
     "interpretation": "Shared training/test completion checked; SO is not one of the four search policies. Incremental Complexity contribution is a separate SOC-versus-SO analysis."
+  },
+  "fusion_review_20261106": {
+    "document": "fusion_review_20261106.md",
+    "agent_anchor": "agent.md#current-handoff-20261106",
+    "comparison": "docs/fusion_comparison_20261106.json",
+    "implemented": "frozen pre-head 64-channel features, concat + CNN",
+    "unexecuted": [
+      "predicted scalar map fusion",
+      "spatial gating",
+      "feature perturbation and reference substitution diagnostics"
+    ],
+    "gt_mixing": "not adopted",
+    "semantic_use_of_all_streams": "not established",
+    "figure_instruction": "Preserve implemented architecture; depict proposals only as clearly labeled unexecuted alternatives."
   }
 }

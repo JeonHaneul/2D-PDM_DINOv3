@@ -4,13 +4,28 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-10-27 (Asia/Seoul) · 기존16종32scene·5camera·4정책640회제거탐색완료·전체단계그림/수치공개 · 정적SOC test와외부진단도보존 · SOC/SO공동학습·각test완료기록확인 · 아래날짜별기록은당시상태임
+> 문서 기준일: 2026-11-06 (Asia/Seoul) · fusion 활용 검토·SO/SOC 비교·미실행 후속 계획 기록 · 기존16종32scene·5camera·4정책640회제거탐색완료·전체단계그림/수치공개 · 정적SOC test와외부진단도보존 · SOC/SO공동학습·각test완료기록확인 · 아래날짜별기록은당시상태임
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서, 통합 구조·진행 상태는 [Fusion](fusion_stream.md)에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
 
 이 문서는 **현재 연구 문맥, 작업 지침, 근거 색인 전체와 Phase 1–42 Development Log, Complexity의 가정·실험·후속 계획 보고서 14개**를 합친 것이다. 단순 경로 안내만으로 끝내지 않고 방법·결과·실패·해석을 본문에 포함한다. 전체 대화와 터미널 출력의 원문 archive는 아니다. 저장되지 않은 과거 실행 내용을 복원했다고 주장하지 않는다.
 
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md`, [Fusion](fusion_stream.md) · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
+
+<a id="current-handoff-20261106"></a>
+## 2026-11-06 현재 인계 — Fusion의 stream 활용 검토
+
+최신 작업은 사용자와 논의한 fusion 해석·후속 검증 제안을 문서화한 것임. **새 모델·GT·추론·학습·물리 실험은 없음.** 현 모델은 그대로 head 이전 64채널 특징 concat+CNN이며 attention/gating·예측 지도 기반 fusion은 미실행 후보임. 아래 10-27 완료 실험과 당시 snapshot은 연구 이력으로 보존함.
+
+1. [이번 검토 전체](fusion_review_20261106.md): 문제 제기, 실제 입력, GT 혼합을 권하지 않는 이유, CNN/attention의 한계, 다음 Step을 읽음.
+2. [현 Fusion](fusion_stream.md#fusion-review-20261106)과 [비교 JSON](docs/fusion_comparison_20261106.json): 기존 16종 동일 test 24,000장의 SO/SOC 결과와 분모를 확인함. SO→SOC 최고점 amodal 적중 82.76→85.06%, mIoU 52.10→50.92%, visible 적중 39.79→41.45%(15,235장)임.
+3. [Development Log](development_log.md#fusion-review-20261106), [제거 탐색](closed_loop_search.md), [Framework Guide](framework_guide.md): 완료된 평가와 향후 후보를 구분함. 기존 네 정책 탐색에는 SO가 없어 C의 증분 제거 효용을 분리하지 못함.
+
+GT만으로 추론한다고 단정하지 않으며, 세 stream의 의미를 모두 활용한다고도 단정하지 않음. 같은 비중의 GT 혼합은 채택하지 않았고 기존 amodal GT를 유지하는 것이 이번 제안임. 특징 교란·reference 변경은 의존성 진단 후보이고, 지도 기반 fusion·위치별 gating은 그다음 비교 후보임. 지도 기반 입력도 모델 예측값이어야 하며 GT/ID를 추론에 제공하지 않음. 필요성 확인 없이 균등 활용을 강제하지 않음.
+
+**실행 범위:** 이번 사용자는 로컬·GitHub 문서 갱신을 요청함. 이 요청을 후속 실험 실행·모델 교체 승인으로 읽지 않음. 다음 agent는 우선 위 내용을 요약하고 사용자와 다음 Step을 정함. Target 위치 예측과 제거 행동의 효용을 구분하며 새 행동 GT로 임의 전환하지 않음.
+
+**로컬 근거:** `<DEV_ROOT>/docs/fusion_review_20261106.md`, `experiments/fusion_training_20261026/{runtime,model,train}.py`, `outputs/fusion_training_20261026/runs/{so,soc}/evaluation/{evaluation.json,per_image.csv}`. 개발 폴더와 GitHub clone을 구분하고 완료된 실행 원본을 수정하지 않음.
 
 <a id="current-handoff-20261027"></a>
 ## 2026-10-27 현재 인계 — 반복 제거 탐색·SOC test·외부 물체 평가
