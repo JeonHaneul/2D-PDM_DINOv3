@@ -1,0 +1,1443 @@
+{
+  "status": "complete",
+  "physical_scenes": 32,
+  "camera_conditions": 160,
+  "total_episodes": 640,
+  "cameras": [
+    "center",
+    "left",
+    "right",
+    "top",
+    "bottom"
+  ],
+  "variants": [
+    "feature_soc",
+    "feature_s",
+    "map_s",
+    "map_soc"
+  ],
+  "definitions": {
+    "success": "Model-selected highest eligible object is target and current visible/alone projected area>=0.5",
+    "removals": "Number of removed non-target objects before target selection; initial selection may be0",
+    "retrieval_actions": "One additional target retrieval action for a successful episode",
+    "mean": "Success-conditioned mean; failure count and success rate must accompany it",
+    "independence": "32 physical layouts x5 correlated camera views x4 policies;160 paired camera conditions, not640 independent scenes",
+    "limits": "Original16 known target instances and2 layouts per target. Simulator ID/visibility eligibility; no robot grasp or zero-shot claim. Original buried book3 layout retained in every primary denominator.",
+    "policies": "All four are final-amodal-GT heads. feature_s/SOC consume64/192-channel intermediate features; map_s/SOC consume1/3 raw scalar maps. feature_s is not standalone similarity."
+  },
+  "overall": {
+    "feature_soc": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 2.096774193548387,
+      "median_removals_success_only": 2,
+      "zero_removal_successes": 36,
+      "max_successful_removals": 6
+    },
+    "feature_s": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 2.129032258064516,
+      "median_removals_success_only": 2,
+      "zero_removal_successes": 37,
+      "max_successful_removals": 6
+    },
+    "map_s": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 2.5161290322580645,
+      "median_removals_success_only": 3,
+      "zero_removal_successes": 37,
+      "max_successful_removals": 7
+    },
+    "map_soc": {
+      "episodes": 160,
+      "successes": 155,
+      "failures": 5,
+      "success_percent": 96.875,
+      "mean_removals_success_only": 2.232258064516129,
+      "median_removals_success_only": 2,
+      "zero_removal_successes": 37,
+      "max_successful_removals": 8
+    }
+  },
+  "per_camera": {
+    "center": {
+      "feature_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.129032258064516,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.161290322580645,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 9,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.4516129032258065,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 9,
+        "max_successful_removals": 6
+      },
+      "map_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.225806451612903,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 9,
+        "max_successful_removals": 8
+      }
+    },
+    "left": {
+      "feature_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.064516129032258,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.032258064516129,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.7419354838709675,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.3225806451612905,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 7
+      }
+    },
+    "right": {
+      "feature_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 1.935483870967742,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.3870967741935485,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 7,
+        "max_successful_removals": 5
+      }
+    },
+    "top": {
+      "feature_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.2903225806451615,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.3548387096774195,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.4838709677419355,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "map_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.2903225806451615,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      }
+    },
+    "bottom": {
+      "feature_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.064516129032258,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "feature_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.096774193548387,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "map_s": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.5161290322580645,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "map_soc": {
+        "episodes": 32,
+        "successes": 31,
+        "failures": 1,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.3225806451612905,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 6
+      }
+    }
+  },
+  "per_target": {
+    "book_1": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 4
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.9,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.7,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 4
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.1,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      }
+    },
+    "book_2": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.5,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.7,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.8,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.6,
+        "median_removals_success_only": 4.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      }
+    },
+    "book_3": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 5,
+        "failures": 5,
+        "success_percent": 50.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      }
+    },
+    "book_4": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.4,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.3,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      }
+    },
+    "fruit_1": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.7,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.7,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.8,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 6
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.8,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 6
+      }
+    },
+    "fruit_2": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0.9,
+        "median_removals_success_only": 0.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 2
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.7,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.4,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 8
+      }
+    },
+    "fruit_3": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.1,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.3,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.2,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.2,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      }
+    },
+    "fruit_4": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.6,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.9,
+        "median_removals_success_only": 3.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.7,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 3
+      }
+    },
+    "packaged_food_1": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 3
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 2
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.9,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 5
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.4,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 3
+      }
+    },
+    "packaged_food_2": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 3
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.3,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.3,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 3
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 4,
+        "max_successful_removals": 3
+      }
+    },
+    "packaged_food_3": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.7,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 5
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.6,
+        "median_removals_success_only": 4.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.5,
+        "median_removals_success_only": 4.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      }
+    },
+    "packaged_food_4": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 5
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.4,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.4,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 4
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.1,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 3
+      }
+    },
+    "toy_1": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 4
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.2,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 5
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.8,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 4
+      }
+    },
+    "toy_2": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 2
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 2
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.2,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 3
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0.8,
+        "median_removals_success_only": 1.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 1
+      }
+    },
+    "toy_3": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.5,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.3,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.9,
+        "median_removals_success_only": 4.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.4,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 7
+      }
+    },
+    "toy_4": {
+      "feature_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 4
+      },
+      "feature_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 4
+      },
+      "map_s": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.6,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 5
+      },
+      "map_soc": {
+        "episodes": 10,
+        "successes": 10,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.1,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 5
+      }
+    }
+  },
+  "paired": {
+    "map_soc_vs_feature_soc": {
+      "common_successes": 155,
+      "fewer": 17,
+      "same": 112,
+      "more": 26,
+      "mean_difference": 0.13548387096774195
+    },
+    "map_s_vs_feature_s": {
+      "common_successes": 155,
+      "fewer": 14,
+      "same": 96,
+      "more": 45,
+      "mean_difference": 0.3870967741935484
+    },
+    "map_soc_vs_map_s": {
+      "common_successes": 155,
+      "fewer": 43,
+      "same": 95,
+      "more": 17,
+      "mean_difference": -0.2838709677419355
+    },
+    "feature_soc_vs_feature_s": {
+      "common_successes": 155,
+      "fewer": 20,
+      "same": 114,
+      "more": 21,
+      "mean_difference": -0.03225806451612903
+    }
+  },
+  "all_four_common_successes": {
+    "conditions": 155,
+    "mean_removals": {
+      "feature_soc": 2.096774193548387,
+      "feature_s": 2.129032258064516,
+      "map_s": 2.5161290322580645,
+      "map_soc": 2.232258064516129
+    },
+    "purpose": "Same successful-condition denominator for all4; supplements primary success fractions and per-policy success-conditioned means"
+  },
+  "known_original_buried_target": {
+    "layout_id": "book_3_scene00005_env0031",
+    "camera_conditions": 5,
+    "primary_denominator_retained": true,
+    "successes": {
+      "feature_soc": 0,
+      "feature_s": 0,
+      "map_s": 0,
+      "map_soc": 0
+    },
+    "evidence": "Original source target mesh highest6.271mm below floor10mm; pre-existing scene condition, not solely attributable to policy",
+    "original_quality_audit": "<DEV_ROOT>/outputs/closed_loop_search_20261027/full/audit/source_scene_quality.json"
+  },
+  "publication": {
+    "date": "2026-11-06",
+    "scope": "Existing completed results and proposed next design; publication only",
+    "local_paths": "Role symbols indicate LOCAL artifacts, not public downloads",
+    "current_model": "Frozen feature SOC remains baseline; scalar-map CNN not adopted",
+    "action_head": "Proposal only, no new action GT or priority-head training"
+  },
+  "audit": {
+    "status": "passed",
+    "episodes": 640,
+    "steps": 2327,
+    "candidate_checks": 3187,
+    "removals": 1687,
+    "initial_pairs": 160,
+    "checks": "Raw prediction ranking, observed/isolated mask areas,50% rule, first eligible selection, terminal outcomes,600actualsteps, identical initial RGB-D/labels, source/checkpoint preservation"
+  },
+  "completion": {
+    "status": "complete",
+    "phase": "full",
+    "physical_scenes": 32,
+    "episodes": 640,
+    "elapsed_seconds": 1028.512796163559,
+    "source_sha256": {
+      "experiments/fusion_map_search_20261106/summarize.py": "db4e3ca96e417d0e4ca1803fada3e7a7f73247d07210828e5a6e0f33a7afb353",
+      "experiments/fusion_map_search_20261106/prepare.py": "134fedfa6e53dd95c92ff037b51cb4c89f95e0fc7e258d18f9e7155a989adf9e",
+      "experiments/fusion_map_search_20261106/run.py": "ee2285d2ee4ceaec56349d2731c82323b64f344e1cee26cfa730849dc1a30dbf",
+      "experiments/fusion_map_search_20261106/worker.py": "91509590b67dcc208ac2273b125a0bcd47585f254c524f087f54dd89053e3d04",
+      "experiments/fusion_map_search_20261106/simulator.py": "d9a2d20eaa42fc8fcc3f4887a39ba612a37c338bd64950d2d40b7850c07b8dfa"
+    },
+    "selection_sha256": "5d831255babf82a30485475ab9c61ec930e04138cec5ad6422fbe00aba2c70c7",
+    "original_sources_unchanged": 68,
+    "model_worker_completion": {
+      "status": "complete",
+      "pid": 192703,
+      "elapsed_seconds": 1025.882743358612,
+      "requests_complete": 165,
+      "requests_failed": 0,
+      "images_complete": 2327,
+      "frozen_state_sha256": {
+        "dino": "4ad6f3dd624154e36c72de8933892710b667f77b1e95af904eb7305e6a4184ea",
+        "siglip": "01275a9b3d3804ecd6bd3a988a088f49b00e31c783bac3d5016cfb35e523861a",
+        "multimae": "2fb496601592da4f7020c5d71f37b0b7236145f49a9b58ed5c075acd52072ebd",
+        "similarity": "c88c4950e729a7695479bf87cb831a7a4f8df05dafe5750ce4ce8a097d0e27ae",
+        "occlusion": "1bd82eea3d00823dff9f4ab010d9d44a7d2f233227dc9c1b2623a4d44d548235",
+        "complexity": "cbbda1432e4e550b174501bc5602465d082f26fa0415e2293bd7a6ec71cada50",
+        "head_feature_soc": "567854a9e53c977f727e220884a74751638f015d1a0141a3119551a2855d9155",
+        "head_feature_s": "47c14dbd837dec4c5c43f99e99f786d6359b1612ed253df23a1daeb5e9aba032",
+        "head_map_s": "18171a24771664fb918e5013f6be3012956ede1e4ca03c274143427367807d4c",
+        "head_map_soc": "a73408b14ff1f8e6b452d324a3af688387d1e3784fa6b1650090b6c63eef333c"
+      },
+      "frozen_parameters_buffers_unchanged": true,
+      "original_source_files_unchanged": 73,
+      "checkpoints_unchanged": true,
+      "scene_gt_read": false,
+      "training": false,
+      "request_failures_present": false
+    },
+    "simulator_completion": {
+      "status": "complete",
+      "layouts": 32,
+      "episodes": 640,
+      "elapsed_seconds": 1006.682723846985,
+      "selection_sha256": "5d831255babf82a30485475ab9c61ec930e04138cec5ad6422fbe00aba2c70c7",
+      "source_sha256": "d9a2d20eaa42fc8fcc3f4887a39ba612a37c338bd64950d2d40b7850c07b8dfa",
+      "layout_reports": [
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_1_scene00013_env0051/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_1_scene00001_env0008/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_2_scene00009_env0026/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_2_scene00038_env0006/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_3_scene00011_env0001/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_3_scene00005_env0031/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_4_scene00038_env0035/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/book_4_scene00048_env0052/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_1_scene00003_env0046/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_1_scene00047_env0027/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_2_scene00020_env0047/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_2_scene00044_env0057/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_3_scene00005_env0024/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_3_scene00018_env0052/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_4_scene00031_env0031/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/fruit_4_scene00042_env0049/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_1_scene00027_env0008/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_1_scene00028_env0016/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_2_scene00029_env0005/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_2_scene00050_env0000/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_3_scene00004_env0058/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_3_scene00010_env0017/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_4_scene00028_env0017/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/packaged_food_4_scene00025_env0005/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_1_scene00019_env0033/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_1_scene00007_env0048/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_2_scene00029_env0037/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_2_scene00023_env0023/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_3_scene00048_env0024/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_3_scene00023_env0036/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_4_scene00050_env0040/completion.json",
+        "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/episodes/toy_4_scene00049_env0048/completion.json"
+      ]
+    },
+    "aggregation": "Separate CPU audit/summary required; raw simulation and model execution complete",
+    "overall": {
+      "feature_soc": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.096774193548387,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 36,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.129032258064516,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 37,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.5161290322580645,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 37,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.232258064516129,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 37,
+        "max_successful_removals": 8
+      }
+    },
+    "audit": {
+      "status": "passed",
+      "episodes": 640,
+      "steps": 2327,
+      "candidate_checks": 3187,
+      "removals": 1687,
+      "initial_pairs": 160,
+      "checks": "Raw prediction ranking, observed/isolated mask areas,50% rule, first eligible selection, terminal outcomes,600actualsteps, identical initial RGB-D/labels, source/checkpoint preservation"
+    },
+    "step_panels": 2327,
+    "completed_unix": 1793951430.5845914,
+    "summary": "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/report/summary.json"
+  },
+  "physics_log_audit": {
+    "status": "passed",
+    "simulator_log": "<DEV_ROOT>/outputs/fusion_map_search_20261106/full/logs/simulator.log",
+    "bytes_scanned": 4043799,
+    "physx_errors": 0,
+    "method": "Read every log byte during execution and again at simulator exit; reject PhysX error lines before metrics"
+  },
+  "independent_audit": {
+    "status": "passed",
+    "episodes": 640,
+    "camera_conditions": 160,
+    "physical_layouts": 32,
+    "step_logs": 2327,
+    "original_selection_identical": true,
+    "primary_denominators": {
+      "feature_soc": 160,
+      "feature_s": 160,
+      "map_s": 160,
+      "map_soc": 160
+    },
+    "overall": {
+      "feature_soc": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.096774193548387,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 36,
+        "max_successful_removals": 6
+      },
+      "feature_s": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.129032258064516,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 37,
+        "max_successful_removals": 6
+      },
+      "map_s": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.5161290322580645,
+        "median_removals_success_only": 3,
+        "zero_removal_successes": 37,
+        "max_successful_removals": 7
+      },
+      "map_soc": {
+        "episodes": 160,
+        "successes": 155,
+        "failures": 5,
+        "success_percent": 96.875,
+        "mean_removals_success_only": 2.232258064516129,
+        "median_removals_success_only": 2,
+        "zero_removal_successes": 37,
+        "max_successful_removals": 8
+      }
+    },
+    "paired": {
+      "map_soc_vs_feature_soc": {
+        "common_successes": 155,
+        "fewer": 17,
+        "same": 112,
+        "more": 26,
+        "mean_difference": 0.13548387096774195
+      },
+      "map_s_vs_feature_s": {
+        "common_successes": 155,
+        "fewer": 14,
+        "same": 96,
+        "more": 45,
+        "mean_difference": 0.3870967741935484
+      },
+      "map_soc_vs_map_s": {
+        "common_successes": 155,
+        "fewer": 43,
+        "same": 95,
+        "more": 17,
+        "mean_difference": -0.2838709677419355
+      },
+      "feature_soc_vs_feature_s": {
+        "common_successes": 155,
+        "fewer": 20,
+        "same": 114,
+        "more": 21,
+        "mean_difference": -0.03225806451612903
+      }
+    },
+    "all_four_common_successes": {
+      "conditions": 155,
+      "mean_removals": {
+        "feature_soc": 2.096774193548387,
+        "feature_s": 2.129032258064516,
+        "map_s": 2.5161290322580645,
+        "map_soc": 2.232258064516129
+      }
+    },
+    "failures": {
+      "feature_soc": [
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "center",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "left",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "right",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 14
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "top",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "bottom",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        }
+      ],
+      "feature_s": [
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "center",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "left",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "right",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 14
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "top",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "bottom",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        }
+      ],
+      "map_s": [
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "center",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "left",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "right",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 14
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "top",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "bottom",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        }
+      ],
+      "map_soc": [
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "center",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "left",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "right",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 14
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "top",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        },
+        {
+          "layout_id": "book_3_scene00005_env0031",
+          "camera": "bottom",
+          "target": "book_3",
+          "reason": "all_candidates_below_visibility_threshold_or_no_visible_object",
+          "removals": 15
+        }
+      ]
+    },
+    "failure_sets_identical": true,
+    "known_buried": {
+      "layout_id": "book_3_scene00005_env0031",
+      "camera_conditions": 5,
+      "successes": {
+        "feature_soc": 0,
+        "feature_s": 0,
+        "map_s": 0,
+        "map_soc": 0
+      },
+      "included_in_primary_denominator": true
+    },
+    "other_failures": {
+      "feature_soc": [],
+      "feature_s": [],
+      "map_s": [],
+      "map_soc": []
+    },
+    "evidence": {
+      "selection_sha256": "5d831255babf82a30485475ab9c61ec930e04138cec5ad6422fbe00aba2c70c7",
+      "original_selection_sha256": "f3f5ad484796d509c7aff275fbf33c6ae9a83f72718b8fc0db0913c3dd59d212",
+      "summary_sha256": "8c63b3f3a178a9785f30baef0f852f68bbb279d4c656fcd36f22181342c96dba",
+      "completion_sha256": "8973265eb52b7a679a4a3cb4cacc11ad2bb83b2022315169f1a7e93a7b035f5c",
+      "script_sha256": "1c59e408eb64b08dd80f8c30c9301fde504a7464039e145dd02ea1bd1ec67ab2"
+    },
+    "scope": "Independent raw-outcome recomputation; terminal checks and CSV/summary comparison. No new model inference, physics, or training."
+  },
+  "elapsed_seconds": 1028.512796163559
+}

@@ -4,7 +4,7 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · **연구 문맥**
 <!-- navigation:end -->
 
-> 문서 기준일: 2026-11-06 (Asia/Seoul) · fusion 활용 검토·SO/SOC 비교·미실행 후속 계획 기록 · 기존16종32scene·5camera·4정책640회제거탐색완료·전체단계그림/수치공개 · 정적SOC test와외부진단도보존 · SOC/SO공동학습·각test완료기록확인 · 아래날짜별기록은당시상태임
+> 문서 기준일: 2026-11-06 (Asia/Seoul) · S-only·점수 지도 Fusion 학습/test 완료 · 같은32배치 네 head 제거640회·초기160조건 선택 분석 완료 · 제거 우선순위 head/새 행동 GT는 미실행 제안 · 기존 외부 평가와 과거 제거 결과 보존 · 아래 날짜별 기록은 당시 상태임
 > 목적: 이전 대화와 연구 PC에 접근할 수 없는 독자·agent가 연구 내용을 이해하고 질문할 수 있도록 한 파일에 모은 공개 인수인계 문서
 > 전체 개요는 README, stream별 정의·구현 상태는 세 stream 문서, 통합 구조·진행 상태는 [Fusion](fusion_stream.md)에 정리함. 현재 Complexity 본문은 지역 GT를 다루며 이전 count 모델의 상세 설명·결과는 Development Log에 보존함.
 
@@ -13,9 +13,140 @@
 모델별 상세 설명: `similarity_stream.md`, `occlusion_stream.md`, `complexity_stream.md`, [Fusion](fusion_stream.md) · 개발 이력: `development_log.md` · 외부 공유용 원문 주소: `https://raw.githubusercontent.com/JeonHaneul/2D-PDM_DINOv3/main/agent.md`
 
 <a id="current-handoff-20261106"></a>
-## 2026-11-06 현재 인계 — Fusion의 stream 활용 검토
+## 2026-11-06 현재 인계 — 특징·점수 지도 Fusion 대조 완료와 다음 행동 목표
 
-최신 작업은 사용자와 논의한 fusion 해석·후속 검증 제안을 문서화한 것임. **새 모델·GT·추론·학습·물리 실험은 없음.** 현 모델은 그대로 head 이전 64채널 특징 concat+CNN이며 attention/gating·예측 지도 기반 fusion은 미실행 후보임. 아래 10-27 완료 실험과 당시 snapshot은 연구 이력으로 보존함.
+**S-only 최종 GT 대조, S/SO/SOC 소규모 제거 비교, 실제 점수 지도 Fusion 학습·test, 동일32배치의 네 head 제거 비교, 동일 초기160조건의 행동 분석을 완료함.** 기존 특징 SOC를 기준 모델로 유지하며 점수 지도 CNN으로 교체하지 않음. 제거 우선순위 head와 새 행동 GT는 설명한 후보일 뿐 **구현·GT 생성·학습하지 않았음**. 이번 요청은 완료 결과와 연구 문맥을 로컬·GitHub에 게시하는 범위이며 새 실험 승인으로 확대하지 않음.
+
+### 처음 읽는 agent의 읽기 순서
+
+1. 이 절에서 연구 질문·실제 입력·완료 결과·미실행 후보를 구분함. 이후 [README](README.md), [Fusion](fusion_stream.md), [Similarity](similarity_stream.md)·[Occlusion](occlusion_stream.md)·[Complexity](complexity_stream.md)로 각 stream 정의를 확인함.
+2. [S 특징 단독 최종 GT 대조](fusion_similarity_control_20261106.md) → [4장면 제거 비교](fusion_search_control_20261106.md) → [점수 지도 학습·32장면 제거 비교](fusion_map_control_20261106.md)를 읽음. 입력과 정답을 통제한 비교의 범위가 서로 다름.
+3. [초기 물체 선택 분석·행동 head 제안](fusion_action_analysis_20261106.md)을 읽음. 완료된 CPU 분석과 미실행 설계를 구분하고 다음 실행 범위를 사용자와 결정함.
+4. [Development Log](development_log.md)에서 이력, [Framework Guide](framework_guide.md)에서 그림 작성 규칙을 확인함. [최초 Fusion 검토](fusion_review_20261106.md)와 [10-27 제거 탐색](closed_loop_search.md)은 당시 결과로 보존하며 현재 비교로 덮어쓰지 않음.
+
+연구 PC에 접근하는 agent는 `<DEV_ROOT>/AGENTS.md` → `PROJECT_CONTEXT.md` → `PROJECT_LOG_INDEX.md`와 위 보고서의 로컬 원본을 읽고 완료 JSON을 확인함. `<DEV_ROOT>`는 실제 개발 폴더, `<PUBLIC_CLONE>`은 별도 공개 Git clone, `<DATA_ROOT>`는 현재 데이터 루트임. 공개 문서에 적힌 LOCAL 경로가 GitHub에서 다운로드 가능한 파일을 뜻하지 않음.
+
+### 연구 목표와 이번 비교를 하게 된 이유
+
+2D-PDM은 한 camera의 RGB-D와 독립 target reference로 쌓인 물체 더미에서 target을 찾는 연구임. S는 target과 장면 물체의 유사성, O는 target이 가려져 있을 가능성, C는 관측된 물체들의 지역적 복잡도를 제공함. C는 target query를 받지 않으며 현재 r48 지역 점수는 물체 개수나 확률이 아님. 세 stream으로 최종 target 위치를 예측하고, 시뮬레이터에서 높은 점수가 있는 물체를 하나씩 제거해 target을 회수하는 절차를 평가함.
+
+사용자는 기존 Fusion의 개선이 세 stream을 결합한 효과인지, 최종 target GT로 CNN을 한 번 더 학습한 효과인지 질문함. 또한 Fusion이 사람이 보는 흑백 지도 세 장을 받는 것으로 이해했으나 실제 구현은 각 stream 출력층 직전의64채널 특징을 받았음. 이를 설명한 뒤 **최종 GT를 동일하게 학습한 S-only head**와 **실제1채널 예측 지도만 받는 head**를 차례로 비교함. GT 세 장을 투명하게 섞어 최종 정답에 더하는 방법은 채택하지 않았음. 높은 complexity나 occlusion 점수를 가진 비target 영역도 target 정답으로 올릴 수 있어 학습 목표가 달라지기 때문임.
+
+### 현재 구현: 64채널 특징과 1채널 지도의 구분
+
+| 구분 | Fusion이 실제 받는 값 | 출력·감독 |
+|---|---|---|
+| 기존 특징 S/SO/SOC | 각 stream의64×30×40 중간 특징, 합계64/128/192채널 | 최종 amodal target GT로 학습한 위치 예측 |
+| 새 지도 S/SOC | S1채널 또는 S/O/C 각1채널의 실제 FP32 출력, 합계1/3채널 | 같은 최종 amodal target GT로 학습한 위치 예측 |
+| 제안한 제거 우선순위 head | 각64채널 특징을 합친192채널을 받는 후보 | 선택 이후 남은 제거 횟수에 관한 행동 점수; 미실행 |
+
+64채널은 각30×40 위치에 학습된 숫자가64개 있다는 뜻이며 센서 depth64장·물체64개·RGB64장을 뜻하지 않음. 각 stream의 최종 출력층이 이를1채널 점수로 줄이고, 사람이 보는 grayscale 이미지는 그 점수를 표시한 것임. 기존 특징 Fusion은 최종 점수 지도만 이용하는 구조라고 표현하면 안 됨.
+
+새 지도 실험은 최종 출력 숫자를 직접 사용함. S/O는sigmoid, C는softplus이며 C의train 최대6.333889도 그대로 전달함. C÷6, clipping, 영상별 정규화, PNG/RGB 변환, GT·workspace mask,64채널 우회 연결은 없음. 두 지도 head는 `1×1 Conv→64/GN8/GELU→3×3 Conv64 두 층→1×1 Conv1` 구조임. 기존 특징 head도 같은 공통 CNN body를 사용하지만 입력 projection 크기와 전체 parameter 수가 다름.
+
+DINOv3·SigLIP·MultiMAE와 개별 S20/O12/C19의 parameter·buffer는 고정함. 기존 target 전체영역의binary amodal GT640×480을16×16 평균한30×40 값에 BCEWithLogits를 적용함. Target이 일부 보일 때도 amodal GT를 유지하며 visible GT로 바꿔 끼우지 않음. Stream GT·최종 위치 GT·추론 입력은 서로 다른 역할임. 단일 RGB-D 추론에 scene GT/ID를 neural 입력으로 제공하지 않음.
+
+### 완료·미실행 상태표
+
+| 작업 | 현재 상태 | 범위·해석 |
+|---|---|---|
+| 기존 SO/SOC 특징 Fusion | 완료 | SO20epoch/best20, SOC13epoch/best10, 각test24,000장 |
+| S 특징만 받는 최종 GT head | 완료 | 20epoch/best18, 같은test24,000장; 원래 standalone Similarity와 다름 |
+| S/SO/SOC 빠른 제거 비교 | 완료 | 4물리배치×5독립camera×3head=60회 |
+| S/SOC 실제 점수 지도 head | 완료 | S18epoch/best15, SOC10epoch/best7, 각test24,000장 |
+| 특징 S/SOC·지도 S/SOC 제거 비교 | 완료 | 원래32배치×5독립camera×4head=640회; SO는 포함하지 않음 |
+| 특징 S/SOC 초기 선택 분석 | 완료 | 같은초기160조건, 저장 자료 CPU 분석; 새 추론·물리 실행 없음 |
+| 제거 우선순위 head·후보별 행동 GT | **미실행 제안** | 구조·GT 규약·소규모 시작안을 설명했으며 구현/학습 없음 |
+| Train10–20배치 후보별 행동 GT pilot | **미실행 후보** | 다음 실행 범위 협의용이며 이번 게시 요청으로 승인되지 않음 |
+| Attention/gating·GT 균등 혼합·reference 교란 | 미실행 | 자동 채택하거나 완료한 것으로 서술하지 않음 |
+
+### 정적 위치 예측 결과: 같은 test24,000장
+
+| 입력 | 선택 epoch | 전체 amodal 최고점 적중 | 실제 visible 최고점 적중 | 완전 가림 amodal 최고점 적중 | Amodal mIoU |
+|---|---:|---:|---:|---:|---:|
+| S 특징 | 18 | 70.883333% | 44.502790% | 40.239863% | 40.165282% |
+| SO 특징 | 20 | 82.758333% | 39.789957% | 66.042262% | 52.103077% |
+| SOC 특징 | 10 | 85.058333% | 41.450607% | 70.359794% | 50.920985% |
+| S 점수 지도 | 15 | 57.525000% | 48.290121% | 26.453455% | 27.944527% |
+| SOC 점수 지도 | 7 | 73.633333% | 42.579586% | 54.220445% | 38.169565% |
+
+전체 최고점 적중은30×40 예측을bilinear640×480로 확대한 지도에서 가장 높은 한 점이 target의amodal 영역에 들어간 비율임. 분모24,000은 일부 가시15,235장·완전 가림8,755장·빈amodal10장을 포함함. Visible 적중의 분모는15,235장, 완전 가림 적중은8,755장임. Pixel accuracy·zero-shot·파지 성공률이 아님. mIoU는확률≥0.5와native GT의영상별IoU 평균이며 빈union을 제외함. 위행 순서대로 유효분모23,991/24,000/24,000/23,990/23,994장으로 전체 최고점과 구분함.
+
+S-only도 같은 최종 GT를 학습했지만 SOC의85.06%를 재현하지 못함. 따라서 기존 개선을 최종 GT 학습 효과만으로 설명할 수 없음. 다만 실제 가시부 적중은 S 특징이 SOC보다3.052182%p 높음. 지도 SOC는 지도 S보다전체 적중16.108333%p 높지만 기존 특징 SOC보다11.425000%p 낮음. 최종1채널로 줄이면서 유용한 정보가 줄었을 가능성은 있으나 그 원인을 분리 증명한 실험은 아님. 세 stream 의미를 모두 활용했다거나 CNN이 무효라는 결론도 아님.
+
+학습은같은train192,000/val24,000/test24,000,seed0·FP32·batch16,AdamW lr.001/wd.01·clip5,최대20/min3/patience3와validation BCE 모델선택을 유지함. 모든test 예측을 저장한 뒤GT 평가함. 특징/지도 캐시는속도 절약용이며값·batch순서·고정모델 보존을 검사함. Stream과fusion은같은train pool의순차학습이며out-of-fold학습이라고 부르지 않음. 단일seed·서로다른bestepoch·입력projection 크기차이를 포함한비교임.
+
+실제 예측: [S/SO/SOC 특징 비교 그림](img/fusion_feature_control_20261106.png), [특징 SOC·지도 S/SOC 비교 그림](img/fusion_map_control_20261106.png). 같은기존5개test행을사용한실제저장예측이며합성그림이나외부물체결과가아님. 표시범위0–1·bilinear확대를사용하고GT/작업영역마스크·영상별정규화를적용하지않음.
+
+### 제거 탐색 결과: S-only도 같은 최종 GT로 학습한 비교
+
+먼저4배치×5camera에서S/SO/SOC를비교했고각20/20성공,평균제거2.35/2.45/2.25회였음. 이빠른비교는전체16종·32배치결과가아니며SO의전체32배치제거비교는여전히없음. 이후원래32배치에서특징S/SOC와지도S/SOC를모두같은실행으로다시비교함.
+
+| 입력 | 성공/전체 | 성공조건 평균 방해물 제거 | 중앙값 | 처음부터 target 선택 |
+|---|---:|---:|---:|---:|
+| S 특징 | 155/160 | 2.129032회 | 2 | 37/160 |
+| SOC 특징 | 155/160 | 2.096774회 | 2 | 36/160 |
+| S 점수 지도 | 155/160 | 2.516129회 | 3 | 37/160 |
+| SOC 점수 지도 | 155/160 | 2.232258회 | 2 | 37/160 |
+
+네모델의성공조건155개가같고성공률은각96.875%임. 실패5조건은원본부터바닥아래에매몰된 `book_3_scene00005_env0031`의5뷰로동일함. 원본mesh최고높이6.271mm<floor10mm·원본5뷰가시0px라는기존근거를유지하고장면교체/제외없음. 실패를모델오류로만귀속하지않으며평균은성공조건부임. Target회수1행동은평균에서제외하고초기회수는0제거임.
+
+- SOC 특징 대 S 특징: 적게20/같게114/많게21조건, 평균0.032258회 감소함. 같은 제거 횟수가 같은 선택 경로를 뜻하지 않음.
+- SOC 지도 대 S 지도: 적게43/같게95/많게17조건, 평균0.283871회 감소함.
+- SOC 지도 대 SOC 특징: 적게17/같게112/많게26조건, 평균0.135484회 증가함.
+
+이번 특징 S는 최종 amodal GT로 학습한 head임. 과거10-27의standalone Similarity 평균3.9355회와이번 S2.129032회는같은모델이아님. 과거F/S/O/C의45.90%차이를추가O/C만의이득으로설명하면안됨. 이번특징SOC2.096774회와과거SOC2.129032회도서로다른실행이며과거수치를덮어쓰지않음.
+
+한episode는단일camera RGB-D만사용하며5뷰는독립시험임. 같은초기pose·0velocity에서시작하고첫RGB는사전지정환경의동일관측을공유하며depth/ID일치를확인함. 이후에는각정책의독립물리상태임. 보이는물체별최대예측점수로순위를매기고현재visible/단독투영면적≥50%인첫후보를선택함. 배경·제거불가능후보는건너뛰며예측threshold는없음. 방해물제거후고정600실제physicssteps(5초)를진행함. ID/가시율은환경측행동연결·조건용이며모델입력이나실제robot grasp추정이아님.
+
+실행17.14분,2,327관측·3,187가시율검사·1,687제거임. 기존68source·새탐색5source와checkpoint/frozen상태보존,행동·물리step·초기입력검산,독립CPU집계PASS임. 640회는32개의물리배치에대한정책/뷰반복이지640독립물리장면이아님.
+
+### 위치 예측의 차이가 실제 선택으로 이어졌는지 확인한 결과
+
+위탐색의같은초기160조건에서특징S와특징SOC를추가학습없이CPU로분석함. 최고점픽셀이같은것은50/160,최고점이놓인물체가같은것은121/160,50%가시율검사후실제선택물체가같은것은128/160=80%였음. 다른최고점110조건중71조건은같은물체안에서위치만바뀌었음. 배경최고점은양쪽모두0임.
+
+가시율조건은다른1순위가같은선택으로합쳐진12조건과같은1순위를건너뛴뒤다른선택으로갈라진5조건을만듦. 따라서80%일치를전부가시율조건때문이라고설명하지않음. 처음선택이다른32조건에서는SOC제거가적음11/같음12/많음9,평균S2.75/SOC2.5625회임. 처음선택이같은128조건중공통성공123조건은적음9/같음102/많음12,평균S1.967480/SOC1.975610회임.
+
+가시율≥50%인target이확인된37조건에서는S37회/SOC36회즉시회수함. Target가시율은기존후보로그에남은76조건에서만확인했고84조건은미확인이므로회수가능target전체가37개라고쓰지않음. 실제 `fruit_1_scene00047_env0027/center`에서는target가시율73.73198%일때S는즉시target을선택했고SOC는다른포장식품을먼저제거하여최종0/1제거였음. 이는사후설명사례임.
+
+**확인한 것은 지도 차이가 실제 물체 선택 차이로 이어지지 않는 경우가 많다는 점임.** 첫선택후장면이달라지므로최종제거차이를첫선택만의인과효과로해석하지않음. Test24,000장위치적중과이160초기조건도다른표본임. O/C무시·CNN무효·새head효과를증명한것은아님.
+
+### 다음 설계 후보: 위치 지도와 제거 우선순위를 분리함 — 미실행
+
+현재amodal GT는가려진부분을포함한target위치를가르침. 어떤방해물을먼저치우면더적게제거하고회수하는지는직접가르치지않음. 이목표차이를다룰후보로기존위치fusion을유지하면서별도행동head를추가하는안을설명함. **GT와구조를이미변경했다는뜻이아니며attention/gating채택도아님.**
+
+제안입력은고정S/O/C각64채널을합친192×30×40임. `1×1 Conv32 → 3×3 Conv32 두 층 → 1×1 Conv1 → sigmoid`의약2.5만parameterhead가30×40제거우선순위지도를한번에출력하는후보임. 중간GN/GELU를둘수있음. 출력은target존재확률이아니라행동점수임. 현재관측·reference만사용하며추가SAM·반복crop·미래관측·GT ID/pose를neural입력에넣지않음. 최종1채널지도3장을받았던이전비교와입력이다름.
+
+행동GT 후보는train split에서소수상태를고르고각각현재제거가능한첫후보를바꾸어시험하는것임. 동일pose/속도로복원→후보선택/제거→현재특징SOC정책을고정해회수또는제한까지계속→처음후보를포함한총방해물제거N을기록함. 성공후보점수 `1/(1+N)`을현재그물체가보이는영역에부여할수있음. Target을바로회수하면N=0·점수1임. 실패/제한초과는별도terminal상태를남기고점수0으로처리하는규약을사전에정해야함. 원본물리부적격과정책실패를구분해야함.
+
+이는**고정된후속정책아래의행동점수**이며최적경로의정답이아님. 한번제거해도target이보이지않는다층가림을즉시가시율증가0만으로동률처리하는문제를줄이는후보임. 모든대안후보의미래결과는기존선택로그에없으므로추가시뮬레이션이필요함. 반복은학습GT생성때의비용이고추론은한번의forward임. 물체별영역오차를각각평균한뒤물체사이에서평균하는loss로큰물체의픽셀독점을줄이는안이며배경·제거불가영역은행동비교loss에서제외함. 확대/경계/실제물체최대점수집계와loss의관계는사전규약으로확정해야함.
+
+다음실행후보는train10–20배치에서GT생성시간·후보별점수차이·회수가능target우선점수를먼저확인하는것임. **이번문서게시요청으로이pilot·새GT·학습을실행하지않음.** 학습한다면같은행동GT의S-only/SOC대조와별도validation으로O/C의추가이득을확인해야함. 기존test32배치를train으로전용하지않으며새방법의최종확인장면은아직보지않은자료에서사전고정해야함. 각stream의균등영향을강제하거나세의미를모두활용한다고미리주장하지않음.
+
+### 남은 한계와 다음 agent의 작업 지침
+
+현재기준모델은특징SOC이며지도SOC로교체할근거가없음. 이번known16 test와제거성능을zero-shot성능으로표현하지않음. 기존외부 `packaged_food_5/World1` 80장의S exact-target visible최고점2/80,기존SOC visible최고점0/80이라는약점과외부amodal미평가를유지함. 새S-only·지도head의외부평가는하지않았음. 다양한외부물체·새category·실센서·실제파지·일반화된다중장면탐색성능은미검증임.
+
+후속agent는먼저완료결과와새행동목표를사용자에게요약한뒤실행범위를확인함. 기존GT·split·checkpoint·source·이전탐색수치를덮어쓰지않음. 모델실패와원본물리문제를구분함. 논문그림에서완료된위치fusion은실선,미실행행동head는별도제안블록으로표시하고행동GT/환경ID를neural입력에연결하지않음. 현재요청은게시뿐이며새학습진행중으로기록하지않음.
+
+### 공개 근거와 LOCAL 실행 근거
+
+| 내용 | GitHub에서 읽을 수 있는 근거 | LOCAL 원본·재개 위치 (`<DEV_ROOT>` 기준) |
+|---|---|---|
+| S 특징 최종 GT 대조 | [본문](fusion_similarity_control_20261106.md) · [JSON](docs/fusion_similarity_control_20261106.json) · [그림](img/fusion_feature_control_20261106.png) | `docs/fusion_similarity_control_20261106.md`, `experiments/fusion_similarity_control_20261106/README.md`, `outputs/fusion_similarity_control_20261106/{completion,comparison,audit}.json` |
+| 4배치 S/SO/SOC 탐색 | [본문](fusion_search_control_20261106.md) · [JSON](docs/fusion_search_control_20261106.json) | `docs/fusion_search_control_20261106.md`, `experiments/fusion_search_control_20261106/README.md`, `outputs/fusion_search_control_20261106/full/{completion,audit}.json`, `full/report/summary.json` |
+| 실제 점수 지도 학습·test | [본문](fusion_map_control_20261106.md) · [JSON](docs/fusion_map_control_20261106.json) · [그림](img/fusion_map_control_20261106.png) | `docs/fusion_map_control_20261106.md`, `experiments/fusion_map_control_20261106/README.md`, `outputs/fusion_map_control_20261106/{completion,comparison,audit}.json` |
+| 32배치 네 head 탐색 | [같은 본문](fusion_map_control_20261106.md) · [JSON](docs/fusion_map_search_20261106.json) | `experiments/fusion_map_search_20261106/README.md`, `outputs/fusion_map_search_20261106/full/{completion,audit,independent_audit}.json`, `full/report/summary.json`, `full/episodes/` |
+| 초기160조건 선택 분석·후속안 | [본문](fusion_action_analysis_20261106.md) · [JSON](docs/fusion_action_analysis_20261106.json) · [160조건 CSV](docs/fusion_action_analysis_20261106_per_condition.csv) | `docs/fusion_action_analysis_20261106.md`, `experiments/fusion_action_analysis_20261106/analyze.py`, `outputs/fusion_action_analysis_20261106/{summary.json,per_condition.csv}` |
+
+공개JSON/CSV는완료결과·분모·조건·출처를전달하는자료이며전체학습source·checkpoint·240,000장데이터·모든raw예측/2,327관측을공개했다는뜻이아님. 비공개파일은웹에서직접확인했다고답하지않음. 초기실패/사전검사이력은원본output history에보존하며최종성능에합치지않음. 아래날짜별인계와Phase본문은당시snapshot이며현재미실행/완료상태는이절을우선함.
+
+<a id="fusion-review-snapshot-20261106"></a>
+## 2026-11-06 이전 인계 — 대조 실험 전 Fusion 활용 검토
+
+**대조 실험 전 게시 시점의 기록임. 아래 미실행 문구는 당시 상태이며 이후 완료 결과와 현재 실행 범위는 [최신 인계](#current-handoff-20261106)를 우선함.**
+
+당시 작업은 사용자와 논의한 fusion 해석·후속 검증 제안을 문서화한 것임. **새 모델·GT·추론·학습·물리 실험은 없음.** 현 모델은 그대로 head 이전 64채널 특징 concat+CNN이며 attention/gating·예측 지도 기반 fusion은 미실행 후보임. 아래 10-27 완료 실험과 당시 snapshot은 연구 이력으로 보존함.
 
 1. [이번 검토 전체](fusion_review_20261106.md): 문제 제기, 실제 입력, GT 혼합을 권하지 않는 이유, CNN/attention의 한계, 다음 Step을 읽음.
 2. [현 Fusion](fusion_stream.md#fusion-review-20261106)과 [비교 JSON](docs/fusion_comparison_20261106.json): 기존 16종 동일 test 24,000장의 SO/SOC 결과와 분모를 확인함. SO→SOC 최고점 amodal 적중 82.76→85.06%, mIoU 52.10→50.92%, visible 적중 39.79→41.45%(15,235장)임.
@@ -28,7 +159,7 @@ GT만으로 추론한다고 단정하지 않으며, 세 stream의 의미를 모�
 **로컬 근거:** `<DEV_ROOT>/docs/fusion_review_20261106.md`, `experiments/fusion_training_20261026/{runtime,model,train}.py`, `outputs/fusion_training_20261026/runs/{so,soc}/evaluation/{evaluation.json,per_image.csv}`. 개발 폴더와 GitHub clone을 구분하고 완료된 실행 원본을 수정하지 않음.
 
 <a id="current-handoff-20261027"></a>
-## 2026-10-27 현재 인계 — 반복 제거 탐색·SOC test·외부 물체 평가
+## 2026-10-27 이전 인계 — 반복 제거 탐색·SOC test·외부 물체 평가
 
 **최신 완료:** 고정S20/O12/C19·SOC best10의동일32scene×5독립camera반복제거640회와독립감사,전체단계비교그림3개·수치/CSV공개임. 원래SOC test24,000장·외부80장진단은보존함. SO도이후20epoch·best20으로종료되고SOC/SO공동test각24,000장완료marker를확인함. 이번네정책탐색에는SO가포함되지않아C의증분기여와구분함. 17:56:50의SO epoch18은과거snapshot이며외부amodal/실센서/실제robot검증은미완료임.
 
@@ -398,7 +529,7 @@ GT 관계 회귀의 공개 철회와 Phase 38 모델 미채택은 유지함. 문
 
 ## A. 현재 프로젝트 문맥 전체
 
-> 이 합본은 10-15까지의 역사적 snapshot임. 최신 학습·데이터·그림·다음 단계는 문서 앞 2026-10-26 인계를 우선함.
+> 이 합본은 10-15까지의 역사적 snapshot임. 최신 학습·데이터·그림·다음 단계는 문서 앞 [2026-11-06 현재 인계](#current-handoff-20261106)를 우선함.
 
 > 원본: `<DEV_ROOT>/PROJECT_CONTEXT.md`
 > 원본의 설명·수치·경로 색인을 포함하며, 공개 환경에 맞게 제목·경로·연결만 조정했다.

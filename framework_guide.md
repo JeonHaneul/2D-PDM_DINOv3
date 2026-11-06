@@ -1,12 +1,32 @@
-# 전체 Framework 작성 지침 — 2026-10-27
+# 전체 Framework 작성 지침 — 2026-11-06
 
 > [README](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [다른 agent를 위한 문맥·상세 보고서](agent.md)
 
-> **2026-11-06 검토 반영:** [최신 인계](agent.md#current-handoff-20261106)와 [Fusion 활용 검토](fusion_review_20261106.md)를 먼저 읽음. 현재 구조도는 64채널 특징 concat+CNN을 유지함. 세 1채널 예측 지도 결합·위치별 gating·attention은 미실행 후보이며 구현된 경로로 그리지 않음. GT 화살표는 loss에 연결하고 추론 입력으로 연결하지 않음. SO/SOC 비교는 [공개 JSON](docs/fusion_comparison_20261106.json)을 따르며 세 stream의 의미 활용을 입증한 결과로 표시하지 않음.
+> **2026-11-06 최신 기준:** [agent 인계](agent.md#current-handoff-20261106) → [지도 학습·제거 비교](fusion_map_control_20261106.md) → [초기 행동 분석·제안](fusion_action_analysis_20261106.md)을 읽음. 기준 구조는 기존 특징 SOC concat+CNN임. 점수 지도 fusion은 완료된 비교·미채택 모델이고 제거 우선순위 head·attention/gating은 미실행임. 실선 기준 구조와 비교 실험, 점선 제안을 구분함.
 
 **목적:** 웹 GPT와 외부 독자가 이 저장소만 읽고 현재 세 stream의 구조, 실제 출력, 학습 과정과 실제 구현·학습된 fusion을 정확한 논문 그림으로 표현할 수 있도록 정리함. 아래 설명·좌표·공개 이미지를 함께 사용함. 그림을 새로 그리는 작업이며 추가 학습을 의미하지 않음.
 
-## 0. 최신 제거 탐색 그림과 연결 위치
+<a id="fusion-followup-20261106"></a>
+## 최신 결과와 그림에서 구분할 경로
+
+**실선 기준 모델:** 현재 `img/overall_architecture.*`의 S20/O12/C19 → 각64채널 특징 → concat192 → CNN → amodal 위치 지도 경로를 유지함. 세 stream 내부·GT·backbone은 변경하지 않았음. 입력 RGB-D는 단일camera 관측이며5camera는 평가할 때 각각 독립 사용함. GT 화살표는 loss에만 연결하고 추론 입력으로 그리지 않음.
+
+**완료된 비교 실험:** S 특징만64채널, S 점수 지도1채널, SOC 점수 지도3채널 head를 별도 ablation 표/패널에 표시할 수 있음. 점수 지도 입력은 실제 S/O sigmoid와 C softplus이며 C의1보다 큰 값도 유지함. 지도 fusion을 미실행 계획으로 표시하거나 기준 모델로 교체하지 않음.
+
+| 공개 그림 | 열 순서 | 권장 위치 |
+|---|---|---|
+| [특징 S/SO/SOC 실제 예측](img/fusion_feature_control_20261106.png) | RGB / amodal GT / 특징 S / 특징 SO / 특징 SOC | 모델 구조 아래의 동일GT 대조 결과 패널 |
+| [특징 SOC와 지도 S/SOC 실제 예측](img/fusion_map_control_20261106.png) | RGB / amodal GT / 특징 SOC / 지도 S / 지도 SOC | 별도 입력 방식 비교 패널 |
+
+이 그림들은 같은 사전 고정 test5장면의 실제 저장 예측이며 신경망 구조의 입력 노드나 새 제거 head의 예측으로 붙이지 않음. 모든 최종 target 예측은0–1 grayscale이고 입력 C의 값 범위와 다름. [전체 정적 비교](docs/fusion_map_control_20261106.json)와 [640회 제거 비교](docs/fusion_map_search_20261106.json)는 분모·지표가 다름. 최고점 적중을 일반 accuracy로 쓰지 않음.
+
+**새 제거 비교:** 특징 S/SOC·지도 S/SOC 평균 제거는2.1290/2.0968/2.5161/2.2323회이며 각155/160성공임. 동일32배치×5뷰에서 네 모델을 모두 다시 실행한 결과임. 아래10-27 F/S/O/C 그림은 과거 standalone stream 비교이므로 표의 모델명과 수치를 바꾸어 재활용하지 않음. [현재 제거 결과](closed_loop_search.md#fusion-followup-20261106)
+
+**점선 미실행 제안:** 제거 우선순위 head를 함께 설명한다면 현재 위치 head 아래의 **별도 제안 inset**으로 그려 기존 특징 concat192에서 점선 분기함. 후보 구조는 `Conv1×1 32 → Conv3×3 32 두 층 → Conv1×1 1 → sigmoid`, 출력 `removal-priority score30×40`임. Target 확률이나 학습 완료 예측처럼 표시하지 않음. `Proposed / not implemented or trained`를 명시하고 값·이미지를 실제 예측처럼 만들어 넣지 않음. 현재 위치 지도와 병렬이며 그것을 대체하는 연결을 그리지 않음.
+
+제안 GT 노드는 neural input과 분리된 offline 상자로 두고 `same train state → candidate first action → frozen SOC continuation → total blocker removals N → 1/(1+N)`을 점선으로 표시함. 후보별 rollout은 GT 생성 단계이며 실제 head 추론 내부 반복이 아님. GT 물체 ID·pose는 학습자료 생성/행동 연결 쪽에만 둠. 새GT·후속 시뮬레이션·학습은 미실행이며 지금까지의 실제 결과로 장식하지 않음. 자세한 실패 처리·held-out 평가 범위는 [제안 문서](fusion_action_analysis_20261106.md)를 따름.
+
+## 0. 2026-10-27 제거 탐색 그림 이력과 연결 위치
 
 고정32scene·5독립camera·4정책640회를완료했음. Fusion/S/O/C는각155/160성공이고성공한동일155조건평균방해물제거2.1290/3.9355/7.7226/6.0516회임. 실패는원본부터target책전체가서랍바닥아래인같은scene의5뷰임. 전체분모32장면을유지함.
 
@@ -23,8 +43,8 @@
 1. [README](README.md): 연구 목표, 전체 구조, feature와 map의 차이.
 2. 이 문서: 그림의 노드·연결·배치·이미지 사용법.
 3. [Similarity](similarity_stream.md), [Occlusion](occlusion_stream.md), [Complexity](complexity_stream.md): 현재 모델의 세부 구조, GT와 loss, 평가.
-4. [agent.md의 최신 인계](agent.md#current-handoff-20261027): 전체 진행 맥락, 완료/미실행 구분, 로컬 근거 경로와 작업 규칙. 긴 과거 보고서는 최신 절을 읽은 뒤 필요한 부분만 확인함.
-5. [SOC 전체 test JSON](docs/fusion_test_evaluation_20261027.json), [Fusion 외부 진단 JSON](docs/fusion_external_diagnostic_20261027.json), [Stream 전체 유효영역 오차 JSON](docs/stream_full_map_error_20261027.json): 최신 결과의 정의·분모·평가 범위를 확인함.
+4. [agent.md의 최신 인계](agent.md#current-handoff-20261106): 전체 진행 맥락, 완료/미실행 구분, 로컬 근거 경로와 작업 규칙. 긴 과거 보고서는 최신 절을 읽은 뒤 필요한 부분만 확인함.
+5. [최신 지도·특징 비교](fusion_map_control_20261106.md), [초기 행동 분석·미실행 제거 head](fusion_action_analysis_20261106.md), [SOC 전체 test JSON](docs/fusion_test_evaluation_20261027.json), [Fusion 외부 진단 JSON](docs/fusion_external_diagnostic_20261027.json), [Stream 전체 유효영역 오차 JSON](docs/stream_full_map_error_20261027.json): 최신 결과의 정의·분모·평가 범위를 확인함.
 6. [개별 학습 요약 JSON](docs/stream_training_20261022_summary.json), [Fusion 학습 요약](docs/fusion_training_20261027_summary.json), [이미지 manifest](img/framework_assets_20261027.json), [그림 배치 JSON](framework_layout.json): 날짜별 상태·숫자·파일·좌표를 기계적으로 확인함.
 
 | 구분 | 2026-10-27 공개 snapshot 기준 |
@@ -54,8 +74,9 @@ flowchart LR
     V --> F["승인·실행: 세 stream 고정<br/>feature concat + CNN 학습"]
     G -.->|"amodal GT로 감독"| F
     F --> Q["SOC best10 고정 test24,000장 평가<br/>amodal mIoU50.92% · peak85.06%"]
-    Q --> R["동일32scene·5camera·4정책<br/>고정제거탐색640회완료"]
-    R -.-> Z["남은범위: SOC-SO추가효과해석<br/>외부amodal·외부탐색·실제robot"]
+    Q --> SEARCH["동일32scene·5camera·4정책<br/>고정제거탐색640회완료"]
+    SEARCH --> C["완료 비교: S-only 최종GT · 점수지도 S/SOC<br/>동일32장면 재평가 · 초기행동 분석"]
+    C -.-> Z["미실행: 별도 제거우선순위 head<br/>외부amodal·외부탐색·실제robot"]
 ```
 
 원본 `261013_data`의 각 scene에는 RGB/depth/seg 및 물체 pose·camera 정보가 있음. 색상만으로 모든 scene의 물체를 통합 식별하지 않으며 원본 instance ID와 해당 scene의 metadata로 GT를 생성함. Target reference는 더미 속 target 위치를 알려 주는 정답이 아니라, 찾을 물체를 별도로 촬영한 자료임. 현재 stream 추론에는 scene segmentation·pose·mesh·amodal GT를 넣지 않음.
@@ -147,7 +168,7 @@ F_C:64×30×40 ─┘                → (3×3 Conv64→64 / GroupNorm8 / GELU) 
                   native binary amodal GT640×480 → avg16 occupancy30×40
 ```
 
-Fusion으로 들어가는 실제 화살표는 **각 map head 이전의64채널 feature에서 분기**함. `P_S/P_O/P_C`는 개별 감독·평가 출력이며 세 지도3채널 concat이 아님. SOC와 C를 제외한 SO(128채널) 두 head만 seed0 새 초기화하여 비교함. 모든 pretrained encoder와 학습된 S20/O12/C19의 전체 파라미터·buffer는 frozen/eval이며 fusion CNN만 AdamW로 학습함. Attention/Transformer는 사용하지 않음. Native 출력30×40을 bilinear640×480로 확대해 표시하며 그 과정에 GT mask를 적용하지 않음.
+Fusion으로 들어가는 실제 화살표는 **각 map head 이전의64채널 feature에서 분기**함. `P_S/P_O/P_C`는 개별 감독·평가 출력이며 세 지도3채널 concat이 아님. 최초 기준 실험은 SOC와 C를 제외한 SO(128채널) 두 head를 seed0 새 초기화하여 비교했음. 이후 특징 S-only와 점수지도 S/SOC 비교는 최상단 최신 절의 별도 완료 결과임. 모든 pretrained encoder와 학습된 S20/O12/C19의 전체 파라미터·buffer는 frozen/eval이며 fusion CNN만 AdamW로 학습함. Attention/Transformer는 사용하지 않음. Native 출력30×40을 bilinear640×480로 확대해 표시하며 그 과정에 GT mask를 적용하지 않음.
 
 현재 SOC는13epoch에서 조기 종료했고 선택된epoch10의 validation BCE는 **0.012314409569526712**임. BCE를 정확도%로 변환하지 않음. 고정 SOC best10의 원래16종 test24,000장 평가는 완료했고 아래6절에 결과·정의를 명시함. SO는 이후 20epoch·best20으로 종료됐고 공동 test 완료 기록을 확인함. 17:56:50 KST의 epoch18은 이전 snapshot임. C 추가 효과 해석은 이번 SOC·단독 S/O/C 제거 비교와 별도로 구분함. 원래 공동 runner의 전체test 완료와 별도 SOC 단독평가 완료를 구분하며 [학습 요약](docs/fusion_training_20261027_summary.json)을 따름.
 
@@ -293,6 +314,7 @@ Amodal mIoU는 원시30×40 sigmoid를 bilinear640×480로 확대한 뒤 확률�
 
 ```text
 이 저장소의 README, framework_guide.md, 각 stream 문서의 최신 절,
+11-06 fusion_map_control 및 fusion_action_analysis의 완료/미실행 구분,
 agent.md의 2026-10-27 인계, framework_layout.json 및 이미지 manifest를 읽고
 논문용 전체 프레임워크를 그려줘. 과거 Phase 기록보다 최신 절을 우선해.
 

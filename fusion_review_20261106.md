@@ -1,10 +1,30 @@
-# Fusion의 stream 활용 검토와 다음 검증 계획
+# Fusion의 stream 활용 검토와 후속 비교
 
-> 2026-11-06 (Asia/Seoul). 기존 구현과 완료된 평가의 재해석임. 이번 문서 갱신에서 새 학습·추론·물리 실행은 수행하지 않음. 아래 지도 기반 fusion과 gating은 미실행 제안이며 채택된 모델이 아님.
+> 2026-11-06 후속 완료 기준. S-only 최종GT 대조·점수 지도 fusion·32장면 제거 비교·초기 행동 분석을 완료함. 현재 기준 모델은 특징 SOC이며 제거 우선순위 head는 미실행 제안임. 아래 초기 검토는 후속 실험 전 기록으로 보존함.
 
 [전체 개요](README.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md#fusion-review-20261106) · [최신 인계](agent.md#current-handoff-20261106) · [비교 수치 JSON](docs/fusion_comparison_20261106.json)
 
-## 검토 배경과 현재 판단
+<a id="fusion-followup-20261106"></a>
+## 후속 결과가 초기 의문에 답하는 범위
+
+1. **최종 GT만 학습해서 성능이 좋아진 것인지:** 같은 amodal GT를 학습한 특징 S-only head의 전체 최고점70.88%는 특징 SOC85.06%보다 낮았음. 추가 특징의 정적 위치 예측 이득은 있지만 세 stream의 의미를 각각 올바르게 활용한다는 증명은 아님. [S 대조](fusion_similarity_control_20261106.md)
+2. **최종 점수 지도만 결합하면 더 나아지는지:** S 지도57.53%, SOC 지도73.63%로 기존 특징 SOC85.06%보다 전체 최고점이 낮았음. 실제 구현에서는 S/O sigmoid와 C softplus를 범위 보정·클리핑 없이 사용했고 중간 특징 우회도 없음. 초기 제안의 값 범위 보정은 채택하지 않았음. [지도 입력 비교](fusion_map_control_20261106.md)
+3. **제거 횟수도 개선되는지:** 동일32배치·5camera에서 특징 S/SOC·지도 S/SOC 모두155/160성공, 성공조건155개가 같았음. 평균 제거는2.129032/2.096774/2.516129/2.232258회임. 지도 SOC가 지도 S보다 낫지만 기존 특징 SOC보다 적지 않으며, 특징 SOC의 특징 S 대비 이득은0.032258회로 작음. [제거 수치](docs/fusion_map_search_20261106.json)
+4. **지도 차이가 실제 다른 물체 선택으로 이어지는지:** 초기160조건의 특징 S/SOC 최고점이 같은 픽셀인 경우50, 같은 물체인 경우121, 가시율50% 검사 후 선택 물체가 같은 경우128임. O/C 무시를 입증한 결과는 아니며 첫 제거 후 서로 다른 상태를 같은 상태 비교로 취급하지 않음. [행동 분석](fusion_action_analysis_20261106.md)
+
+과거 standalone Similarity의 평균3.9355회와 새 특징 S-only head의2.129032회를 같은 모델로 취급하지 않음. 이전4장면 S/SO/SOC 확인은 [소규모 비교](fusion_search_control_20261106.md)에 보존하고,32장면 결과와 분모를 구분함. 원본 매몰1장면의5뷰 실패는 최신640회에도 그대로 포함함.
+
+### 현재 판단과 미실행 후보
+
+기존 특징 SOC·세 stream·amodal GT를 유지함. GT 균등 혼합과 attention/gating은 채택하지 않았고, 특징 교란·reference 변경 진단도 미실행임. 실제 지도 fusion은 **완료된 비교이지만 기준 모델로 미채택**임.
+
+후속 제안은 기존 위치 head 옆에 별도의 작은 제거 우선순위 head를 두는 것임. S/O/C 특징192채널을 받아30×40 행동 점수를 한 번에 출력하고, train 상태에서 후보별 첫 행동과 고정 후속 정책의 총 방해물 제거 N을 기록해 `1/(1+N)` 감독값을 만드는 방안을 논의함. 현재 target을 바로 선택하면 N=0이지만 실패·제한 초과·원본 물리 문제의 처리 규약은 따로 정해야 함. 기존 로그에는 선택하지 않은 후보의 미래 결과가 없으므로 이 GT는 새 시뮬레이션이 필요함. **구현·GT 생성·학습은 미실행**이며 우선 train10~20배치에서 생성 가능성과 비용을 확인하는 제안임. [구조·GT·학습/평가 범위](fusion_action_analysis_20261106.md)
+
+## 초기 검토 이력 — 후속 실험 실행 전
+
+아래는 후속 실험 이전의 문제 제기와 후보를 보존한 기록임. 아래의 ‘미실행 지도 fusion’은 당시 상태이며, 현재 완료·채택 여부는 위 절을 우선함. 당시 문서 갱신 자체에 새 실행이 없었다는 뜻과 이후 승인된 실험의 완료를 구분함.
+
+### 당시 검토 배경과 판단
 
 사용자는 결과 그림을 보고, 마지막 CNN이 유사도·가림·복잡도 판단을 활용하기보다 최종 target label만 맞히도록 학습한 것인지 질문함. 세 stream GT를 같은 투명도로 섞고 현재 fusion GT를 더하는 방법, 또는 세 stream의 활용 정도를 학습하는 다른 fusion 구조를 제안함.
 
@@ -45,7 +65,7 @@ Similarity는 target과의 유사성, Occlusion은 target이 가려질 가능성
 
 현재 amodal GT를 유지하는 것을 제안함. 사용자가 혼합 GT나 대체 방법을 최종 승인한 상태가 아니며, 기존 GT를 수정하지 않음. 세 stream의 비중을 항상 같게 만드는 것 역시 연구 목표가 아님.
 
-## CNN과 attention, 지도 기반 fusion 후보
+## 초기 CNN·attention·지도 기반 fusion 후보의 이력
 
 Concat은 균등 평균이 아니며 CNN도 관측에 따라 다른 출력을 학습함. Attention으로 교체해도 특정 stream 편중이나 외형 정보 의존이 자동으로 해결되지 않음. Attention/gate의 값 자체를 실제 기여도로 단정하지 않음.
 
@@ -55,7 +75,7 @@ Concat은 균등 평균이 아니며 CNN도 관측에 따라 다른 출력을 �
 
 먼저 작은 CNN으로 지도 조합의 효과를 비교하고 필요하면 위치별 반영 정도를 학습하는 gating을 검토함. 단순 가중평균을 target 확률로 바로 간주하지 않음. 지도 세 장으로 압축하면서 정보가 줄어 성능이 낮아질 수 있으며, 이 경로만으로 세 의미의 올바른 사용이나 세 stream 모두의 필요성이 보장되는 것은 아님. 현재 배포 구조나 기존 framework 그림을 이 후보로 교체하지 않음.
 
-## 다음 Step — 미실행 제안
+## 초기 다음 Step 제안의 이력
 
 1. **현재 모델의 의존성 진단.** 같은 관측에서 S/O/C 특징을 하나씩 교란하여 출력·위치 적중의 변화를 확인함. 0 입력만으로 판정하지 않으며, 다른 sample의 특징 교환도 실제 장면과 불일치하는 입력을 만들므로 성능 하락을 의미 활용의 완전한 증거로 쓰지 않음. 장면을 고정하고 같은 장면의 다른 target으로 reference 조건을 일관되게 바꾸었을 때 해당 target으로 예측이 이동하는지도 확인함. GT는 평가용으로만 사용함.
 2. **지도 기반 fusion 비교.** 진단과 사용자 논의 뒤 필요한 경우, 기존 amodal GT·split·backbone 고정을 유지한 채 특징 기반 CNN과 예측 지도만 받는 fusion을 비교함. 필요하면 위치별 gating을 추가 후보로 삼음. 모델 선택·범위 보정은 train/validation에서 결정하고 이미 확인한 test 결과를 반복 튜닝 기준으로 쓰지 않음. 새로운 최종 검증의 범위는 실험 실행 전에 정함.
@@ -64,7 +84,7 @@ Concat은 균등 평균이 아니며 CNN도 관측에 따라 다른 출력을 �
 
 ## 다른 agent의 읽기 순서와 원본 경로
 
-웹 agent는 [최신 인계](agent.md#current-handoff-20261106) → 이 문서 → [현재 Fusion](fusion_stream.md) → [비교 수치 JSON](docs/fusion_comparison_20261106.json) 순서로 읽음. 과거 그림과 탐색 결과가 필요하면 [제거 탐색](closed_loop_search.md), 그림 작성 시 [Framework Guide](framework_guide.md)를 확인함.
+웹 agent는 [최신 인계](agent.md#current-handoff-20261106) → [최신 Fusion](fusion_stream.md#fusion-followup-20261106) → [지도 비교](fusion_map_control_20261106.md) → [행동 분석·미실행 제안](fusion_action_analysis_20261106.md) 순서로 읽고 초기 검토 배경은 이 문서의 이력을 확인함. 과거 그림과 탐색 결과가 필요하면 [제거 탐색](closed_loop_search.md), 그림 작성 시 [Framework Guide](framework_guide.md)를 확인함.
 
 로컬 agent는 `<DEV_ROOT>/AGENTS.md` → `PROJECT_CONTEXT.md` → `PROJECT_LOG_INDEX.md` → `docs/fusion_review_20261106.md` 순서로 읽음. `<DEV_ROOT>`는 실제 개발 폴더이고 GitHub clone과 다름.
 

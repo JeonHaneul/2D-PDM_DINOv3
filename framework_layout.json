@@ -1,5 +1,5 @@
 {
-  "schema": "framework_layout_20261027_v2",
+  "schema": "framework_layout_20261106_v3",
   "path_base": "repository root",
   "coordinate_system": {
     "canvas_wh": [
@@ -713,7 +713,7 @@
     "Actual fusion prediction and amodal GT are separate assets.",
     "One shared scene DINO forward is implemented; no attention/Transformer fusion.",
     "All encoders and S/O/C weights and buffers are frozen; only fusion CNN is trainable.",
-    "The five fixed examples are qualitative; full-test metrics come from the separate known16 held-out test of 24,000 images, and SO/SOC advantage is not yet established.",
+    "The five fixed examples are qualitative; full-test metrics come from the separate known16 held-out test of 24,000 images, SO/SOC has higher amodal peak but lower mIoU; removal benefit and semantic use are separate questions.",
     "Any 85.06% badge must include SOC best10, known16 held-out test n=24,000, and amodal peak hit; never label it generic accuracy or external success.",
     "External 80-image visible peak 0/80 is a different diagnostic; external amodal IoU and amodal peak remain unevaluated.",
     "Stream full valid-domain error percentages are 100*sum(w*abs(pred-GT))/sum(w*GT), not accuracy; do not report 100-minus-error.",
@@ -838,13 +838,127 @@
     "agent_anchor": "agent.md#current-handoff-20261106",
     "comparison": "docs/fusion_comparison_20261106.json",
     "implemented": "frozen pre-head 64-channel features, concat + CNN",
-    "unexecuted": [
+    "gt_mixing": "not adopted",
+    "semantic_use_of_all_streams": "not established",
+    "figure_instruction": "Preserve implemented architecture; depict proposals only as clearly labeled unexecuted alternatives.",
+    "record_scope": "Initial review before the subsequent completed controls; historical proposals are not current execution status.",
+    "historical_unexecuted_at_review": [
       "predicted scalar map fusion",
       "spatial gating",
       "feature perturbation and reference substitution diagnostics"
+    ]
+  },
+  "fusion_followup_20261106": {
+    "status": "completed_controls_and_initial_action_analysis",
+    "current_baseline": "feature_soc_best10;64-channel per-stream features concat192 plus existing CNN",
+    "agent": "agent.md#current-handoff-20261106",
+    "summary": "fusion_stream.md#fusion-followup-20261106",
+    "completed": {
+      "feature_s_control": "fusion_similarity_control_20261106.md",
+      "small_search": "fusion_search_control_20261106.md",
+      "map_controls_and_full_search": "fusion_map_control_20261106.md",
+      "initial_action_analysis": "fusion_action_analysis_20261106.md"
+    },
+    "reports": {
+      "static": "docs/fusion_map_control_20261106.json",
+      "search": "docs/fusion_map_search_20261106.json",
+      "initial_action": "docs/fusion_action_analysis_20261106.json",
+      "initial_action_rows": "docs/fusion_action_analysis_20261106_per_condition.csv"
+    },
+    "scalar_map_control": {
+      "status": "trained_tested_not_adopted",
+      "inputs": [
+        "S raw sigmoid",
+        "O raw sigmoid",
+        "C raw softplus including values>1"
+      ],
+      "feature_bypass": false,
+      "clipping_or_per_image_normalization": false,
+      "streams_or_gt_changed": false
+    },
+    "comparison_assets": [
+      {
+        "path": "img/fusion_feature_control_20261106.png",
+        "columns": [
+          "RGB",
+          "amodal GT",
+          "feature S",
+          "feature SO",
+          "feature SOC"
+        ],
+        "placement": "Separate supervised-control evidence panel below baseline architecture"
+      },
+      {
+        "path": "img/fusion_map_control_20261106.png",
+        "columns": [
+          "RGB",
+          "amodal GT",
+          "feature SOC",
+          "map S",
+          "map SOC"
+        ],
+        "placement": "Separate feature-versus-map evidence panel; never use as priority-head predictions"
+      }
     ],
-    "gt_mixing": "not adopted",
-    "semantic_use_of_all_streams": "not established",
-    "figure_instruction": "Preserve implemented architecture; depict proposals only as clearly labeled unexecuted alternatives."
+    "search": {
+      "physical_layouts": 32,
+      "camera_conditions": 160,
+      "episodes": 640,
+      "policies": [
+        "feature_s",
+        "feature_soc",
+        "map_s",
+        "map_soc"
+      ],
+      "successes_each": 155,
+      "episodes_each": 160,
+      "mean_removals_success_only": {
+        "feature_s": 2.129032258064516,
+        "feature_soc": 2.096774193548387,
+        "map_s": 2.5161290322580645,
+        "map_soc": 2.232258064516129
+      },
+      "known_buried_scene_retained": true,
+      "old_search_assets_20261027_relabelled": false
+    },
+    "initial_actions": {
+      "conditions": 160,
+      "same_peak_pixel": 50,
+      "same_peak_foreground_object": 121,
+      "same_selected_eligible_object": 128,
+      "same_state_scope": "Initial observation only; later physical states diverge"
+    },
+    "unimplemented": [
+      "removal-priority head and its new GT",
+      "spatial gating or attention fusion",
+      "feature perturbation and target-reference substitution diagnostics"
+    ],
+    "semantic_use_of_all_streams": "not established"
+  },
+  "proposed_priority_head": {
+    "status": "unimplemented_not_trained_no_new_gt",
+    "include_only_when_explaining_proposal": true,
+    "placement": "Separate proposal inset below current location head; optional expanded canvas, existing baseline node coordinates unchanged",
+    "input_connection": "Dashed branch from concatenated F_S/F_O/F_C192x30x40, parallel to existing location head",
+    "layers": [
+      "Conv1x1 192->32",
+      "Conv3x3 32->32",
+      "Conv3x3 32->32",
+      "Conv1x1 32->1",
+      "sigmoid"
+    ],
+    "output": "removal-priority score1x30x40; not target occupancy probability",
+    "edge_style": "dashed",
+    "label": "Proposed / not implemented or trained",
+    "gt_generation": "Proposed offline train-state branching: candidate first action, frozen featureSOC continuation, total blocker removals N, candidate score1/(1+N)",
+    "gt_is_shortest_path_oracle": false,
+    "gt_generation_is_inference_loop": false,
+    "first_proposed_scope": "10-20 train layouts; feasibility/cost and examples only, not yet run",
+    "evidence": "fusion_action_analysis_20261106.md",
+    "never_draw_as_completed": [
+      "new rollout GT",
+      "learned action predictions",
+      "action-head performance"
+    ]
   }
 }

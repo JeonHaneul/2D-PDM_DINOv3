@@ -1,0 +1,67 @@
+{
+  "publication": {
+    "date": "2026-11-06",
+    "scope": "Existing completed results and proposed next design; publication only",
+    "local_paths": "Role symbols indicate LOCAL artifacts, not public downloads",
+    "current_model": "Frozen feature SOC remains baseline; scalar-map CNN not adopted",
+    "action_head": "Proposal only, no new action GT or priority-head training"
+  },
+  "public_files": {
+    "docs/fusion_map_control_20261106.json": "0b312e654852da073a430f6239fd58a37f6a6de3eb7b36b1461019e42fb534bc",
+    "docs/fusion_similarity_control_20261106.json": "1fcf5c28022d5f79bb3312892cfa2b9f293bd9d3c8063d7f787a756c1e7bd992",
+    "docs/fusion_search_control_20261106.json": "6baca9d50e49fca5de471ec2dae0dfab2a7837012bfb55fb0b028891ce0e28c2",
+    "docs/fusion_map_search_20261106.json": "7c0cbcc53385125befe8ea6bf6365f4216eb260806702c4c3019ee76ce118406",
+    "docs/fusion_action_analysis_20261106.json": "5fe902b3e9ec8d0cfff1042a8b3c03f732d851155598354fc067664ef0ceffc8",
+    "docs/fusion_action_analysis_20261106_per_condition.csv": "718c1a46ac63093f3e15b5b07b49ddf5090d7e39295f8b0d9815b3d569803176",
+    "docs/fusion_map_search_20261106_episodes.csv": "0f27c89579db853fb6020d5cefdb4823be0592f87375520d3de77eb78067b988",
+    "docs/fusion_map_search_20261106_paired.csv": "6a6c1845f81b654d6b11fd659f8ece057ccf02778496f4617f4a55fd52cdce26",
+    "img/fusion_feature_control_20261106.png": "92c12ebfbb2628dad542610809652d65df4b5d67ff615e8ca522c84026e7f5b5",
+    "img/fusion_map_control_20261106.png": "e45365b0ffd16a92e1915bfa1699a9c8824559f20936ceafcc869a0a7ad0d8d3",
+    "fusion_similarity_control_20261106.md": "50006b360e19533ce71cd9882eb02e44d693668754e3df91a3ce2e7429464199",
+    "fusion_search_control_20261106.md": "c2643ec4b0fa2d4e3f47ba93d3386e7ab00ded553201daaed2e70d5da6946c02",
+    "fusion_map_control_20261106.md": "8430e0c537a4888318a8445b0a20edba2f79e724d269432b4742ff5a8ead89a9",
+    "fusion_action_analysis_20261106.md": "7cf3984f92f40c4cb36aa6f6c507b561ef6cb851fd0342c80350c30758ace0ea"
+  },
+  "local_source_sha256": {
+    "outputs/fusion_map_control_20261106/comparison.json": "bf5b29df9eb259bb36bba19da965ddbcddb9f0ed377eace77a56b930f2445b8d",
+    "outputs/fusion_map_control_20261106/audit.json": "30ce05f0ab59c9f231579cee024f5db61f778384e928084fad1ee2340e477957",
+    "outputs/fusion_map_control_20261106/protocol.json": "45e38136f13b878c039d33241754fa3b076a018b35523be920efa70479f77ad8",
+    "outputs/fusion_map_control_20261106/preflight/report.json": "c869296742181cd94afd7be36f95029686cad396fa1c58a7e2d59849c6216e24",
+    "outputs/fusion_map_control_20261106/cache_completion.json": "3d35a0bfedcb0215c874004401253dd17a7283486ac7de36f35d8e6ff29587d8",
+    "outputs/fusion_map_control_20261106/completion.json": "b38a0b7868236d82597bbc3514640e0503fa1e9c21bf6c669684b67d3187e1cc",
+    "outputs/fusion_similarity_control_20261106/comparison.json": "73b2c1a3167f26aa5fa77812b19435b0e126d65c9083eb26399c90c153358ec7",
+    "outputs/fusion_similarity_control_20261106/audit.json": "99d78a2ad0dc01fe434311798c2e4f893e8aed4621a208b928e0e0fcd80a28b9",
+    "outputs/fusion_search_control_20261106/full/report/summary.json": "e8841fc37e3b32e0ba23c52e5ee452fd589d1bd3c4e64c27d97e734ac2604ef9",
+    "outputs/fusion_search_control_20261106/full/audit.json": "98c21fe7437f4e59729dd035590cc8267b46a3a2c0c9c16ef4bd4432eeac301d",
+    "outputs/fusion_search_control_20261106/full/completion.json": "948bde65667016b9aabe261c5f0311e1dfee596a525b91c8d79190a0293ef4aa",
+    "outputs/fusion_search_control_20261106/full/physics_log_audit.json": "4a9b4459061463f96fd6ccd1262716c7834cf9d7c42cd583434c8d2205c0180d",
+    "outputs/fusion_map_search_20261106/full/report/summary.json": "8c63b3f3a178a9785f30baef0f852f68bbb279d4c656fcd36f22181342c96dba",
+    "outputs/fusion_map_search_20261106/full/audit.json": "3fa1d3b0090cd7298035932c9075bc20b2e727b47017d403dd910ec1883bd80c",
+    "outputs/fusion_map_search_20261106/full/completion.json": "8973265eb52b7a679a4a3cb4cacc11ad2bb83b2022315169f1a7e93a7b035f5c",
+    "outputs/fusion_map_search_20261106/full/physics_log_audit.json": "c38497af0b62f963fe9b2c91214c291b6bb3aef8f7cbdfec286e994f5db118e5",
+    "outputs/fusion_map_search_20261106/full/independent_audit.json": "3e6f11375ee26df52df730100f0598ad7c93de2c8a5d6d4dd02a6cd5b6190d21",
+    "outputs/fusion_action_analysis_20261106/summary.json": "ce0510e1f550b0f7734a0a514cda9b612668cc8da71632a148fb3432431f5d62",
+    "outputs/fusion_action_analysis_20261106/csv_audit.json": "dfcf11dc09495fc6d4c36621a0d794cb494552726fe294370515b15e51008a8b",
+    "outputs/fusion_action_analysis_20261106/per_condition.csv": "2ab2cece33cc4b82e54d0ea5af3ff79c30dd13b6c97715e8cefd01f8e5422c2b",
+    "outputs/fusion_map_search_20261106/full/report/episodes.csv": "e9a1a8445ffaa58676c77eeab51eb29695dc4ed8792c9cc17e5c101ed05a0ba0",
+    "outputs/fusion_map_search_20261106/full/report/paired_scene_camera.csv": "ffff10113ace8f34bc3b6c4ad3c523d8704e5398fcfdc59c603c989d5a73d2b0",
+    "outputs/fusion_similarity_control_20261106/comparison_examples.png": "92c12ebfbb2628dad542610809652d65df4b5d67ff615e8ca522c84026e7f5b5",
+    "outputs/fusion_map_control_20261106/comparison_examples.png": "e45365b0ffd16a92e1915bfa1699a9c8824559f20936ceafcc869a0a7ad0d8d3",
+    "docs/fusion_similarity_control_20261106.md": "36fa85ec63246d7ea0c334b67d242b735263283d1a67ee0f61f76963f6b3aca3",
+    "docs/fusion_search_control_20261106.md": "ef761ea47522853b9985f00d65d1297228cf2879ea4327d24be206972d3cbc4f",
+    "docs/fusion_map_control_20261106.md": "303bc40ec352d2829b4341c9ca70f1560076ab641536dff5a0307bb6cfd109db",
+    "docs/fusion_action_analysis_20261106.md": "2c025ffdfed93f04ade32d4fe5a0e1f11e8cc5f83d31c6cd30f09b795fba8c01"
+  },
+  "figures": {
+    "img/fusion_feature_control_20261106.png": {
+      "source": "<DEV_ROOT>/outputs/fusion_similarity_control_20261106/comparison_examples.png",
+      "sha256": "92c12ebfbb2628dad542610809652d65df4b5d67ff615e8ca522c84026e7f5b5",
+      "kind": "Saved actual predictions, predetermined five test examples; not synthetic"
+    },
+    "img/fusion_map_control_20261106.png": {
+      "source": "<DEV_ROOT>/outputs/fusion_map_control_20261106/comparison_examples.png",
+      "sha256": "e45365b0ffd16a92e1915bfa1699a9c8824559f20936ceafcc869a0a7ad0d8d3",
+      "kind": "Saved actual predictions, predetermined five test examples; not synthetic"
+    }
+  }
+}

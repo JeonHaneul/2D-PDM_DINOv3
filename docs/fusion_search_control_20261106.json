@@ -1,0 +1,497 @@
+{
+  "status": "complete",
+  "physical_scenes": 4,
+  "camera_conditions": 20,
+  "total_episodes": 60,
+  "cameras": [
+    "center",
+    "left",
+    "right",
+    "top",
+    "bottom"
+  ],
+  "variants": [
+    "s",
+    "so",
+    "soc"
+  ],
+  "definitions": {
+    "success": "Model-selected highest eligible object is target and current visible/alone projected area>=0.5",
+    "removals": "Number of removed non-target objects before target selection; initial selection may be0",
+    "retrieval_actions": "One additional target retrieval action for a successful episode",
+    "mean": "Success-conditioned mean; failure count and success rate must accompany it",
+    "independence": "4 physical layouts x5 correlated camera views x3 policies;20 paired conditions, not60 independent scenes",
+    "limits": "Known4 target instances, one per category; quick pilot. Simulator ID/visibility eligibility; no robot grasp, zero-shot or full16-target claim.",
+    "s": "New S-only final-amodal-GT head best18, not standalone similarity scalar policy"
+  },
+  "overall": {
+    "s": {
+      "episodes": 20,
+      "successes": 20,
+      "failures": 0,
+      "success_percent": 100.0,
+      "mean_removals_success_only": 2.35,
+      "median_removals_success_only": 2.0,
+      "zero_removal_successes": 8,
+      "max_successful_removals": 6
+    },
+    "so": {
+      "episodes": 20,
+      "successes": 20,
+      "failures": 0,
+      "success_percent": 100.0,
+      "mean_removals_success_only": 2.45,
+      "median_removals_success_only": 2.0,
+      "zero_removal_successes": 8,
+      "max_successful_removals": 6
+    },
+    "soc": {
+      "episodes": 20,
+      "successes": 20,
+      "failures": 0,
+      "success_percent": 100.0,
+      "mean_removals_success_only": 2.25,
+      "median_removals_success_only": 2.0,
+      "zero_removal_successes": 8,
+      "max_successful_removals": 6
+    }
+  },
+  "per_camera": {
+    "center": {
+      "s": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 6
+      },
+      "so": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.75,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 6
+      },
+      "soc": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 6
+      }
+    },
+    "left": {
+      "s": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.75,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 6
+      },
+      "so": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 6
+      },
+      "soc": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 6
+      }
+    },
+    "right": {
+      "s": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.75,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 4
+      },
+      "so": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.75,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 4
+      },
+      "soc": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 1.5,
+        "median_removals_success_only": 1.5,
+        "zero_removal_successes": 2,
+        "max_successful_removals": 3
+      }
+    },
+    "top": {
+      "s": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 6
+      },
+      "so": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 6
+      },
+      "soc": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.5,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 6
+      }
+    },
+    "bottom": {
+      "s": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.25,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 5
+      },
+      "so": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.75,
+        "median_removals_success_only": 3.0,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 5
+      },
+      "soc": {
+        "episodes": 4,
+        "successes": 4,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.25,
+        "median_removals_success_only": 2.5,
+        "zero_removal_successes": 1,
+        "max_successful_removals": 4
+      }
+    }
+  },
+  "per_target": {
+    "book_1": {
+      "s": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.8,
+        "median_removals_success_only": 4,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 5
+      },
+      "so": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 4.2,
+        "median_removals_success_only": 4,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 5
+      },
+      "soc": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 3.6,
+        "median_removals_success_only": 4,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 4
+      }
+    },
+    "fruit_1": {
+      "s": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 5.2,
+        "median_removals_success_only": 6,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "so": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 5.2,
+        "median_removals_success_only": 6,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      },
+      "soc": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 5,
+        "median_removals_success_only": 6,
+        "zero_removal_successes": 0,
+        "max_successful_removals": 6
+      }
+    },
+    "packaged_food_1": {
+      "s": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "so": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      },
+      "soc": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 5,
+        "max_successful_removals": 0
+      }
+    },
+    "toy_1": {
+      "s": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0.4,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 1
+      },
+      "so": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0.4,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 1
+      },
+      "soc": {
+        "episodes": 5,
+        "successes": 5,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 0.4,
+        "median_removals_success_only": 0,
+        "zero_removal_successes": 3,
+        "max_successful_removals": 1
+      }
+    }
+  },
+  "paired": {
+    "soc_vs_s": {
+      "common_successes": 20,
+      "fewer": 3,
+      "same": 16,
+      "more": 1,
+      "mean_difference": -0.1
+    },
+    "so_vs_s": {
+      "common_successes": 20,
+      "fewer": 1,
+      "same": 17,
+      "more": 2,
+      "mean_difference": 0.1
+    },
+    "soc_vs_so": {
+      "common_successes": 20,
+      "fewer": 4,
+      "same": 16,
+      "more": 0,
+      "mean_difference": -0.2
+    }
+  },
+  "publication": {
+    "date": "2026-11-06",
+    "scope": "Existing completed results and proposed next design; publication only",
+    "local_paths": "Role symbols indicate LOCAL artifacts, not public downloads",
+    "current_model": "Frozen feature SOC remains baseline; scalar-map CNN not adopted",
+    "action_head": "Proposal only, no new action GT or priority-head training"
+  },
+  "audit": {
+    "status": "passed",
+    "episodes": 60,
+    "steps": 201,
+    "candidate_checks": 340,
+    "removals": 141,
+    "initial_pairs": 20,
+    "checks": "Raw prediction ranking, observed/isolated mask areas,50% rule, first eligible selection, terminal outcomes,600actualsteps, identical initial RGB-D/labels, source/checkpoint preservation"
+  },
+  "completion": {
+    "status": "complete",
+    "phase": "full",
+    "physical_scenes": 4,
+    "episodes": 60,
+    "elapsed_seconds": 129.06858253479004,
+    "source_sha256": {
+      "experiments/fusion_search_control_20261106/summarize.py": "aec5b37fe5d49be7352935be6d4fe0aa654c82c54cc9728824e5f760e168cfc8",
+      "experiments/fusion_search_control_20261106/prepare.py": "aa0e56a025470ccc654db325be4a17854121215b7a9b4f4fc65e5e7da18613c5",
+      "experiments/fusion_search_control_20261106/run.py": "9381a338c737187cc543ff12353f2d2642f96957d4a2417687a88b86d8aa66dd",
+      "experiments/fusion_search_control_20261106/worker.py": "c36347c65cc8e82cd1cfe6c55cc7bbdb61805ee1220a3fc5ea19c1a8645d2a17",
+      "experiments/fusion_search_control_20261106/simulator.py": "fa4abcde79e9512b8cc9b569f760e1b891181f2d315416d69ac939f77db8d7f5"
+    },
+    "selection_sha256": "f07cde119a83df712d867614e1e00aa2102712b8097525be1f96065a5aa30806",
+    "original_sources_unchanged": 55,
+    "model_worker_completion": {
+      "status": "complete",
+      "pid": 183147,
+      "elapsed_seconds": 126.48746061325073,
+      "requests_complete": 16,
+      "requests_failed": 0,
+      "images_complete": 201,
+      "frozen_state_sha256": {
+        "dino": "4ad6f3dd624154e36c72de8933892710b667f77b1e95af904eb7305e6a4184ea",
+        "siglip": "01275a9b3d3804ecd6bd3a988a088f49b00e31c783bac3d5016cfb35e523861a",
+        "multimae": "2fb496601592da4f7020c5d71f37b0b7236145f49a9b58ed5c075acd52072ebd",
+        "similarity": "c88c4950e729a7695479bf87cb831a7a4f8df05dafe5750ce4ce8a097d0e27ae",
+        "occlusion": "1bd82eea3d00823dff9f4ab010d9d44a7d2f233227dc9c1b2623a4d44d548235",
+        "complexity": "cbbda1432e4e550b174501bc5602465d082f26fa0415e2293bd7a6ec71cada50",
+        "head_s": "47c14dbd837dec4c5c43f99e99f786d6359b1612ed253df23a1daeb5e9aba032",
+        "head_so": "76ec5e1b81b330466e1a640082b7b3060d06e7ace858c020d9d1cd30f676a7e8",
+        "head_soc": "567854a9e53c977f727e220884a74751638f015d1a0141a3119551a2855d9155"
+      },
+      "frozen_parameters_buffers_unchanged": true,
+      "original_source_files_unchanged": 55,
+      "checkpoints_unchanged": true,
+      "scene_gt_read": false,
+      "training": false,
+      "request_failures_present": false
+    },
+    "simulator_completion": {
+      "status": "complete",
+      "layouts": 4,
+      "episodes": 60,
+      "elapsed_seconds": 108.71913004608359,
+      "selection_sha256": "f07cde119a83df712d867614e1e00aa2102712b8097525be1f96065a5aa30806",
+      "source_sha256": "fa4abcde79e9512b8cc9b569f760e1b891181f2d315416d69ac939f77db8d7f5",
+      "layout_reports": [
+        "<DEV_ROOT>/outputs/fusion_search_control_20261106/full/episodes/book_1_scene00013_env0051/completion.json",
+        "<DEV_ROOT>/outputs/fusion_search_control_20261106/full/episodes/fruit_1_scene00003_env0046/completion.json",
+        "<DEV_ROOT>/outputs/fusion_search_control_20261106/full/episodes/packaged_food_1_scene00027_env0008/completion.json",
+        "<DEV_ROOT>/outputs/fusion_search_control_20261106/full/episodes/toy_1_scene00019_env0033/completion.json"
+      ]
+    },
+    "aggregation": "Separate CPU audit/summary required; raw simulation and model execution complete",
+    "overall": {
+      "s": {
+        "episodes": 20,
+        "successes": 20,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.35,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "so": {
+        "episodes": 20,
+        "successes": 20,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.45,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      },
+      "soc": {
+        "episodes": 20,
+        "successes": 20,
+        "failures": 0,
+        "success_percent": 100.0,
+        "mean_removals_success_only": 2.25,
+        "median_removals_success_only": 2.0,
+        "zero_removal_successes": 8,
+        "max_successful_removals": 6
+      }
+    },
+    "audit": {
+      "status": "passed",
+      "episodes": 60,
+      "steps": 201,
+      "candidate_checks": 340,
+      "removals": 141,
+      "initial_pairs": 20,
+      "checks": "Raw prediction ranking, observed/isolated mask areas,50% rule, first eligible selection, terminal outcomes,600actualsteps, identical initial RGB-D/labels, source/checkpoint preservation"
+    },
+    "step_panels": 201,
+    "completed_unix": 1793942634.6179028,
+    "summary": "<DEV_ROOT>/outputs/fusion_search_control_20261106/full/report/summary.json"
+  },
+  "physics_log_audit": {
+    "status": "passed",
+    "simulator_log": "<DEV_ROOT>/outputs/fusion_search_control_20261106/full/logs/simulator.log",
+    "bytes_scanned": 431507,
+    "physx_errors": 0,
+    "method": "Read every log byte during execution and again at simulator exit; reject PhysX error lines before metrics"
+  }
+}

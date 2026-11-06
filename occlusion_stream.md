@@ -4,6 +4,14 @@
 [전체 개요](README.md) · [Similarity](similarity_stream.md) · **Occlusion** · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md) · [Framework guide](framework_guide.md)
 <!-- navigation:end -->
 
+## Fusion 후속 비교와 현재 판단 — 2026-11-06
+
+O12의 GT·가중치·개별 평가 결과는 유지함. 기존 특징 Fusion은 `F_O`64채널을, 새 지도 Fusion 비교는 최종 `P_O`1채널의 원래 sigmoid 값을 사용함. 새 지도 입력에는 아래 그림의 workspace 표시 보정·GT coverage·RGB/PNG 변환을 적용하지 않았으며, S/O/C 전체를 고정하고 최종 amodal GT로 별도 head만 학습함.
+
+동일 test24,000장의 amodal 최고점 적중은 기존 특징 SOC85.058333%, 새 지도 SOC73.633333%임. 동일32장면×5camera의 재실행에서는 두 모델 모두155/160성공, 성공155조건의 평균 방해물 제거가 각각2.096774/2.232258회임. 지도 SOC는 지도 S-only의2.516129회보다 개선됐지만 기존 특징 SOC를 대체할 근거는 없었음. 원본 매몰1장면의5뷰 실패와 target 회수 제외를 함께 해석함. [전체 비교](fusion_map_control_20261106.md)를 따르며, S와 SOC의 차이는 O/C를 함께 추가한 효과여서 O만의 기여로 해석하지 않음.
+
+[물체 선택 분석](fusion_action_analysis_20261106.md)에서 특징 S-only와 SOC의 초기 선택이128/160조건에서 같았음. 가림 위치를 예측하는 목표와 다음 제거 물체를 고르는 목표를 구분해, 특징192채널과 후보별 제거 결과 GT를 받는 별도 행동 head를 논의 중임. **아직 구현·GT 생성·학습하지 않았으며** 기존 O stream과 위치 Fusion은 유지함. 최신 상태는 [agent 색인](agent.md#current-handoff-20261106)을 따름.
+
 > **2026-10-27 제거탐색평가추가:** 현재Occlusion단독정책은동일32scene×5camera에서155/160성공, 성공155조건평균방해물제거7.7226회임. 같은조건Fusion은2.1290회임. 실패는원본매몰scene하나의5뷰로동일하며target회수1행동은평균에서제외함. [전체단계비교·평가규칙](closed_loop_search.md)에서원시지도/시뮬레이터가시율조건과현재모델의역할을구분함.
 
 
@@ -50,11 +58,11 @@ SOC는 13 epochs에서 조기종료하고 validation best 10을 선택함. 기�
 
 일부라도 보이는 15,235장에서는 **실제 보이는 부분의 최고점 적중률이 41.450607%**임. 완전 가림 8,755장의 amodal 최고점 적중률은 **70.359794%**임. Amodal 영역이 없는 10장도 전체 분모에 포함하며 두 지표가 0임. 이는 학습 영상의 정확도·실제 탐색/파지 성공률이 아니며, 같은 scene의 5뷰도 독립 시행으로 해석하지 않음. 선택된 모델의 평가이고 test로 checkpoint를 재선택하거나 튜닝하지 않음. 상세 분모·집계는 [SOC test 평가 JSON](docs/fusion_test_evaluation_20261027.json)을 따름.
 
-별도 `packaged_food_5` 외부 80장에서는 SOC 원시 최고점의 **가시 target 적중이 0/80=0%**임. 외부 amodal GT 평가는 수행하지 않았으므로 이 결과를 amodal 위치 실패율 100%나 IoU 0으로 해석하지 않음. 단일 새 물체의 가시 부분을 선택하는 약점이며 원인·해결은 미확정임. [외부 Fusion 진단 JSON](docs/fusion_external_diagnostic_20261027.json)에 근거를 보존함. SO 학습·평가 및 SOC–SO 비교는 아직 미완료이므로 Complexity 추가 효과는 확정하지 않음.
+별도 `packaged_food_5` 외부 80장에서는 SOC 원시 최고점의 **가시 target 적중이 0/80=0%**임. 외부 amodal GT 평가는 수행하지 않았으므로 이 결과를 amodal 위치 실패율 100%나 IoU 0으로 해석하지 않음. 단일 새 물체의 가시 부분을 선택하는 약점이며 원인·해결은 미확정임. [외부 Fusion 진단 JSON](docs/fusion_external_diagnostic_20261027.json)에 근거를 보존함. 당시 진행 중이던 SO 학습·test는 이후 완료했으며 [SO/SOC 정적 비교](docs/fusion_comparison_20261106.json)를 별도로 공개함. 정적 위치 지표의 차이와 C의 추가 제거 효용은 구분함.
 
 ## 최신 전체 학습·평가 — 2026-10-24 완료
 
-2026-10-24 04:18 KST에 세 stream의 개별 학습과 각 test 24,000장 평가가 모두 완료됨. 이 문서의 현재 모델은 `261013_data`에서 새로 학습한 Step 3 모델임. 과거 실험의 checkpoint·외부 물체 결과는 이력으로 구분함. 전체 연결과 그림 작성 규칙은 [Framework guide](framework_guide.md), 재개 상태와 공개 범위는 [연구 문맥](agent.md)을 따름. **개별 stream 및 SOC best 10의 전체 test 평가는 완료됨. SO 비교 학습·평가와 외부 amodal 평가는 위 2026-10-27 상태를 따름.**
+2026-10-24 04:18 KST에 세 stream의 개별 학습과 각 test 24,000장 평가가 모두 완료됨. 이 문서의 현재 모델은 `261013_data`에서 새로 학습한 Step 3 모델임. 과거 실험의 checkpoint·외부 물체 결과는 이력으로 구분함. 전체 연결과 그림 작성 규칙은 [Framework guide](framework_guide.md), 재개 상태와 공개 범위는 [연구 문맥](agent.md)을 따름. **개별 stream 및 SO/SOC의 전체 test 평가는 완료됨. 외부80장의 amodal 평가는 미실행이며, 후속 지도 Fusion 비교는 위 2026-11-06 기록을 따름.**
 
 ### 현재 데이터와 공통 학습 절차
 
@@ -81,7 +89,7 @@ F_O → 1×1 Conv64→1 + sigmoid → P_O: 1×30×40
 
 개별 Occlusion 학습에서는 DINO만 frozen이며 depth ResNet18·geometry FiLM MLP·MatchingBlocks·feature fusion·map head를 새 학습함. ResNet의 세 depth scale을 DINO 네 경로에 `layer2/3/4/4`로 대응함. Target appearance는 **원본 전체 RGB의 일반 평균**으로 만들고, mask는 area/bbox/log-aspect/8×8 silhouette의 68-D geometry에 사용함. 현재 mode는 `raw_broadcast/global_film`이며 과거 local gate·exact-extent ablation을 섞지 않음. Scene GT segmentation·target pose·GT coverage는 forward 입력이 아님.
 
-현재 Fusion은 고정한 S20/O12/C19의 head 이전 `64×30×40` feature를 concat한 `192×30×40`을 별도 CNN에 입력함. **최종 1채널 예측 map의 concat이 아님.** 같은 scene RGB의 DINO layer2/5/8/11을 한 번 계산해 S/O에 공유하고 C에는 layer11을 제공하는 통합 forward를 구현함. 세 stream 전체와 backbone은 `eval/no_grad`로 고정하고 Fusion CNN만 학습함. SOC는 13 epochs 후 종료하여 best 10을 선택했고, 실제 5장 예시와 전체 test 24,000장 평가를 완료함. 이후 SO 공동 학습·test 완료 기록도 확인함. 기존 16종의 네 정책 제거 탐색을 추가 평가했으며 상세는 [Fusion](fusion_stream.md)을 따름.
+현재 비교 기준인 특징 기반 Fusion은 고정한 S20/O12/C19의 head 이전 `64×30×40` feature를 concat한 `192×30×40`을 별도 CNN에 입력함. **최종 1채널 예측 map의 concat이 아님.** 같은 scene RGB의 DINO layer2/5/8/11을 한 번 계산해 S/O에 공유하고 C에는 layer11을 제공하는 통합 forward를 구현함. 세 stream 전체와 backbone은 `eval/no_grad`로 고정하고 Fusion CNN만 학습함. SOC는 13 epochs 후 종료하여 best 10을 선택했고, 실제 5장 예시와 전체 test 24,000장 평가를 완료함. 이후 SO 공동 학습·test 완료 기록도 확인함. 기존 16종의 네 정책 제거 탐색을 추가 평가했으며 상세는 [Fusion](fusion_stream.md)을 따름. 이후 실제1채널 점수 지도들을 입력하는 별도 CNN 비교도 완료했으며, 기존 특징 모델과 [지도 Fusion 비교](fusion_map_control_20261106.md)를 구분함.
 
 ### 전체 test 결과와 해석
 

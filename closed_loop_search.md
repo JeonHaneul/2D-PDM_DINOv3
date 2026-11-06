@@ -1,9 +1,37 @@
-# 동일 장면·5개 camera의 물체 제거 탐색 — 2026-10-27
+# 동일 장면·5개 camera의 물체 제거 탐색
 
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md#current-handoff-20261027)
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md#current-handoff-20261106)
+
+<a id="fusion-followup-20261106"></a>
+## 2026-11-06 — 특징 입력과 점수 지도 입력의 동일32장면 비교
+
+아래10-27 F/S/O/C 실험 이후, **모두 동일한 최종 amodal GT로 학습한 네 head**를 원래32배치·5camera에서 다시 실행함. 특징 S/SOC는64/192채널, 지도 S/SOC는1/3채널을 입력받음. 새 S head들은 과거 standalone Similarity 정책과 다름. 기존 SOC trajectory를 대입하지 않고 네 모델을 같은 초기 상태에서 모두 새로 평가함.
+
+| 모델 | 성공/전체 | 성공한 동일155조건 평균 방해물 제거 | 중앙값 | 초기 성공 |
+|---|---:|---:|---:|---:|
+| 특징 S | 155/160 (96.875%) | 2.129032회 | 2 | 37 |
+| 특징 SOC | 155/160 (96.875%) | 2.096774회 | 2 | 36 |
+| 지도 S | 155/160 (96.875%) | 2.516129회 | 3 | 37 |
+| 지도 SOC | 155/160 (96.875%) | 2.232258회 | 2 | 37 |
+
+| 비교 — 앞 모델의 제거가 | 적음 | 같음 | 많음 | 앞−뒤 평균 차이 |
+|---|---:|---:|---:|---:|
+| 지도 SOC vs 지도 S | 43 | 95 | 17 | −0.283871회 |
+| 지도 SOC vs 특징 SOC | 17 | 112 | 26 | +0.135484회 |
+| 특징 SOC vs 특징 S | 20 | 114 | 21 | −0.032258회 |
+
+매몰 `book_3_scene00005_env0031`의5뷰만 네 모델에서 동일하게 실패함. 원래32장면을 그대로 포함하며 성공률 분모는160, 평균 분모는 공통성공155임. Target 회수는 별도1행동, 초기 선택은0제거임. 배경 제외·가시물체별 최대점수·현재가시율≥50%·제거 후600실제물리step(5초) 규칙과 단일 RGB-D 입력을 유지함. Simulator 물체 ID·가시율을 쓰는 조건이므로 실제 robot grasp 또는 zero-shot 성공률이 아님.
+
+실행17.14분,2327관측·3187가시율검사·1687방해물제거를 검산함. 초기 RGB-D/labels 일치·물리step·원본 선정·모델 보존과 독립640원본 결과 집계 PASS임. 모든 step 기록·그림은 로컬에 보존하며 아래10-27 공개 그림을 이번 실험 그림으로 재사용하지 않음. [학습·제거 상세](fusion_map_control_20261106.md) · [전체 수치 JSON](docs/fusion_map_search_20261106.json)
+
+### 같은 초기 관측에서 왜 행동 차이가 작았는가
+
+특징 S/SOC의 최고점 픽셀은50/160조건만 같았지만 최고점이 같은 물체 위인 조건은121/160임. 가시율 검사 후 실제 선택은128/160(80%)에서 같았음. 다른 첫 후보가 같은 선택으로 바뀐12조건과 그 반대5조건이 있었음. 초기 선택이 다른32조건에서도 SOC의 총 제거는11조건 적음/12동일/9많음으로 일관된 우위는 아니었음. 첫 제거 후에는 관측과 물리가 달라지므로 이 집계를 같은 상태에서의 전체 경로 인과효과로 해석하지 않음. [초기 행동 분석·후속 제안](fusion_action_analysis_20261106.md) · [160조건 CSV](docs/fusion_action_analysis_20261106_per_condition.csv)
+
+별도 제거 우선순위 head는 **미실행 제안**이며 위 네 모델에 포함되지 않음. 아래부터는 기존10-27 실험의 수치·그림·행동 규칙 이력임.
 
 <a id="closed-loop-search-20261027"></a>
-## 결과와 비교 조건
+## 2026-10-27 이력 — Fusion과 standalone S/O/C 비교 조건
 
 기존 16개 물체의 별도 test 32장면을 5개 고정 camera에서 각각 독립적으로 평가하여 정책당 160회·총 640회 제거 탐색을 완료함. 한 episode의 입력은 해당 camera의 단일 RGB-D이며, 5뷰를 합친 입력이 아님. 네 정책 모두 155/160=96.875% 성공했고, 성공한 155조건의 집합도 정확히 동일함.
 
@@ -121,4 +149,4 @@ Target은`book_2`, 원본 scene은`book_2_scene00009_env0026`, camera는`center`
 
 웹GPT는이문서→`agent.md`최신절→`framework_guide.md`와그림manifest순서로읽음. Framework에서학습된amodal출력뒤에**시뮬레이터평가용고정행동규칙**을별도블록으로붙이고, 제거→물리진행→새RGB-D→모델의화살표를표시함. 가시율/ID를neural stream입력으로연결하지않음. 네정책비교그림은네가지독립episode이며네출력지도를추가fusion한구조가아님. 그림좌표는manifest의`rgb_panel_xywh`/`map_panel_xywh`를사용할수있음.
 
-[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md#current-handoff-20261027)
+[전체 개요](README.md) · [Similarity](similarity_stream.md) · [Occlusion](occlusion_stream.md) · [Complexity](complexity_stream.md) · [Fusion](fusion_stream.md) · [Development Log](development_log.md) · [연구 문맥](agent.md#current-handoff-20261106)
